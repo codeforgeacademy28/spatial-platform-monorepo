@@ -2,54 +2,12 @@ import { Canvas } from '@react-three/fiber';
 import { OrbitControls, PointerLockControls } from '@react-three/drei';
 import { useMemo } from 'react';
 import { extrudeWallSegments } from '@spatial/geometry-engine';
-import type { WallSegment } from '@spatial/core';
+import type { Point, WallSegment } from '@spatial/core';
 
-const sampleWalls: WallSegment[] = [
-  {
-    id: 'wall-1',
-    roomId: 'room-1',
-    start: { x: 0, y: 0 },
-    end: { x: 8, y: 0 },
-    thickness: 0.2,
-    height: 3,
-    length: 8,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'wall-2',
-    roomId: 'room-1',
-    start: { x: 8, y: 0 },
-    end: { x: 8, y: 6 },
-    thickness: 0.2,
-    height: 3,
-    length: 6,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'wall-3',
-    roomId: 'room-1',
-    start: { x: 8, y: 6 },
-    end: { x: 0, y: 6 },
-    thickness: 0.2,
-    height: 3,
-    length: 8,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'wall-4',
-    roomId: 'room-1',
-    start: { x: 0, y: 6 },
-    end: { x: 0, y: 0 },
-    thickness: 0.2,
-    height: 3,
-    length: 6,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-];
+interface SpatialCanvasProps {
+  walls: WallSegment[];
+  points: Point[];
+}
 
 function FloorGrid(): JSX.Element {
   return (
@@ -88,7 +46,7 @@ function WallMesh({ wall }: { wall: WallSegment }): JSX.Element {
   );
 }
 
-export function SpatialCanvas(): JSX.Element {
+export function SpatialCanvas({ walls, points }: SpatialCanvasProps): JSX.Element {
   return (
     <div className="h-screen w-screen bg-slate-950">
       <Canvas camera={{ position: [10, 8, 12], fov: 50 }} shadows>
@@ -97,8 +55,15 @@ export function SpatialCanvas(): JSX.Element {
         <directionalLight position={[10, 12, 8]} intensity={1.2} castShadow />
         <FloorGrid />
 
-        {sampleWalls.map((wall) => (
+        {walls.map((wall) => (
           <WallMesh key={wall.id} wall={wall} />
+        ))}
+
+        {points.map((point, index) => (
+          <mesh key={`${point.x}-${point.y}-${index}`} position={[point.x, 0.1, point.y]}>
+            <sphereGeometry args={[0.12, 16, 16]} />
+            <meshStandardMaterial color="#f59e0b" emissive="#f59e0b" emissiveIntensity={0.4} />
+          </mesh>
         ))}
 
         <OrbitControls enablePan enableZoom enableRotate />
