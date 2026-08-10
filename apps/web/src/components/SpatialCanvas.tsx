@@ -1,11 +1,13 @@
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, PointerLockControls } from '@react-three/drei';
 import { useMemo } from 'react';
-import { extrudeWallSegments } from '@spatial/geometry-engine';
-import type { Point, WallSegment } from '@spatial/core';
+import * as THREE from 'three';
+import { extrudeWallSegments, generateRoomFloorMesh } from '@spatial/geometry-engine';
+import type { Point, Room, WallSegment } from '@spatial/core';
 
 interface SpatialCanvasProps {
   walls: WallSegment[];
+  rooms: Room[];
   points: Point[];
 }
 
@@ -46,7 +48,26 @@ function WallMesh({ wall }: { wall: WallSegment }): JSX.Element {
   );
 }
 
-export function SpatialCanvas({ walls, points }: SpatialCanvasProps): JSX.Element {
+function RoomFloor({ room }: { room: Room }): JSX.Element {
+  const geometry = useMemo(() => {
+    const floorMesh = generateRoomFloorMesh(room);
+    const bufferGeometry = new THREE.BufferGeometry();
+    if (floorMesh.vertices.length > 0) {
+      bufferGeometry.setAttribute('position', new THREE.Float32BufferAttribute(floorMesh.vertices, 3));
+      bufferGeometry.setIndex(floorMesh.indices);
+      bufferGeometry.computeVertexNormals();
+    }
+    return bufferGeometry;
+  }, [room]);
+
+  return (
+    <mesh geometry={geometry} position={[0, 0.01, 0]} receiveShadow>
+      <meshStandardMaterial color="#1d4ed8" transparent opacity={0.35} />
+    </mesh>
+  );
+}
+
+export function SpatialCanvas({ walls, rooms, points }: SpatialCanvasProps): JSX.Element {
   return (
     <div className="h-screen w-screen bg-slate-950">
       <Canvas camera={{ position: [10, 8, 12], fov: 50 }} shadows>
@@ -54,6 +75,10 @@ export function SpatialCanvas({ walls, points }: SpatialCanvasProps): JSX.Elemen
         <ambientLight intensity={0.8} />
         <directionalLight position={[10, 12, 8]} intensity={1.2} castShadow />
         <FloorGrid />
+
+        {rooms.map((room) => (
+          <RoomFloor key={room.id} room={room} />
+        ))}
 
         {walls.map((wall) => (
           <WallMesh key={wall.id} wall={wall} />

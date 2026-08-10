@@ -8,7 +8,8 @@
     "build": "tsc"
   },
   "dependencies": {
-    "@spatial/core": "*"
+    "@spatial/core": "*",
+    "earcut": "^3.2.3"
   },
   "devDependencies": {
     "typescript": "^5.0.0"

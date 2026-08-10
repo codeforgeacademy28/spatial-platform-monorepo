@@ -1,10 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { WallSegmentSchema } from '@spatial/core';
-import type { WallSegment } from '@spatial/core';
+import type { Room, WallSegment } from '@spatial/core';
 
 interface FloorPlanOverlayProps {
   walls: WallSegment[];
+  rooms: Room[];
   setWalls: React.Dispatch<React.SetStateAction<WallSegment[]>>;
+  setRooms: React.Dispatch<React.SetStateAction<Room[]>>;
+  projectName: string;
+  onProjectNameChange: (value: string) => void;
+  onSave: () => void;
+  onLoad: () => void;
 }
 
 interface TracePoint {
@@ -33,7 +39,16 @@ function parsePointsToWallSegment(start: TracePoint, end: TracePoint, scaleMeter
   };
 }
 
-export function FloorPlanOverlay({ walls, setWalls }: FloorPlanOverlayProps): JSX.Element {
+export function FloorPlanOverlay({
+  walls,
+  rooms,
+  setWalls,
+  setRooms,
+  projectName,
+  onProjectNameChange,
+  onSave,
+  onLoad,
+}: FloorPlanOverlayProps): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [imageData, setImageData] = useState<string | null>(null);
   const [isDrawing, setIsDrawing] = useState<boolean>(false);
@@ -202,8 +217,44 @@ export function FloorPlanOverlay({ walls, setWalls }: FloorPlanOverlayProps): JS
     end: { x: wall.end.x, y: wall.end.y },
   }));
 
+  const handleRoomNameChange = (roomId: string, nextName: string): void => {
+    setRooms((previous) =>
+      previous.map((room) =>
+        room.id === roomId
+          ? { ...room, name: nextName, updatedAt: new Date().toISOString() }
+          : room,
+      ),
+    );
+  };
+
   return (
     <div className="space-y-4 p-4">
+      <div className="rounded-lg border border-slate-700 bg-slate-900/80 p-3">
+        <label className="block text-xs uppercase tracking-[0.2em] text-slate-400">Project name</label>
+        <input
+          value={projectName}
+          onChange={(event) => onProjectNameChange(event.target.value)}
+          className="mt-2 w-full rounded border border-slate-600 bg-slate-800 px-2 py-2 text-sm text-slate-100"
+        />
+
+        <div className="mt-3 flex gap-2">
+          <button
+            type="button"
+            onClick={onSave}
+            className="flex-1 rounded bg-sky-600 px-3 py-2 text-sm font-medium text-white hover:bg-sky-500"
+          >
+            Save Project
+          </button>
+          <button
+            type="button"
+            onClick={onLoad}
+            className="flex-1 rounded bg-slate-700 px-3 py-2 text-sm font-medium text-slate-100 hover:bg-slate-600"
+          >
+            Load Project
+          </button>
+        </div>
+      </div>
+
       <div className="flex items-center gap-3">
         <label className="cursor-pointer rounded-md border border-sky-500 bg-sky-500/10 px-3 py-2 text-sm font-medium text-sky-200">
           Upload blueprint
@@ -240,6 +291,28 @@ export function FloorPlanOverlay({ walls, setWalls }: FloorPlanOverlayProps): JS
           onPointerUp={handlePointerUp}
           onPointerLeave={handlePointerUp}
         />
+      </div>
+
+      <div className="rounded-lg border border-slate-700 bg-slate-900/80 p-3">
+        <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Detected rooms</p>
+        <div className="mt-3 space-y-2 text-xs text-slate-300">
+          {rooms.length === 0 ? (
+            <div className="rounded border border-slate-700 bg-slate-800/70 px-2 py-2 text-slate-400">
+              No closed room loops detected yet.
+            </div>
+          ) : (
+            rooms.map((room) => (
+              <div key={room.id} className="rounded border border-slate-700 bg-slate-800/70 p-2">
+                <input
+                  value={room.name}
+                  onChange={(event) => handleRoomNameChange(room.id, event.target.value)}
+                  className="w-full rounded border border-slate-600 bg-slate-900 px-2 py-1 text-xs text-slate-100"
+                />
+                <div className="mt-1 text-slate-400">{room.floorArea?.toFixed(2) ?? '0.00'} m²</div>
+              </div>
+            ))
+          )}
+        </div>
       </div>
 
       <div className="rounded-lg border border-slate-700 bg-slate-900/80 p-3">
