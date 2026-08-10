@@ -1,0 +1,16 @@
+{
+  "name": "@spatial/geometry-engine",
+  "version": "0.0.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@spatial/core": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

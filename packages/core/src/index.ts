@@ -38,6 +38,13 @@ export interface Project {
   updatedAt: string;
 }
 
+export enum UserRole {
+  ADMIN = 'admin',
+  ARCHITECT = 'architect',
+  CLIENT = 'client',
+  VIEWER = 'viewer',
+}
+
 export const PointSchema = z.object({
   x: z.number().finite(),
   y: z.number().finite(),
@@ -76,7 +83,10 @@ export const ProjectSchema = z.object({
   updatedAt: z.string().datetime(),
 });
 
+export const UserRoleSchema = z.nativeEnum(UserRole);
+
 export type PointInput = z.infer<typeof PointSchema>;
 export type WallSegmentInput = z.infer<typeof WallSegmentSchema>;
 export type RoomInput = z.infer<typeof RoomSchema>;
 export type ProjectInput = z.infer<typeof ProjectSchema>;
+export type UserRoleInput = z.infer<typeof UserRoleSchema>;
