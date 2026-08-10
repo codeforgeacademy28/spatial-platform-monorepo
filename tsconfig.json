@@ -1,0 +1,15 @@
+{
+  "extends": "@spatial/config/tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@spatial/core": ["packages/core/src/index.ts"],
+      "@spatial/billing": ["packages/billing/src/index.ts"],
+      "@spatial/geometry-engine": ["packages/geometry-engine/src/index.ts"],
+      "@spatial/collaboration": ["packages/collaboration/src/index.ts"],
+      "@spatial/ai-engine": ["packages/ai-engine/src/index.ts"],
+      "@spatial/bim-engine": ["packages/bim-engine/src/index.ts"]
+    }
+  },
+  "exclude": ["node_modules", "dist", "build"]
+}
