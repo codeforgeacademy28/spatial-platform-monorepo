@@ -194,7 +194,7 @@
 
 ---
 
-### - [ ] **TASK-403**: WebXR Mobile 1:1 Scale AR Viewport Prototype
+### - [x] **TASK-403**: WebXR Mobile 1:1 Scale AR Viewport Prototype
 - **Objective**: Build a WebXR camera view allowing users to preview room designs in 1:1 scale on WebXR-supported mobile browsers.
 - **Files to Touch**:
   - `apps/web/src/components/ArViewport.tsx`
