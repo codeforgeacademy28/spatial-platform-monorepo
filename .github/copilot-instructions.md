@@ -54,3 +54,9 @@ At the end of processing ANY task or feature prompt, you MUST automatically exec
    - `git push origin main`
 4. **Update Task Checklist**: Edit `/TASKS.md` and change the completed item from `- [ ] TASK-XXX` to `- [x] TASK-XXX`.
 5. **Continuous Loop Execution**: Read the next uncompleted task `- [ ] TASK-XXX` in `/TASKS.md` and immediately begin executing it.
+
+## STRICT AUTONOMOUS RUN RULE
+- DO NOT print summary text or ask "Ready to continue?" after completing a task.
+- Once a task build passes, IMMEDIATELY run `git add .`, `git commit`, and `git push`.
+- Immediately open `/TASKS.md`, read the next `- [ ] TASK-XXX`, and execute it.
+- ONLY output text if a terminal command fails or all tasks in `/TASKS.md` are marked `[x]`.

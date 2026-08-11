@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { detectClosedRooms } from '@spatial/geometry-engine';
 import { PointSchema, loadProjectFromLocalStorage, saveProjectToLocalStorage } from '@spatial/core';
 import type { Point, Project, Room, WallSegment } from '@spatial/core';
+import { ClientViewer } from './components/ClientViewer';
 import { FloorPlanOverlay } from './components/FloorPlanOverlay';
 import { SpatialCanvas } from './components/SpatialCanvas';
+import { fetchSharedProject } from './services/api-client';
 
 const STORAGE_KEY = 'spatial-platform-project-v1';
 
@@ -13,6 +15,7 @@ export function App(): JSX.Element {
   const [points, setPoints] = useState<Point[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [shareUrl, setShareUrl] = useState<string>('');
+  const [sharedProject, setSharedProject] = useState<Project | null>(null);
 
   useEffect(() => {
     const validatedPoints = walls.flatMap((wall) => [wall.start, wall.end]).map((point) => PointSchema.parse(point));
@@ -23,6 +26,29 @@ export function App(): JSX.Element {
     const nextRooms = detectClosedRooms(walls, 'project-1', 'Room');
     setRooms(nextRooms);
   }, [walls]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const shareToken = params.get('share');
+    if (!shareToken) {
+      return;
+    }
+
+    let isMounted = true;
+    fetchSharedProject(shareToken)
+      .then((project) => {
+        if (isMounted) {
+          setSharedProject(project);
+        }
+      })
+      .catch((error) => {
+        console.error(error);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const project = useMemo<Project>(
     () => ({
@@ -86,6 +112,10 @@ export function App(): JSX.Element {
       window.alert('Unable to create a share link right now.');
     }
   };
+
+  if (sharedProject) {
+    return <ClientViewer project={sharedProject} />;
+  }
 
   return (
     <div className="flex h-screen w-screen bg-slate-950 text-slate-100">
