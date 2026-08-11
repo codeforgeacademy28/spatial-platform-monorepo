@@ -62,3 +62,8 @@ At the end of processing ANY task or feature prompt, you MUST automatically exec
 - The commit message MUST include the actual task ID and a real task description from `/TASKS.md`.
 - Immediately open `/TASKS.md`, read the next `- [ ] TASK-XXX`, and execute it.
 - ONLY output text if a terminal command fails or all tasks in `/TASKS.md` are marked `[x]`.
+
+## STRICT AGENT MODE INSTRUCTION:
+- Do NOT generate a preliminary To-Do list or plan summary as a final response turn.
+- If a task needs to be implemented, start invoking file-editing and terminal tools IMMEDIATELY in sentence 1.
+- Continue through code implementation, build verification (`npx tsc --noEmit`), and git push BEFORE outputting any conversational text.

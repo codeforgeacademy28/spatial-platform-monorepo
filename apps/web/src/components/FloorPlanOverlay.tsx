@@ -13,6 +13,9 @@ interface FloorPlanOverlayProps {
   onLoad: () => void;
   onShare: () => void;
   shareUrl: string;
+  onSaveVersion?: () => void;
+  onCompareVersions?: () => void;
+  savedVersionsCount?: number;
 }
 
 interface TracePoint {
@@ -52,6 +55,9 @@ export function FloorPlanOverlay({
   onLoad,
   onShare,
   shareUrl,
+  onSaveVersion,
+  onCompareVersions,
+  savedVersionsCount = 0,
 }: FloorPlanOverlayProps): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [imageData, setImageData] = useState<string | null>(null);
@@ -266,7 +272,26 @@ export function FloorPlanOverlay({
           >
             Share Design
           </button>
+          <button
+            type="button"
+            onClick={onSaveVersion}
+            className="flex-1 rounded bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500"
+          >
+            Save Version
+          </button>
         </div>
+
+        {onCompareVersions ? (
+          <div className="mt-2">
+            <button
+              type="button"
+              onClick={onCompareVersions}
+              className="w-full rounded bg-purple-600 px-3 py-2 text-sm font-medium text-white hover:bg-purple-500"
+            >
+              Compare Versions ({savedVersionsCount} Saved)
+            </button>
+          </div>
+        ) : null}
 
         {shareUrl ? (
           <div className="mt-3 rounded border border-emerald-500/40 bg-emerald-500/10 p-2 text-xs text-emerald-100">

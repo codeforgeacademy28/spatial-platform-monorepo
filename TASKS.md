@@ -64,7 +64,7 @@
 
 ---
 
-### - [ ] **TASK-205**: Spatial Pinpoint Commenting System
+### - [x] **TASK-205**: Spatial Pinpoint Commenting System
 - **Objective**: Allow users to click anywhere on a 3D wall or floor mesh to drop interactive 3D comment pins anchored to spatial coordinates.
 - **Files to Touch**:
   - `packages/collaboration/package.json`
@@ -80,7 +80,7 @@
 
 ---
 
-### - [ ] **TASK-206**: Design Versioning & Side-by-Side Comparison Engine
+### - [x] **TASK-206**: Design Versioning & Side-by-Side Comparison Engine
 - **Objective**: Enable architects to save design iterations (Version 1, Version 2) and compare structural changes.
 - **Files to Touch**:
   - `packages/collaboration/src/version-diff.ts`

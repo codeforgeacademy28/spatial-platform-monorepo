@@ -16,6 +16,7 @@
   },
   // Turn off manual prompts for auto-approved tool runs
   "chat.tools.autoApprove": true,
+  "github.copilot.chat.copilotDebugCommand.enabled": true,
   
   
 

@@ -5,6 +5,7 @@ import type { Point, Project, Room, WallSegment } from '@spatial/core';
 import { ClientViewer } from './components/ClientViewer';
 import { FloorPlanOverlay } from './components/FloorPlanOverlay';
 import { SpatialCanvas } from './components/SpatialCanvas';
+import { VersionComparer } from './components/VersionComparer';
 import { fetchSharedProject } from './services/api-client';
 
 const STORAGE_KEY = 'spatial-platform-project-v1';
@@ -16,6 +17,8 @@ export function App(): JSX.Element {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [shareUrl, setShareUrl] = useState<string>('');
   const [sharedProject, setSharedProject] = useState<Project | null>(null);
+  const [versions, setVersions] = useState<Project[]>([]);
+  const [comparisonPair, setComparisonPair] = useState<[Project, Project] | null>(null);
 
   useEffect(() => {
     const validatedPoints = walls.flatMap((wall) => [wall.start, wall.end]).map((point) => PointSchema.parse(point));
@@ -113,12 +116,37 @@ export function App(): JSX.Element {
     }
   };
 
+  const handleSaveVersion = (): void => {
+    const nextVersion: Project = {
+      ...project,
+      name: `${projectName} (v${versions.length + 1})`,
+    };
+    setVersions((prev) => [...prev, nextVersion]);
+    window.alert(`Saved version: ${nextVersion.name}`);
+  };
+
+  const handleCompareVersions = (): void => {
+    if (versions.length < 2) {
+      window.alert('You need at least 2 saved versions to compare.');
+      return;
+    }
+    // Compare last two versions
+    setComparisonPair([versions[versions.length - 2], versions[versions.length - 1]]);
+  };
+
   if (sharedProject) {
     return <ClientViewer project={sharedProject} />;
   }
 
   return (
     <div className="flex h-screen w-screen bg-slate-950 text-slate-100">
+      {comparisonPair && (
+        <VersionComparer
+          versionA={comparisonPair[0]}
+          versionB={comparisonPair[1]}
+          onClose={() => setComparisonPair(null)}
+        />
+      )}
       <aside className="w-[440px] shrink-0 border-r border-slate-800 bg-slate-900/80 backdrop-blur-sm">
         <FloorPlanOverlay
           walls={walls}
@@ -131,6 +159,9 @@ export function App(): JSX.Element {
           onLoad={handleLoadProject}
           onShare={handleShareDesign}
           shareUrl={shareUrl}
+          onSaveVersion={handleSaveVersion}
+          onCompareVersions={handleCompareVersions}
+          savedVersionsCount={versions.length}
         />
       </aside>
 
