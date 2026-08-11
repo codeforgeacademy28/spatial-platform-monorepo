@@ -23,6 +23,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1107.0",
     "@aws-sdk/s3-request-presigner": "^3.1107.0",
+    "@react-three/xr": "^6.6.30",
     "multer": "^2.2.0"
   }
 }

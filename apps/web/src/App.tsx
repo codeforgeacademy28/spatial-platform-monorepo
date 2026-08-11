@@ -7,6 +7,7 @@ import { FloorPlanOverlay } from './components/FloorPlanOverlay';
 import { SpatialCanvas } from './components/SpatialCanvas';
 import { VersionComparer } from './components/VersionComparer';
 import { AiAssistantPanel } from './components/AiAssistantPanel';
+import { ArViewport } from './components/ArViewport';
 import { useSpatialActionDispatcher } from './hooks/useSpatialActionDispatcher';
 import { fetchSharedProject } from './services/api-client';
 
@@ -21,6 +22,7 @@ export function App(): JSX.Element {
   const [sharedProject, setSharedProject] = useState<Project | null>(null);
   const [versions, setVersions] = useState<Project[]>([]);
   const [comparisonPair, setComparisonPair] = useState<[Project, Project] | null>(null);
+  const [isArMode, setIsArMode] = useState(false);
 
   useEffect(() => {
     const validatedPoints = walls.flatMap((wall) => [wall.start, wall.end]).map((point) => PointSchema.parse(point));
@@ -120,6 +122,10 @@ export function App(): JSX.Element {
 
   const { dispatchSpatialAction } = useSpatialActionDispatcher(walls, rooms, setWalls, setRooms);
 
+  const handleToggleArMode = (): void => {
+    setIsArMode((current) => !current);
+  };
+
   const handleSaveVersion = (): void => {
     const nextVersion: Project = {
       ...project,
@@ -141,6 +147,21 @@ export function App(): JSX.Element {
     return <ClientViewer project={sharedProject} />;
   }
 
+  if (isArMode) {
+    return (
+      <div className="relative h-screen w-screen">
+        <ArViewport walls={walls} rooms={rooms} points={points} />
+        <button
+          type="button"
+          onClick={handleToggleArMode}
+          className="absolute left-4 top-4 rounded bg-slate-900/90 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-slate-950/50 hover:bg-slate-800"
+        >
+          Exit AR
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-screen w-screen bg-slate-950 text-slate-100">
       {comparisonPair && (
@@ -153,20 +174,21 @@ export function App(): JSX.Element {
 
       <aside className="w-[440px] shrink-0 border-r border-slate-800 bg-slate-900/80 backdrop-blur-sm">
         <FloorPlanOverlay
-          walls={walls}
-          rooms={rooms}
-          setWalls={setWalls}
-          setRooms={setRooms}
-          projectName={projectName}
-          onProjectNameChange={setProjectName}
-          onSave={handleSaveProject}
-          onLoad={handleLoadProject}
-          onShare={handleShareDesign}
-          shareUrl={shareUrl}
-          onSaveVersion={handleSaveVersion}
-          onCompareVersions={handleCompareVersions}
-          savedVersionsCount={versions.length}
-        />
+            walls={walls}
+            rooms={rooms}
+            setWalls={setWalls}
+            setRooms={setRooms}
+            projectName={projectName}
+            onProjectNameChange={setProjectName}
+            onSave={handleSaveProject}
+            onLoad={handleLoadProject}
+            onShare={handleShareDesign}
+            onEnterAr={handleToggleArMode}
+            shareUrl={shareUrl}
+            onSaveVersion={handleSaveVersion}
+            onCompareVersions={handleCompareVersions}
+            savedVersionsCount={versions.length}
+          />
         <div className="border-t border-slate-800 p-4">
           <AiAssistantPanel walls={walls} onDispatchAction={dispatchSpatialAction} />
         </div>

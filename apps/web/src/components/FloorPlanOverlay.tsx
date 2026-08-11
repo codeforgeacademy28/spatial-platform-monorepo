@@ -12,6 +12,7 @@ interface FloorPlanOverlayProps {
   onSave: () => void;
   onLoad: () => void;
   onShare: () => void;
+  onEnterAr?: () => void;
   shareUrl: string;
   onSaveVersion?: () => void;
   onCompareVersions?: () => void;
@@ -54,6 +55,7 @@ export function FloorPlanOverlay({
   onSave,
   onLoad,
   onShare,
+  onEnterAr,
   shareUrl,
   onSaveVersion,
   onCompareVersions,
@@ -280,6 +282,17 @@ export function FloorPlanOverlay({
             Save Version
           </button>
         </div>
+        {onEnterAr ? (
+          <div className="mt-3">
+            <button
+              type="button"
+              onClick={onEnterAr}
+              className="w-full rounded bg-teal-600 px-3 py-2 text-sm font-medium text-white hover:bg-teal-500"
+            >
+              Enter AR Viewport
+            </button>
+          </div>
+        ) : null}
 
         {onCompareVersions ? (
           <div className="mt-2">
