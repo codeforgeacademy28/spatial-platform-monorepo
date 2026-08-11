@@ -95,7 +95,7 @@
 
 ## Phase 3: AI Spatial Engine & Entitlement Gating
 
-### - [ ] **TASK-301**: `@spatial/ai-engine` Foundation & Zod Command Tool Schemas
+### - [x] **TASK-301**: `@spatial/ai-engine` Foundation & Zod Command Tool Schemas
 - **Objective**: Create the AI engine package with structured Zod tool-calling definitions for spatial operations.
 - **Files to Touch**:
   - `packages/ai-engine/package.json`
