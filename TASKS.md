@@ -139,7 +139,7 @@
 
 ---
 
-### - [ ] **TASK-304**: AI Assistant UI Panel & Scene Action Dispatcher (`apps/web`)
+### - [x] **TASK-304**: AI Assistant UI Panel & Scene Action Dispatcher (`apps/web`)
 - **Objective**: Integrate an AI chat drawer in the 3D editor that dispatches returned LLM actions to the 3D canvas in real time.
 - **Files to Touch**:
   - `apps/web/src/components/AiAssistantPanel.tsx`
@@ -152,7 +152,7 @@
 
 ---
 
-### - [ ] **TASK-305**: Spatial Clearance Q&A Engine
+### - [x] **TASK-305**: Spatial Clearance Q&A Engine
 - **Objective**: Implement bounding-box clearance calculation tools to answer spatial validation questions.
 - **Files to Touch**:
   - `packages/geometry-engine/src/clearance-calculator.ts`
