@@ -23,3 +23,5 @@
 3. **API**: Expose backend routes in `apps/api` wrapped with entitlement guard checks.
 4. **UI**: Consume the API or package in `apps/web` using typed hooks or components.
 5. **Verify**: Run the verification loop from `/SKILLS.md` before returning output.
+6. **Autonomous continuation**: After successful verification, immediately run the commit/push flow and open the next uncompleted task in `/TASKS.md` without any pause or user prompt.
+7. **Commit message rule**: The git commit message must include both the task ID and a concrete description, such as `feat(api): complete TASK-204 - read-only client reviewer view`.

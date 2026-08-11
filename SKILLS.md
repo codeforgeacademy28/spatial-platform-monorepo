@@ -15,6 +15,9 @@ Before marking any task as "complete" or asking the developer for feedback, you 
 2. **Type Check**: Run `npx tsc --noEmit` across the affected workspace package.
 3. **Build Check**: Verify that `npm run build` passes without errors or warnings.
 4. **Self-Correction**: If type errors or build failures occur, inspect the error output, fix the code, and re-run verification up to 3 times before stopping.
+5. **Commit Message Rule**: Use a task-specific commit message such as `feat(web): complete TASK-204 - read-only client reviewer view`.
+6. **Do not stop**: After a successful commit and push, immediately read the next unchecked task in `/TASKS.md` and continue without prompting the user.
+7. **Task description requirement**: The commit message MUST contain the actual task ID and a real description of the task, not a generic label like "update" or "fix".
 
 ## 3. Package Management Rules
 - Never install global npm packages.

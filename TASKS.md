@@ -50,7 +50,7 @@
 
 ---
 
-### - [ ] **TASK-204**: Read-Only Client Reviewer View (`apps/web`)
+### - [x] **TASK-204**: Read-Only Client Reviewer View (`apps/web`)
 - **Objective**: Build a public client viewer route in `apps/web` that loads published designs via share tokens without editing capabilities.
 - **Files to Touch**:
   - `apps/web/src/components/ClientViewer.tsx`

@@ -48,15 +48,17 @@ At the end of processing ANY task or feature prompt, you MUST automatically exec
 
 1. **Verify Build**: Run terminal commands `npx tsc --noEmit` and `npm run build`.
 2. **Auto-Fix Errors**: If type errors or build failures occur, inspect terminal logs, fix the code, and re-run verification until successful.
-3. **Auto-Git Push**: Once the build passes cleanly, execute terminal commands:
+3. **Commit with task description**: The commit message MUST include the real task ID and a specific description of the work. Example: `git commit -m "feat(api): complete TASK-204 - read-only client reviewer view"`.
+4. **Auto-Git Push**: Once the build passes cleanly, execute terminal commands:
    - `git add .`
    - `git commit -m "feat(<scope>): complete <TASK-ID> - <task description>"`
    - `git push origin main`
-4. **Update Task Checklist**: Edit `/TASKS.md` and change the completed item from `- [ ] TASK-XXX` to `- [x] TASK-XXX`.
-5. **Continuous Loop Execution**: Read the next uncompleted task `- [ ] TASK-XXX` in `/TASKS.md` and immediately begin executing it.
+5. **Update Task Checklist**: Edit `/TASKS.md` and change the completed item from `- [ ] TASK-XXX` to `- [x] TASK-XXX`.
+6. **Continuous Loop Execution**: Read the next uncompleted task `- [ ] TASK-XXX` in `/TASKS.md` and immediately begin executing it without pausing, asking, or stopping.
 
 ## STRICT AUTONOMOUS RUN RULE
 - DO NOT print summary text or ask "Ready to continue?" after completing a task.
-- Once a task build passes, IMMEDIATELY run `git add .`, `git commit`, and `git push`.
+- Do not stop after one task. After a successful build, immediately run `git add .`, `git commit`, and `git push`, then continue to the next unchecked task.
+- The commit message MUST include the actual task ID and a real task description from `/TASKS.md`.
 - Immediately open `/TASKS.md`, read the next `- [ ] TASK-XXX`, and execute it.
 - ONLY output text if a terminal command fails or all tasks in `/TASKS.md` are marked `[x]`.
