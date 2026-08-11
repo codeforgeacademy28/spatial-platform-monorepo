@@ -167,7 +167,7 @@
 
 ## Phase 4: BIM Ingestion & Production Hardening
 
-### - [ ] **TASK-401**: `@spatial/bim-engine` Setup & `web-ifc` Integration
+### - [x] **TASK-401**: `@spatial/bim-engine` Setup & `web-ifc` Integration
 - **Objective**: Build the BIM engine workspace package using WebAssembly-compiled `web-ifc` for CAD/IFC file parsing.
 - **Files to Touch**:
   - `packages/bim-engine/package.json`
