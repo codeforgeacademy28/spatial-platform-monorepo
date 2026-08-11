@@ -181,7 +181,7 @@
 
 ---
 
-### - [ ] **TASK-402**: Cloudflare R2 Asset Upload & Security Gateway
+### - [x] **TASK-402**: Cloudflare R2 Asset Upload & Security Gateway
 - **Objective**: Implement secure file upload processing for 3D GLTF models, CAD files, and blueprint images.
 - **Files to Touch**:
   - `apps/api/src/routes/uploads.ts`
