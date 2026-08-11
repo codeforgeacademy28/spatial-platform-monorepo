@@ -125,7 +125,7 @@
 
 ---
 
-### - [ ] **TASK-303**: Backend AI Router with Billing Entitlement Guard
+### - [x] **TASK-303**: Backend AI Router with Billing Entitlement Guard
 - **Objective**: Expose the AI command service via API protected by subscription entitlement checks.
 - **Files to Touch**:
   - `packages/billing/src/entitlements.ts`

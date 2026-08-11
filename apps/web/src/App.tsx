@@ -6,6 +6,8 @@ import { ClientViewer } from './components/ClientViewer';
 import { FloorPlanOverlay } from './components/FloorPlanOverlay';
 import { SpatialCanvas } from './components/SpatialCanvas';
 import { VersionComparer } from './components/VersionComparer';
+import { AiAssistantPanel } from './components/AiAssistantPanel';
+import { useSpatialActionDispatcher } from './hooks/useSpatialActionDispatcher';
 import { fetchSharedProject } from './services/api-client';
 
 const STORAGE_KEY = 'spatial-platform-project-v1';
@@ -116,6 +118,8 @@ export function App(): JSX.Element {
     }
   };
 
+  const { dispatchSpatialAction } = useSpatialActionDispatcher(walls, rooms, setWalls, setRooms);
+
   const handleSaveVersion = (): void => {
     const nextVersion: Project = {
       ...project,
@@ -130,7 +134,6 @@ export function App(): JSX.Element {
       window.alert('You need at least 2 saved versions to compare.');
       return;
     }
-    // Compare last two versions
     setComparisonPair([versions[versions.length - 2], versions[versions.length - 1]]);
   };
 
@@ -147,6 +150,7 @@ export function App(): JSX.Element {
           onClose={() => setComparisonPair(null)}
         />
       )}
+
       <aside className="w-[440px] shrink-0 border-r border-slate-800 bg-slate-900/80 backdrop-blur-sm">
         <FloorPlanOverlay
           walls={walls}
@@ -163,6 +167,9 @@ export function App(): JSX.Element {
           onCompareVersions={handleCompareVersions}
           savedVersionsCount={versions.length}
         />
+        <div className="border-t border-slate-800 p-4">
+          <AiAssistantPanel walls={walls} onDispatchAction={dispatchSpatialAction} />
+        </div>
       </aside>
 
       <main className="flex-1">
