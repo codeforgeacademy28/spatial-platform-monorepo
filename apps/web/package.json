@@ -11,7 +11,7 @@
   "dependencies": {
     "@react-three/drei": "^9.112.0",
     "@react-three/fiber": "^8.17.10",
-    "@react-three/xr": "^3.0.4",
+    "@react-three/xr": "^6.6.30",
     "@spatial/core": "*",
     "@spatial/collaboration": "*",
     "@spatial/geometry-engine": "*",

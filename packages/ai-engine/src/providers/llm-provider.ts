@@ -48,7 +48,17 @@ function createGroqProvider(apiKey: string) {
   return createGroq({ apiKey });
 }
 
+function sanitizeAiPrompt(input: string): string {
+  return input
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/<[^>]+>/g, '')
+    .replace(/\b(script|style|iframe|object|embed|form|input|button|textarea|select|option)\b/gi, '')
+    .trim();
+}
+
 function buildPromptMessages(userInstruction: string): LanguageModelV4Prompt {
+  const cleanedInstruction = sanitizeAiPrompt(userInstruction);
+
   return [
     {
       role: 'system',
@@ -59,7 +69,7 @@ function buildPromptMessages(userInstruction: string): LanguageModelV4Prompt {
       content: [
         {
           type: 'text',
-          text: buildSpatialPrompt(userInstruction),
+          text: buildSpatialPrompt(cleanedInstruction),
         },
       ],
     },

@@ -4,6 +4,8 @@ import healthRouter from './routes/health.js';
 import projectsRouter from './routes/projects.js';
 import aiRouter from './routes/ai.js';
 import uploadsRouter from './routes/uploads.js';
+import { apiRateLimiter } from './middleware/rate-limiter.js';
+import { sanitizeRequestBody } from './middleware/sanitizer.js';
 
 const app = express();
 
@@ -14,6 +16,8 @@ app.use(
   }),
 );
 app.use(express.json({ limit: '2mb' }));
+app.use(apiRateLimiter);
+app.use(sanitizeRequestBody);
 
 app.use(healthRouter);
 app.use(projectsRouter);
