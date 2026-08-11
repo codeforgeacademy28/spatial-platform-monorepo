@@ -209,7 +209,7 @@
 
 ## Phase 5: Production Hardening, Security & Observability
 
-### - [ ] **TASK-501**: Comprehensive Security Audit & Rate Limiting
+### - [x] **TASK-501**: Comprehensive Security Audit & Rate Limiting
 - **Objective**: Protect backend routes against abuse, prompt injection, and unauthorized data access.
 - **Files to Touch**:
   - `apps/api/src/middleware/rate-limiter.ts`
