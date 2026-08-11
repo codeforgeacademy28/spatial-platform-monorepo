@@ -2,10 +2,16 @@ import crypto from 'node:crypto';
 import { type Request, type Response } from 'express';
 import { z } from 'zod';
 import { checkFeatureEntitlement } from '@spatial/billing';
+import {
+  createSpatialComment,
+  SpatialCommentSchema,
+  type SpatialComment,
+} from '@spatial/collaboration';
 import { ProjectSchema, type Project, type ProjectInput } from '@spatial/core';
 import { supabase } from '../config/supabase.js';
 
 const projectStore = new Map<string, Project>();
+const projectCommentStore = new Map<string, SpatialComment[]>();
 const publishedStore = new Map<string, { id: string; name: string; project: Project; shareToken: string; publishedAt: string }>();
 
 const projectIdParamSchema = z.object({
@@ -14,6 +20,13 @@ const projectIdParamSchema = z.object({
 
 const publishTokenParamSchema = z.object({
   token: z.string().trim().min(1),
+});
+
+const createCommentSchema = SpatialCommentSchema.omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  projectId: z.string().trim().min(1).optional(),
 });
 
 function canUseSupabase(): boolean {
@@ -129,6 +142,34 @@ export async function publishProjectHandler(req: Request, res: Response): Promis
     shareToken,
     shareUrl: `/share/${shareToken}`,
     published: publishedEntry,
+  });
+}
+
+export async function createProjectCommentHandler(req: Request, res: Response): Promise<void> {
+  const params = projectIdParamSchema.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: 'invalid project id', details: params.error.flatten() });
+    return;
+  }
+
+  const input = createCommentSchema.safeParse(req.body);
+  if (!input.success) {
+    res.status(400).json({ error: 'invalid comment payload', details: input.error.flatten() });
+    return;
+  }
+
+  const projectId = params.data.id;
+  const comment = createSpatialComment({
+    ...input.data,
+    projectId: input.data.projectId ?? projectId,
+  });
+
+  const nextComments = projectCommentStore.get(projectId) ?? [];
+  projectCommentStore.set(projectId, [...nextComments, comment]);
+
+  res.status(201).json({
+    comment,
+    message: 'Comment created successfully.',
   });
 }
 

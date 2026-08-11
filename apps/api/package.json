@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@spatial/billing": "*",
+    "@spatial/collaboration": "*",
     "@spatial/core": "*",
     "@supabase/supabase-js": "^2.112.2",
     "cors": "^2.8.5",

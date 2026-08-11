@@ -12,6 +12,7 @@
     "@react-three/drei": "^9.112.0",
     "@react-three/fiber": "^8.17.10",
     "@spatial/core": "*",
+    "@spatial/collaboration": "*",
     "@spatial/geometry-engine": "*",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
