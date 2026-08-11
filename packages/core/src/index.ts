@@ -85,6 +85,7 @@ export const ProjectSchema = z.object({
 
 export const UserRoleSchema = z.nativeEnum(UserRole);
 
+export * from './database';
 export * from './serializer';
 
 export type PointInput = z.infer<typeof PointSchema>;

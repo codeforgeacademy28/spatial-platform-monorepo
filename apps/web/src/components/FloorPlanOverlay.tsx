@@ -11,6 +11,8 @@ interface FloorPlanOverlayProps {
   onProjectNameChange: (value: string) => void;
   onSave: () => void;
   onLoad: () => void;
+  onShare: () => void;
+  shareUrl: string;
 }
 
 interface TracePoint {
@@ -48,6 +50,8 @@ export function FloorPlanOverlay({
   onProjectNameChange,
   onSave,
   onLoad,
+  onShare,
+  shareUrl,
 }: FloorPlanOverlayProps): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [imageData, setImageData] = useState<string | null>(null);
@@ -253,6 +257,22 @@ export function FloorPlanOverlay({
             Load Project
           </button>
         </div>
+
+        <div className="mt-3 flex gap-2">
+          <button
+            type="button"
+            onClick={onShare}
+            className="flex-1 rounded bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-500"
+          >
+            Share Design
+          </button>
+        </div>
+
+        {shareUrl ? (
+          <div className="mt-3 rounded border border-emerald-500/40 bg-emerald-500/10 p-2 text-xs text-emerald-100">
+            {shareUrl}
+          </div>
+        ) : null}
       </div>
 
       <div className="flex items-center gap-3">

@@ -8,5 +8,13 @@
   "typescript.enablePromptUseWorkspaceTsdk": true,
   "files.associations": {
     "*.md": "markdown"
-  }
+  },
+  // Automatically accept file edits made by Copilot Agent mode
+  "chat.tools.edits.autoApprove": {
+    "**/*": true,
+  },
+  
+  // Turn off manual prompts for auto-approved tool runs
+  "chat.tools.autoApprove": true
+
 }

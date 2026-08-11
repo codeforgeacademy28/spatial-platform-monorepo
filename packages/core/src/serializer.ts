@@ -12,19 +12,21 @@ export function deserializeProject(rawProject: string): Project {
 }
 
 export function saveProjectToLocalStorage(project: Project, storageKey = 'spatial-project-v1'): void {
-  if (typeof window === 'undefined') {
+  const storage = globalThis.localStorage;
+  if (!storage) {
     return;
   }
 
-  window.localStorage.setItem(storageKey, serializeProject(project));
+  storage.setItem(storageKey, serializeProject(project));
 }
 
 export function loadProjectFromLocalStorage(storageKey = 'spatial-project-v1'): Project | null {
-  if (typeof window === 'undefined') {
+  const storage = globalThis.localStorage;
+  if (!storage) {
     return null;
   }
 
-  const rawProject = window.localStorage.getItem(storageKey);
+  const rawProject = storage.getItem(storageKey);
   if (!rawProject) {
     return null;
   }

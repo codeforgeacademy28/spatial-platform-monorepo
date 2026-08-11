@@ -1,10 +1,16 @@
 # AI Copilot Instructions: Spatial Decision Platform
 
-## 1. Project Vision & Mission
+## 1. Master Guidance Links
+- Automatically inspect and follow `/.github/ENGINEERING_STANDARDS.md` for all code modifications.
+- Automatically execute verification rules from `/SKILLS.md` after writing code.
+- Follow operational execution rules from `/AGENTS.md`.
+- Read, execute, and update task statuses from `/TASKS.md`.
+
+## 2. Project Vision & Mission
 - **Mission**: Build an AI-powered pre-construction spatial decision platform that lets architects and clients experience, modify, validate, and approve designs in a browser before spending money on construction.
 - **Goal**: Eliminate costly real-world rework by detecting room proportion, clearance, and furniture issues early.
 
-## 2. Infrastructure & Budget Rules
+## 3. Infrastructure & Budget Rules
 - **Target Budget**: ₹0 infrastructure cost using free cloud tiers.
 - **Deployments**:
   - Web App (`apps/web`): Vercel (Free Tier)
@@ -12,8 +18,8 @@
   - Database: Supabase PostgreSQL (Free Tier)
   - Asset Storage: Cloudflare R2 (10GB Free Tier)
 
-## 3. Technology Stack & Key Libraries
-- **Language**: 100% TypeScript (Strict Mode across stack)
+## 4. Technology Stack & Key Libraries
+- **Language**: 100% TypeScript (Strict Mode across entire stack)
 - **Monorepo**: Turborepo + npm workspaces
 - **Frontend**: React 18, Vite, React Three Fiber (`@react-three/fiber`), Three.js (`three`), `@react-three/drei`, Tailwind CSS
 - **Backend**: Node.js, Express, TypeScript
@@ -23,16 +29,28 @@
   - **BIM Ingestion**: `web-ifc` (WASM-based IFC parsing)
   - **AI Tooling**: `ai` (Vercel AI SDK)
 - **Internal Workspace Packages**:
-  - `@spatial/core`: Shared entities, types, and permissions
+  - `@spatial/core`: Shared entities, types, serializer, and permissions
   - `@spatial/billing`: Feature gating and subscription tier checks
-  - `@spatial/geometry-engine`: Wall extrusion, 3D math, bounding box clearance
-  - `@spatial/collaboration`: 3D comments, versions, approval tracking
+  - `@spatial/geometry-engine`: Wall extrusion, corner joins, room detection, 3D math, bounding box clearance
+  - `@spatial/collaboration`: 3D comment pins, version diffing, approval tracking
   - `@spatial/ai-engine`: Structured LLM tool-calling and spatial Q&A
   - `@spatial/bim-engine`: IFC parsing (`web-ifc`)
 
-## 4. Coding & Safety Rules
-1. Never import code from `apps/*` into `packages/*`.
-2. Keep math in `@spatial/geometry-engine` completely decoupled from React or DOM rendering logic.
-3. Every API endpoint must enforce feature entitlement checks via `@spatial/billing`.
-4. AI outputs must be validated using `zod` schemas before touching application logic.
-5. Provide clean, fully typed TypeScript implementations without `any` types or missing logic placeholders.
+## 5. Coding, Architecture & Safety Rules
+1. **Package Boundaries**: Never import code from `apps/*` into `packages/*`.
+2. **Decoupled 3D Logic**: Keep geometry math in `@spatial/geometry-engine` completely decoupled from React or DOM rendering logic.
+3. **Entitlement Enforcement**: Every API endpoint must enforce feature entitlement checks via `@spatial/billing`.
+4. **Zod Validation**: Treat all external inputs, API payloads, uploaded files, and LLM outputs as untrusted. Validate via Zod schemas before touching application logic.
+5. **No Placeholders**: Provide clean, fully typed TypeScript implementations without `any` types, missing logic blocks, or `// TODO` placeholders.
+
+## 6. Mandatory Post-Execution Lifecycle Protocol (DEFAULT FOR ALL PROMPTS)
+At the end of processing ANY task or feature prompt, you MUST automatically execute this exact sequence in order without waiting for human prompts:
+
+1. **Verify Build**: Run terminal commands `npx tsc --noEmit` and `npm run build`.
+2. **Auto-Fix Errors**: If type errors or build failures occur, inspect terminal logs, fix the code, and re-run verification until successful.
+3. **Auto-Git Push**: Once the build passes cleanly, execute terminal commands:
+   - `git add .`
+   - `git commit -m "feat(<scope>): complete <TASK-ID> - <task description>"`
+   - `git push origin main`
+4. **Update Task Checklist**: Edit `/TASKS.md` and change the completed item from `- [ ] TASK-XXX` to `- [x] TASK-XXX`.
+5. **Continuous Loop Execution**: Read the next uncompleted task `- [ ] TASK-XXX` in `/TASKS.md` and immediately begin executing it.

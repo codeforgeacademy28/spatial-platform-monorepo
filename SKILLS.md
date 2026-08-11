@@ -20,3 +20,10 @@ Before marking any task as "complete" or asking the developer for feedback, you 
 - Never install global npm packages.
 - Always add dependencies to the specific application or package `package.json` where they are consumed.
 - Do not modify `package-lock.json` manually; always use `npm install`.
+
+## 4. Git Auto-Commit & Push Protocol
+After successfully passing `npx tsc --noEmit` and `npm run build`, execute these terminal commands autonomously:
+
+1. `git add .`
+2. `git commit -m "feat(<scope>): complete <TASK-ID> - <task description>"`
+3. `git push origin main`

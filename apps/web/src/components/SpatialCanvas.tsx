@@ -9,6 +9,7 @@ interface SpatialCanvasProps {
   walls: WallSegment[];
   rooms: Room[];
   points: Point[];
+  readOnly?: boolean;
 }
 
 function FloorGrid(): JSX.Element {
@@ -67,7 +68,7 @@ function RoomFloor({ room }: { room: Room }): JSX.Element {
   );
 }
 
-export function SpatialCanvas({ walls, rooms, points }: SpatialCanvasProps): JSX.Element {
+export function SpatialCanvas({ walls, rooms, points, readOnly = false }: SpatialCanvasProps): JSX.Element {
   return (
     <div className="h-screen w-screen bg-slate-950">
       <Canvas camera={{ position: [10, 8, 12], fov: 50 }} shadows>
@@ -91,8 +92,8 @@ export function SpatialCanvas({ walls, rooms, points }: SpatialCanvasProps): JSX
           </mesh>
         ))}
 
-        <OrbitControls enablePan enableZoom enableRotate />
-        <PointerLockControls />
+        <OrbitControls enablePan={readOnly ? false : true} enableZoom enableRotate />
+        {!readOnly ? <PointerLockControls /> : null}
       </Canvas>
     </div>
   );

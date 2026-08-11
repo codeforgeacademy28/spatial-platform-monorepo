@@ -12,6 +12,7 @@ export function App(): JSX.Element {
   const [walls, setWalls] = useState<WallSegment[]>([]);
   const [points, setPoints] = useState<Point[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
+  const [shareUrl, setShareUrl] = useState<string>('');
 
   useEffect(() => {
     const validatedPoints = walls.flatMap((wall) => [wall.start, wall.end]).map((point) => PointSchema.parse(point));
@@ -51,6 +52,41 @@ export function App(): JSX.Element {
     setWalls(loadedWalls);
   };
 
+  const handleShareDesign = async (): Promise<void> => {
+    if (walls.length === 0 && rooms.length === 0) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:4000/api/projects/${encodeURIComponent('project-1')}/publish`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: 'project-1',
+          name: projectName,
+          rooms,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Unable to publish design.');
+      }
+
+      const payload = (await response.json()) as {
+        shareUrl?: string;
+        shareToken?: string;
+      };
+      const nextShareUrl = payload.shareUrl ?? `${window.location.origin}/share/${payload.shareToken ?? 'unknown'}`;
+      setShareUrl(nextShareUrl);
+      window.alert(`Design share link: ${nextShareUrl}`);
+    } catch (error) {
+      console.error(error);
+      window.alert('Unable to create a share link right now.');
+    }
+  };
+
   return (
     <div className="flex h-screen w-screen bg-slate-950 text-slate-100">
       <aside className="w-[440px] shrink-0 border-r border-slate-800 bg-slate-900/80 backdrop-blur-sm">
@@ -63,6 +99,8 @@ export function App(): JSX.Element {
           onProjectNameChange={setProjectName}
           onSave={handleSaveProject}
           onLoad={handleLoadProject}
+          onShare={handleShareDesign}
+          shareUrl={shareUrl}
         />
       </aside>
 
