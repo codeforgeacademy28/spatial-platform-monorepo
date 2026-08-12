@@ -9,6 +9,7 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
+    "@spatial/ai-engine": "*",
     "@spatial/billing": "*",
     "@spatial/collaboration": "*",
     "@spatial/core": "*",
