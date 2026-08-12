@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import type { SpatialComment } from '@spatial/collaboration';
 import type { Project } from '@spatial/core';
-import { SpatialCanvas } from './SpatialCanvas';
+import { SpatialCanvas } from './SpatialCanvas.js';
 
 interface ClientViewerProps {
   project: Project;

@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { createSpatialComment, type SpatialComment } from '@spatial/collaboration';
 import { extrudeWallSegments, generateRoomFloorMesh } from '@spatial/geometry-engine';
 import type { Point, Room, WallSegment } from '@spatial/core';
-import { SpatialCommentPin } from './SpatialCommentPin';
+import { SpatialCommentPin } from './SpatialCommentPin.js';
 
 interface SpatialCanvasProps {
   projectId?: string;
@@ -72,7 +72,7 @@ function RoomFloor({ room, onSelectPoint }: { room: Room; onSelectPoint?: (e: Th
   }, [room]);
 
   return (
-    <mesh geometry={geometry} position={[0, 0.01, 0]} receiveShadow onClick={(e) => onSelectPoint?.(e)}>
+    <mesh geometry={geometry as any} position={[0, 0.01, 0]} receiveShadow onClick={(e) => onSelectPoint?.(e)}>
       <meshStandardMaterial color="#1d4ed8" transparent opacity={0.35} />
     </mesh>
   );

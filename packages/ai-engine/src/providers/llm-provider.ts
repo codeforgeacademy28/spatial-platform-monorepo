@@ -2,13 +2,13 @@ import { z } from 'zod';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createGroq } from '@ai-sdk/groq';
 import type { LanguageModelV4Prompt } from '@ai-sdk/provider';
-import { buildSpatialPrompt } from '../prompt-templates';
+import { buildSpatialPrompt } from '../prompt-templates.js';
 import {
   ChangeMaterialSchema,
   MoveWallSchema,
   ResizeRoomSchema,
   SpatialQuerySchema,
-} from '../schemas/command-schemas';
+} from '../schemas/command-schemas.js';
 
 export type SupportedProvider = 'openai' | 'groq';
 

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import type { SpatialActionCommand } from '../hooks/useSpatialActionDispatcher';
+import type { SpatialActionCommand } from '../hooks/useSpatialActionDispatcher.js';
 import type { WallSegment } from '@spatial/core';
 
 export interface AiAssistantPanelProps {

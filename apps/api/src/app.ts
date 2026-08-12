@@ -16,7 +16,7 @@ app.use(
   }),
 );
 app.use(express.json({ limit: '2mb' }));
-app.use(apiRateLimiter);
+app.use(apiRateLimiter as any);
 app.use(sanitizeRequestBody);
 
 app.use(healthRouter);

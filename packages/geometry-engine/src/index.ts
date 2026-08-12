@@ -1,3 +1,3 @@
-export * from './wall-extruder';
-export * from './room-detector';
-export * from './clearance-calculator';
+export * from './wall-extruder.js';
+export * from './room-detector.js';
+export * from './clearance-calculator.js';

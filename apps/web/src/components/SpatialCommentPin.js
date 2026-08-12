@@ -1,0 +1,6 @@
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import { Html } from '@react-three/drei';
+export function SpatialCommentPin({ comment }) {
+    return (_jsxs("group", { position: [comment.position.x, comment.position.y, comment.position.z], children: [_jsxs("mesh", { position: [0, 0, 0], children: [_jsx("sphereGeometry", { args: [0.08, 16, 16] }), _jsx("meshStandardMaterial", { color: "#f43f5e", emissive: "#f43f5e", emissiveIntensity: 0.6 })] }), _jsx(Html, { position: [0, 0.2, 0], center: true, distanceFactor: 12, children: _jsxs("div", { className: "w-48 rounded-lg border border-rose-500/40 bg-slate-900/90 p-2.5 shadow-xl backdrop-blur-md", children: [_jsxs("div", { className: "flex items-center justify-between font-semibold text-[11px] text-rose-300", children: [_jsx("span", { children: comment.author }), _jsx("span", { className: "text-[9px] text-slate-400", children: new Date(comment.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) })] }), _jsx("p", { className: "mt-1 text-xs text-slate-200 leading-snug", children: comment.text })] }) })] }));
+}
+//# sourceMappingURL=SpatialCommentPin.js.map

@@ -2,14 +2,14 @@ import { useEffect, useMemo, useState } from 'react';
 import { detectClosedRooms } from '@spatial/geometry-engine';
 import { PointSchema, loadProjectFromLocalStorage, saveProjectToLocalStorage } from '@spatial/core';
 import type { Point, Project, Room, WallSegment } from '@spatial/core';
-import { ClientViewer } from './components/ClientViewer';
-import { FloorPlanOverlay } from './components/FloorPlanOverlay';
-import { SpatialCanvas } from './components/SpatialCanvas';
-import { VersionComparer } from './components/VersionComparer';
-import { AiAssistantPanel } from './components/AiAssistantPanel';
-import { ArViewport } from './components/ArViewport';
-import { useSpatialActionDispatcher } from './hooks/useSpatialActionDispatcher';
-import { fetchSharedProject } from './services/api-client';
+import { ClientViewer } from './components/ClientViewer.js';
+import { FloorPlanOverlay } from './components/FloorPlanOverlay.js';
+import { SpatialCanvas } from './components/SpatialCanvas.js';
+import { VersionComparer } from './components/VersionComparer.js';
+import { AiAssistantPanel } from './components/AiAssistantPanel.js';
+import { ArViewport } from './components/ArViewport.js';
+import { useSpatialActionDispatcher } from './hooks/useSpatialActionDispatcher.js';
+import { fetchSharedProject } from './services/api-client.js';
 
 const STORAGE_KEY = 'spatial-platform-project-v1';
 

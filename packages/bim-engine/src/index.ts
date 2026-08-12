@@ -1,1 +1,1 @@
-export * from './ifc-loader';
+export * from './ifc-loader.js';

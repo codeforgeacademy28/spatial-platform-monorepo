@@ -1,5 +1,5 @@
-import type { Project } from './index';
-import { ProjectSchema } from './index';
+import type { Project } from './index.js';
+import { ProjectSchema } from './index.js';
 
 export function serializeProject(project: Project): string {
   const validatedProject = ProjectSchema.parse(project);

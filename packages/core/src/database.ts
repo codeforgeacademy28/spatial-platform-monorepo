@@ -1,4 +1,4 @@
-import type { UserRole } from './index';
+import type { UserRole } from './index.js';
 
 export interface Organization {
   id: string;

@@ -1,5 +1,5 @@
 import type { Project } from '@spatial/core';
-import { SpatialCanvas } from './SpatialCanvas';
+import { SpatialCanvas } from './SpatialCanvas.js';
 
 interface ShareViewerProps {
   project: Project;

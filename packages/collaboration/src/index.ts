@@ -1,2 +1,2 @@
-export * from './comment-manager';
-export * from './version-diff';
+export * from './comment-manager.js';
+export * from './version-diff.js';

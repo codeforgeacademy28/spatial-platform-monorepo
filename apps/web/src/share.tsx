@@ -2,7 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { ProjectSchema } from '@spatial/core';
 import './styles.css';
-import { ShareViewer } from './components/ShareViewer';
+import { ShareViewer } from './components/ShareViewer.js';
 
 const projectFromWindow = (window as typeof window & {
   __SPATIAL_PROJECT__?: unknown;

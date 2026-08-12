@@ -67,3 +67,9 @@ At the end of processing ANY task or feature prompt, you MUST automatically exec
 - Do NOT generate a preliminary To-Do list or plan summary as a final response turn.
 - If a task needs to be implemented, start invoking file-editing and terminal tools IMMEDIATELY in sentence 1.
 - Continue through code implementation, build verification (`npx tsc --noEmit`), and git push BEFORE outputting any conversational text.
+
+## STRICT TOKEN EFFICIENCY RULES:
+1. Do not generate conversational greetings, status updates, or post-implementation explanations.
+2. Do not output a preliminary text plan unless explicitly requested.
+3. Perform code edits and terminal verifications silently using tools.
+4. Output only the final command or verification status when complete.

@@ -54,7 +54,7 @@ function RoomFloor({ room }: { room: Room }): JSX.Element {
   }, [room]);
 
   return (
-    <mesh geometry={geometry} position={[0, 0.01, 0]} receiveShadow>
+    <mesh geometry={geometry as any} position={[0, 0.01, 0]} receiveShadow>
       <meshStandardMaterial color="#2563eb" transparent opacity={0.35} />
     </mesh>
   );
