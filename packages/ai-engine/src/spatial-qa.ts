@@ -20,13 +20,13 @@ export interface SpatialQueryResult {
 }
 
 function findRoomById(project: Project, roomId: string): Room | undefined {
-  return project.rooms.find((room) => room.id === roomId);
+  return project.rooms.find((room: Room) => room.id === roomId);
 }
 
 function findWallById(project: Project, wallId: string): WallSegment | undefined {
   return project.rooms
-    .flatMap((room) => room.wallSegments)
-    .find((wall) => wall.id === wallId);
+    .flatMap((room: Room) => room.wallSegments)
+    .find((wall: WallSegment) => wall.id === wallId);
 }
 
 export function answerSpatialQuery(project: Project, query: SpatialQuery): SpatialQueryResult {
@@ -55,7 +55,7 @@ export function answerSpatialQuery(project: Project, query: SpatialQuery): Spati
 
   const wall = findWallById(project, objectId);
   if (room) {
-    const allWalls = project.rooms.flatMap((currentRoom) => currentRoom.wallSegments);
+    const allWalls = project.rooms.flatMap((currentRoom: Room) => currentRoom.wallSegments);
     const clearance = calculateMinimumClearanceBetweenRoomAndWalls(room, allWalls);
     const passed = clearance >= 1;
     return {
@@ -71,7 +71,7 @@ export function answerSpatialQuery(project: Project, query: SpatialQuery): Spati
   }
 
   if (wall) {
-    const allWalls = project.rooms.flatMap((currentRoom) => currentRoom.wallSegments);
+    const allWalls = project.rooms.flatMap((currentRoom: Room) => currentRoom.wallSegments);
     const clearance = calculateMinimumClearanceBetweenWallAndWalls(wall, allWalls);
     const passed = clearance >= 0.3;
     return {

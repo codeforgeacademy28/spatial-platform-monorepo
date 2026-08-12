@@ -15,6 +15,8 @@
     "build": "tsc"
   },
   "dependencies": {
+    "@spatial/core": "*",
+    "@spatial/geometry-engine": "*",
     "zod": "^3.23.8",
     "ai": "^7.0.59",
     "@ai-sdk/openai": "^4.0.37",
