@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { XR, createXRStore, DefaultXRController } from '@react-three/xr';
+import { XR, Controllers, Hands } from '@react-three/xr';
 import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import { extrudeWallSegments, generateRoomFloorMesh } from '@spatial/geometry-engine';
@@ -60,8 +60,6 @@ function RoomFloor({ room }: { room: Room }): JSX.Element {
   );
 }
 
-const xrStore = createXRStore();
-
 export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element {
   return (
     <div className="h-screen w-screen bg-black">
@@ -69,8 +67,9 @@ export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element {
         <color attach="background" args={['#000000']} />
         <ambientLight intensity={0.8} />
         <directionalLight position={[2, 10, 2]} intensity={1.2} castShadow />
-        <XR store={xrStore}>
-          <DefaultXRController />
+        <XR>
+          <Controllers />
+          <Hands />
           <FloorGrid />
           {rooms.map((room) => (
             <RoomFloor key={room.id} room={room} />

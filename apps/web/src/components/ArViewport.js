@@ -1,7 +1,7 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { XR, createXRStore, DefaultXRController } from '@react-three/xr';
+import { XR, Controllers, Hands } from '@react-three/xr';
 import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import { extrudeWallSegments, generateRoomFloorMesh } from '@spatial/geometry-engine';
@@ -33,8 +33,7 @@ function RoomFloor({ room }) {
     }, [room]);
     return (_jsx("mesh", { geometry: geometry, position: [0, 0.01, 0], receiveShadow: true, children: _jsx("meshStandardMaterial", { color: "#2563eb", transparent: true, opacity: 0.35 }) }));
 }
-const xrStore = createXRStore();
 export function ArViewport({ walls, rooms }) {
-    return (_jsx("div", { className: "h-screen w-screen bg-black", children: _jsxs(Canvas, { children: [_jsx("color", { attach: "background", args: ['#000000'] }), _jsx("ambientLight", { intensity: 0.8 }), _jsx("directionalLight", { position: [2, 10, 2], intensity: 1.2, castShadow: true }), _jsxs(XR, { store: xrStore, children: [_jsx(DefaultXRController, {}), _jsx(FloorGrid, {}), rooms.map((room) => (_jsx(RoomFloor, { room: room }, room.id))), walls.map((wall) => (_jsx(WallMesh, { wall: wall }, wall.id)))] }), _jsx(OrbitControls, {})] }) }));
+    return (_jsx("div", { className: "h-screen w-screen bg-black", children: _jsxs(Canvas, { children: [_jsx("color", { attach: "background", args: ['#000000'] }), _jsx("ambientLight", { intensity: 0.8 }), _jsx("directionalLight", { position: [2, 10, 2], intensity: 1.2, castShadow: true }), _jsxs(XR, { children: [_jsx(Controllers, {}), _jsx(Hands, {}), _jsx(FloorGrid, {}), rooms.map((room) => (_jsx(RoomFloor, { room: room }, room.id))), walls.map((wall) => (_jsx(WallMesh, { wall: wall }, wall.id)))] }), _jsx(OrbitControls, {})] }) }));
 }
 //# sourceMappingURL=ArViewport.js.map
