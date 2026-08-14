@@ -300,7 +300,7 @@
 
 ---
 
-### - [ ] **TASK-604**: Cross-Platform Monorepo Pipeline (Local, Vercel & AKS)
+### - [x] **TASK-604**: Cross-Platform Monorepo Pipeline (Local, Vercel & AKS)
 - **Objective**: Ensure the entire monorepo builds uniformly across Local Windows/macOS, Vercel edge/static hosting, and Docker/AKS container runners.
 - **Files to Touch**:
   - `package.json` (Root)
