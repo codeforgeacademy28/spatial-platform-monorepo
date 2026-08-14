@@ -261,7 +261,7 @@
 
 ---
 
-### - [ ] **TASK-602**: WebXR Controller Modernization (`@react-three/xr` v5+)
+### - [x] **TASK-602**: WebXR Controller Modernization (`@react-three/xr` v5+)
 - **Objective**: Refactor deprecated WebXR controller components to modern v5+ standard components to fix runtime browser syntax errors and ensure headset/hand-tracking compatibility.
 - **Files to Touch**:
   - `apps/web/src/components/ArViewport.tsx`
