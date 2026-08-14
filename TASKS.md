@@ -275,7 +275,7 @@
 
 ---
 
-### - [ ] **TASK-603**: Apple-Grade UI System with Lucide Icons & Tailwind Primitives
+### - [x] **TASK-603**: Apple-Grade UI System with Lucide Icons & Tailwind Primitives
 - **Objective**: Replace raw unstyled browser controls with an Apple-grade translucent glassmorphism interface (macOS / visionOS aesthetic) using Tailwind CSS and `lucide-react` icons.
 - **Files to Touch**:
   - `apps/web/package.json`

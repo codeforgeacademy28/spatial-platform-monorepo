@@ -8,6 +8,8 @@ import { SpatialCanvas } from './components/SpatialCanvas.js';
 import { VersionComparer } from './components/VersionComparer.js';
 import { AiAssistantPanel } from './components/AiAssistantPanel.js';
 import { ArViewport } from './components/ArViewport.js';
+import { SpatialHeader } from './components/ui/SpatialHeader.js';
+import { CanvasOverlay } from './components/ui/CanvasOverlay.js';
 import { useSpatialActionDispatcher } from './hooks/useSpatialActionDispatcher.js';
 import { fetchSharedProject } from './services/api-client.js';
 
@@ -23,6 +25,7 @@ export function App(): JSX.Element {
   const [versions, setVersions] = useState<Project[]>([]);
   const [comparisonPair, setComparisonPair] = useState<[Project, Project] | null>(null);
   const [isArMode, setIsArMode] = useState(false);
+  const [refLength, setRefLength] = useState<number>(0);
 
   useEffect(() => {
     const validatedPoints = walls.flatMap((wall) => [wall.start, wall.end]).map((point) => PointSchema.parse(point));
@@ -194,8 +197,20 @@ export function App(): JSX.Element {
         </div>
       </aside>
 
-      <main className="flex-1">
+      <main className="flex-1 relative">
         <SpatialCanvas walls={walls} rooms={rooms} points={points} />
+        <SpatialHeader
+          projectName={projectName}
+          onProjectNameChange={setProjectName}
+          onSave={handleSaveProject}
+          onLoad={handleLoadProject}
+          onShare={handleShareDesign}
+          onSaveVersion={handleSaveVersion}
+          onEnterAR={handleToggleArMode}
+          refLength={refLength}
+          onScaleChange={setRefLength}
+        />
+        <CanvasOverlay scaleMetric={refLength} unit="meters" />
       </main>
     </div>
   );
