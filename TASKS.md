@@ -232,3 +232,98 @@
   2. Execute `npm run build` via Turborepo ensuring parallel builds succeed for `apps/web`, `apps/api`, and all `@spatial/*` packages.
   3. Verify zero compiler warnings or broken package exports.
 - **Acceptance Criteria**: Monorepo completes zero-error build with all packages properly linked.
+
+
+## Phase 6: Monorepo Stabilization & Apple-Grade UI System
+
+### - [x] **TASK-601**: TypeScript Strictness & Workspace Resolution Fixes
+- **Objective**: Eliminate all `tsc` compilation errors (`noImplicitAny` and workspace module resolution) to guarantee clean, zero-warning builds locally and on Vercel/AKS.
+- **Files to Touch**:
+  - `apps/web/src/hooks/useSpatialActionDispatcher.ts`
+  - `apps/web/src/services/api-client.ts`
+  - `apps/web/src/share.tsx`
+  - `apps/web/tsconfig.json`
+  - `packages/core/src/index.ts`
+- **Sub-Steps**:
+  1. In `apps/web/src/hooks/useSpatialActionDispatcher.ts`, locate callback parameters at lines 152, 164, and 168. Add explicit type signatures to `(segment: any, index: number)` (or the exact domain interface `LineSegment` from `@spatial/core`) to resolve `TS7006`.
+  2. Ensure `packages/core/src/index.ts` exports all types and utilities imported by `apps/web/src/services/api-client.ts` and `apps/web/src/share.tsx`.
+  3. In `apps/web/tsconfig.json`, verify workspace path aliases point directly to package entry points under `compilerOptions.paths`:
+     ```json
+     "paths": {
+       "@spatial/core": ["../../packages/core/src/index.ts"],
+       "@spatial/core/*": ["../../packages/core/src/*"],
+       "@spatial/collaboration": ["../../packages/collaboration/src/index.ts"],
+       "@spatial/geometry-engine": ["../../packages/geometry-engine/src/index.ts"]
+     }
+     ```
+  4. Run `npx tsc --noEmit -p apps/web/tsconfig.json` to verify zero type check errors.
+- **Acceptance Criteria**: Running `npx tsc --noEmit -p apps/web/tsconfig.json` finishes with exit code 0 and 0 errors.
+
+---
+
+### - [ ] **TASK-602**: WebXR Controller Modernization (`@react-three/xr` v5+)
+- **Objective**: Refactor deprecated WebXR controller components to modern v5+ standard components to fix runtime browser syntax errors and ensure headset/hand-tracking compatibility.
+- **Files to Touch**:
+  - `apps/web/src/components/ArViewport.tsx`
+  - `apps/web/package.json`
+- **Sub-Steps**:
+  1. In `apps/web/src/components/ArViewport.tsx`, remove the deprecated named import `DefaultXRController` from `@react-three/xr`.
+  2. Import `{ XR, Controllers, Hands }` from `@react-three/xr`.
+  3. Inside the `@react-three/fiber` `<Canvas>` component, nest `<Controllers/>` and `<Hands/>` directly as children of `<XR>`.
+  4. Ensure XR session listeners and render state pass into modern `<XR>` context hooks without breaking canvas rendering or orbit controls.
+- **Acceptance Criteria**: Web dev server boots without `SyntaxError: does not provide an export named 'DefaultXRController'` and entering AR activates controllers/hands cleanly.
+
+---
+
+### - [ ] **TASK-603**: Apple-Grade UI System with Lucide Icons & Tailwind Primitives
+- **Objective**: Replace raw unstyled browser controls with an Apple-grade translucent glassmorphism interface (macOS / visionOS aesthetic) using Tailwind CSS and `lucide-react` icons.
+- **Files to Touch**:
+  - `apps/web/package.json`
+  - `apps/web/src/index.css`
+  - `apps/web/src/components/ui/SpatialHeader.tsx`
+  - `apps/web/src/components/ui/CanvasOverlay.tsx`
+  - `apps/web/src/App.tsx`
+- **Sub-Steps**:
+  1. Add `lucide-react` to `apps/web/package.json` dependencies for SF-style iconography (`Folder`, `Save`, `Share2`, `History`, `UploadCloud`, `Glasses`, `Layers`).
+  2. In `apps/web/src/index.css`, verify `@tailwind base; @tailwind components; @tailwind utilities;` and set system font stack (`-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", sans-serif`).
+  3. Create `apps/web/src/components/ui/SpatialHeader.tsx`:
+     - Construct a floating top bar: `fixed top-4 left-4 right-4 z-50 flex items-center justify-between px-4 py-2.5 rounded-2xl bg-neutral-900/70 backdrop-blur-2xl border border-white/10 shadow-2xl text-xs text-neutral-200`.
+     - Group controls into:
+       - **Project Identity**: Glassmorphic input with inline label (`Folder` icon, subtle hover/focus rings).
+       - **Persistence & Share**: Button group (`Save`, `Load`, `Share`, `Save Version`, `Version Badge`) with icon + text and active scale transitions.
+       - **Spatial & Blueprint**: `Upload Blueprint` file picker button, `Scale (m)` numeric stepper input, and prominent primary `Enter AR` action (`bg-blue-600 hover:bg-blue-500 text-white rounded-xl shadow-lg shadow-blue-600/30`).
+     - Wire all existing state props (`projectName`, `onSave`, `onLoad`, `onShare`, `onSaveVersion`, `onUploadBlueprint`, `refLength`, `onEnterAR`) 1:1 with zero breaking signature changes.
+  4. Create `apps/web/src/components/ui/CanvasOverlay.tsx`:
+     - Construct a floating bottom-left HUD pill showing real-time scale metrics with a visual meter line (`fixed bottom-6 left-6 z-40 bg-neutral-900/70 backdrop-blur-xl border border-white/10 px-3 py-1.5 rounded-xl text-neutral-300 font-mono text-xs`).
+  5. In `apps/web/src/App.tsx`, mount `<SpatialHeader/>` and `<CanvasOverlay/>` over the full-screen 3D viewport canvas.
+- **Acceptance Criteria**: The UI renders a dark-mode frosted glass toolbar with Lucide icons over the 3D Canvas; buttons trigger their corresponding handlers without capturing or blocking underlying 3D orbit controls.
+
+---
+
+### - [ ] **TASK-604**: Cross-Platform Monorepo Pipeline (Local, Vercel & AKS)
+- **Objective**: Ensure the entire monorepo builds uniformly across Local Windows/macOS, Vercel edge/static hosting, and Docker/AKS container runners.
+- **Files to Touch**:
+  - `package.json` (Root)
+  - `apps/web/package.json`
+  - `apps/web/vite.config.ts`
+  - `turbo.json`
+- **Sub-Steps**:
+  1. In root `package.json`, verify overrides lock exact unified versions for critical 3D packages:
+     ```json
+     "overrides": {
+       "three": "^0.166.1",
+       "react": "^18.3.1",
+       "react-dom": "^18.3.1",
+       "@react-three/fiber": "^8.17.10",
+       "@react-three/xr": "^5.7.1",
+       "zustand": "^4.5.5"
+     }
+     ```
+  2. In `apps/web/package.json`, ensure `"vite"` is pinned to `"5.4.11"` in `devDependencies` to prevent experimental bundler breaking changes.
+  3. In `apps/web/vite.config.ts`, verify:
+     - `plugins` includes `react()` and `tsconfigPaths()`.
+     - `resolve.dedupe` contains `['react', 'react-dom', 'three', '@react-three/fiber', '@react-three/xr', 'zustand']`.
+     - `optimizeDeps.needsInterop` contains `['@iwer/devui']`.
+     - Zero hardcoded relative path aliases exist (`fileURLToPath('../../node_modules/...')`).
+  4. Test monorepo build pipeline by running `npx turbo build` from the repository root.
+- **Acceptance Criteria**: `npx turbo build` builds `@spatial/core`, `@spatial/geometry-engine`, `@spatial/collaboration`, `@spatial/api`, and `@spatial/web` with exit code 0 and outputs production bundles to `dist/`.

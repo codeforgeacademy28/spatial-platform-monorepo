@@ -15,7 +15,13 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "types": ["vite/client"]
+    "types": ["vite/client"],
+    "paths": {
+      "@spatial/core": ["../../packages/core/src/index.ts"],
+      "@spatial/core/*": ["../../packages/core/src/*"],
+      "@spatial/collaboration": ["../../packages/collaboration/src/index.ts"],
+      "@spatial/geometry-engine": ["../../packages/geometry-engine/src/index.ts"]
+    }
   },
   "include": ["src"],
   "references": [{ "path": "./tsconfig.node.json" }]
