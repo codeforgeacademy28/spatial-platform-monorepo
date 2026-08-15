@@ -327,3 +327,69 @@
      - Zero hardcoded relative path aliases exist (`fileURLToPath('../../node_modules/...')`).
   4. Test monorepo build pipeline by running `npx turbo build` from the repository root.
 - **Acceptance Criteria**: `npx turbo build` builds `@spatial/core`, `@spatial/geometry-engine`, `@spatial/collaboration`, `@spatial/api`, and `@spatial/web` with exit code 0 and outputs production bundles to `dist/`.
+
+
+/*prompt for phase 7:@workspace Execute Phase 4 (Computer Vision & Automated Floor Plan Extrusion) from `tasks.md`:
+
+1. Implement `packages/geometry-engine/src/vectorizer/edge-detector.ts` and `contour-simplifier.ts` to vectorize 2D floor plan images into clean orthogonal wall segments.
+2. Build `packages/geometry-engine/src/mesh/wall-extruder.ts` to procedurally extrude 2D wall arrays into 3D meshes (2.8m height, 0.15m thickness) with corner miter geometry.
+3. Add `<ExtrudedWalls />` inside `ArViewport.tsx` to render the 3D walls in the Three.js canvas.
+4. Add the "Auto-Generate 3D" button with `Sparkles` icon into `SpatialHeader.tsx` and wire it to the vectorizer pipeline.
+5. Verify build with `npx turbo build` and test with `npx turbo test`. Mark completed tasks with [x] in `tasks.md`.*/
+
+## Phase 7: Computer Vision & Automated Floor Plan Extrusion
+
+### - [ ] **TASK-701**: Client-Side OpenCV / Canvas Edge Detection Engine
+- **Objective**: Implement client-side image processing using an offscreen canvas (or OpenCV.js WASM) to detect black-and-white wall contours and vectorize 2D raster blueprints into line segment arrays.
+- **Files to Touch**:
+  - `packages/geometry-engine/package.json`
+  - `packages/geometry-engine/src/vectorizer/edge-detector.ts` *(New File)*
+  - `packages/geometry-engine/src/vectorizer/contour-simplifier.ts` *(New File)*
+  - `packages/geometry-engine/src/index.ts`
+- **Sub-Steps**:
+  1. Create `edge-detector.ts` to process loaded blueprint images via grayscale conversion, Otsu thresholding, and morphological opening to isolate wall contours.
+  2. Implement Ramer-Douglas-Peucker (RDP) algorithm in `contour-simplifier.ts` with orthogonal snapping (forcing segments to 0°, 45°, 90°, 180°) to clean up noisy vector lines.
+  3. Export a core utility function:
+     ```typescript
+     export function vectorizeBlueprint(
+       imageElement: HTMLImageElement,
+       scaleRatio: number,
+       wallThicknessMeters = 0.15
+     ): { walls: WallSegment[]; detectedRooms: RoomPolygon[] };
+     ```
+  4. Unit test vector extraction with synthetic black/white floor plan test images in `packages/geometry-engine/src/__tests__/vectorizer.test.ts`.
+- **Acceptance Criteria**: `npm test --workspace=@spatial/geometry-engine` passes; vectorizer extracts clean orthogonal wall coordinate arrays with tolerance under 5%.
+
+---
+
+### - [ ] **TASK-702**: 3D Parametric Wall Extrusion & Mesh Generation
+- **Objective**: Automatically extrude 2D vectorized wall segments into procedural 3D Three.js solid meshes with customizable wall height and material styling.
+- **Files to Touch**:
+  - `packages/geometry-engine/src/mesh/wall-extruder.ts` *(New File)*
+  - `packages/geometry-engine/src/index.ts`
+  - `apps/web/src/components/scene/ExtrudedWalls.tsx` *(New File)*
+  - `apps/web/src/components/ArViewport.tsx`
+- **Sub-Steps**:
+  1. In `wall-extruder.ts`, create a procedural 3D extrusion builder using `THREE.ExtrudeGeometry` or `THREE.BoxGeometry` aligned along wall vectors from $(x_1, y_1)$ to $(x_2, y_2)$ with default height $h = 2.8\text{ m}$ (standard room height).
+  2. Implement corner-miter joining so intersecting walls form continuous architectural corners without overlapping Z-fighting faces.
+  3. Create `ExtrudedWalls.tsx` in `apps/web` to render the procedural meshes with double-sided PBR architectural materials and shadow casting (`castShadow`, `receiveShadow`).
+  4. Mount `<ExtrudedWalls />` inside the `<Canvas>` scene in `ArViewport.tsx`.
+- **Acceptance Criteria**: Changing from 2D view to 3D/AR mode displays extruded 3D solid walls directly above the blueprint contour lines.
+
+---
+
+### - [ ] **TASK-703**: UI Vectorization Controls & Auto-Generate Trigger
+- **Objective**: Add an Apple-styled "Auto-Generate 3D" action button and wall parameter controls (Height & Thickness) to the HUD header.
+- **Files to Touch**:
+  - `apps/web/src/components/ui/SpatialHeader.tsx`
+  - `apps/web/src/hooks/useSpatialActionDispatcher.ts`
+  - `apps/web/src/store/spatial-store.ts`
+- **Sub-Steps**:
+  1. Add `isVectorizing`, `wallHeight`, and `wallThickness` fields to the global Zustand store in `spatial-store.ts`.
+  2. In `SpatialHeader.tsx`, add an "Auto-Generate 3D" button (with a `Sparkles` icon from `lucide-react`) next to "Upload Blueprint".
+  3. Wire the button `onClick` handler to:
+     - Read the active calibrated blueprint texture.
+     - Call `vectorizeBlueprint()`.
+     - Dispatch the extracted 3D wall segments into the project store.
+  4. Add a loading skeleton/spinner state during computation to maintain responsive UI feedback.
+- **Acceptance Criteria**: Clicking "Auto-Generate 3D" after uploading a blueprint runs vectorization and instantiates 3D architectural walls on the canvas in less than 2 seconds.

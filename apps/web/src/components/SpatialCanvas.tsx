@@ -1,5 +1,5 @@
 import { Canvas, type ThreeEvent } from '@react-three/fiber';
-import { OrbitControls, PointerLockControls } from '@react-three/drei';
+import { OrbitControls } from '@react-three/drei';
 import { useMemo, useState } from 'react';
 import * as THREE from 'three';
 import { createSpatialComment, type SpatialComment } from '@spatial/collaboration';
@@ -14,6 +14,7 @@ interface SpatialCanvasProps {
   points: Point[];
   readOnly?: boolean;
   onCommentAdd?: (comment: SpatialComment) => void;
+  blueprintUrl?: string;
 }
 
 function FloorGrid({ onSelectPoint }: { onSelectPoint?: (e: ThreeEvent<MouseEvent>) => void }): JSX.Element {
@@ -78,6 +79,20 @@ function RoomFloor({ room, onSelectPoint }: { room: Room; onSelectPoint?: (e: Th
   );
 }
 
+function BlueprintPlane({ url }: { url: string }): JSX.Element {
+  const texture = useMemo(() => {
+    const textureLoader = new THREE.TextureLoader();
+    return textureLoader.load(url);
+  }, [url]);
+
+  return (
+    <mesh position={[0, -0.02, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+      <planeGeometry args={[30, 30]} />
+      <meshStandardMaterial map={texture} transparent opacity={0.6} />
+    </mesh>
+  );
+}
+
 export function SpatialCanvas({
   projectId = 'project-1',
   walls,
@@ -85,6 +100,7 @@ export function SpatialCanvas({
   points,
   readOnly = false,
   onCommentAdd,
+  blueprintUrl,
 }: SpatialCanvasProps): JSX.Element {
   const [comments, setComments] = useState<SpatialComment[]>([]);
 
@@ -120,6 +136,8 @@ export function SpatialCanvas({
         <directionalLight position={[10, 12, 8]} intensity={1.2} castShadow />
         <FloorGrid onSelectPoint={handlePointClick} />
 
+        {blueprintUrl && <BlueprintPlane url={blueprintUrl} />}
+
         {rooms.map((room) => (
           <RoomFloor key={room.id} room={room} onSelectPoint={handlePointClick} />
         ))}
@@ -139,8 +157,7 @@ export function SpatialCanvas({
           <SpatialCommentPin key={comment.id} comment={comment} />
         ))}
 
-        <OrbitControls enablePan={readOnly ? false : true} enableZoom enableRotate />
-        {!readOnly ? <PointerLockControls /> : null}
+        <OrbitControls makeDefault enablePan={readOnly ? false : true} enableZoom enableRotate />
       </Canvas>
     </div>
   );

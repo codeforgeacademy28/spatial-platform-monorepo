@@ -11,7 +11,7 @@ import { ArViewport } from './components/ArViewport.js';
 import { SpatialHeader } from './components/ui/SpatialHeader.js';
 import { CanvasOverlay } from './components/ui/CanvasOverlay.js';
 import { useSpatialActionDispatcher } from './hooks/useSpatialActionDispatcher.js';
-import { fetchSharedProject } from './services/api-client.js';
+import { fetchSharedProject, saveProject } from './services/api-client.js';
 
 const STORAGE_KEY = 'spatial-platform-project-v1';
 
@@ -26,6 +26,7 @@ export function App(): JSX.Element {
   const [comparisonPair, setComparisonPair] = useState<[Project, Project] | null>(null);
   const [isArMode, setIsArMode] = useState(false);
   const [refLength, setRefLength] = useState<number>(0);
+  const [blueprintUrl, setBlueprintUrl] = useState<string>('');
 
   useEffect(() => {
     const validatedPoints = walls.flatMap((wall) => [wall.start, wall.end]).map((point) => PointSchema.parse(point));
@@ -73,6 +74,12 @@ export function App(): JSX.Element {
 
   const handleSaveProject = (): void => {
     saveProjectToLocalStorage(project, STORAGE_KEY);
+    saveProject(project)
+      .then(() => window.alert('Project saved successfully!'))
+      .catch((error) => {
+        console.error('Save failed:', error);
+        window.alert('Unable to save project to server.');
+      });
   };
 
   const handleLoadProject = (): void => {
@@ -86,6 +93,11 @@ export function App(): JSX.Element {
     setProjectName(loadedProject.name);
     setRooms(loadedProject.rooms);
     setWalls(loadedWalls);
+  };
+
+  const handleUploadBlueprint = (file: File): void => {
+    const url = URL.createObjectURL(file);
+    setBlueprintUrl(url);
   };
 
   const handleShareDesign = async (): Promise<void> => {
@@ -198,7 +210,7 @@ export function App(): JSX.Element {
       </aside>
 
       <main className="flex-1 relative">
-        <SpatialCanvas walls={walls} rooms={rooms} points={points} />
+        <SpatialCanvas walls={walls} rooms={rooms} points={points} blueprintUrl={blueprintUrl} />
         <SpatialHeader
           projectName={projectName}
           onProjectNameChange={setProjectName}
@@ -209,6 +221,7 @@ export function App(): JSX.Element {
           onEnterAR={handleToggleArMode}
           refLength={refLength}
           onScaleChange={setRefLength}
+          onUploadBlueprint={handleUploadBlueprint}
         />
         <CanvasOverlay scaleMetric={refLength} unit="meters" />
       </main>
