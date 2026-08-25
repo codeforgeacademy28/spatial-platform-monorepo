@@ -25,6 +25,10 @@ interface FloorPlanOverlayProps {
   onRevert?: () => void;
   hasSavedBaseline?: boolean;
   saveState?: 'idle' | 'saving' | 'saved' | 'error';
+  blueprintUploaded?: boolean;
+  scaleCalibrated?: boolean;
+  scaleMetersPerPixel: number;
+  onScaleCalibrated?: (scaleMetersPerPixel: number) => void;
 }
 
 interface CanvasPoint { x: number; y: number }
@@ -56,29 +60,19 @@ function createWall(start: CanvasPoint, end: CanvasPoint, scale: number): WallSe
   const worldStart = canvasToWorld(start, scale);
   const worldEnd = canvasToWorld(end, scale);
   const now = new Date().toISOString();
-  return {
-    id: `wall-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-    roomId: 'unassigned',
-    start: worldStart,
-    end: worldEnd,
-    thickness: 0.2,
-    height: 3,
-    length: Math.hypot(worldEnd.x - worldStart.x, worldEnd.y - worldStart.y),
-    createdAt: now,
-    updatedAt: now,
-  };
+  return { id: `wall-${Date.now()}-${Math.random().toString(16).slice(2)}`, roomId: 'unassigned', start: worldStart, end: worldEnd, thickness: 0.2, height: 3, length: Math.hypot(worldEnd.x - worldStart.x, worldEnd.y - worldStart.y), createdAt: now, updatedAt: now };
 }
 
 export function FloorPlanOverlay({
   walls, rooms, setWalls, setRooms, projectName, onProjectNameChange, onSave, onLoad, onShare,
   onEnterAr, shareUrl, onSaveVersion, onCompareVersions, savedVersionsCount = 0, onBlueprintUploaded,
   onDetectRooms, roomsValidated = false, onReview3D, onEnterSpatial, onRevert, hasSavedBaseline = false, saveState = 'idle',
+  blueprintUploaded = false, scaleCalibrated = false, scaleMetersPerPixel = DEFAULT_SCALE_METERS_PER_PIXEL, onScaleCalibrated,
 }: FloorPlanOverlayProps): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [imageData, setImageData] = useState<string | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [referenceLengthMeters, setReferenceLengthMeters] = useState(4);
-  const [scaleMetersPerPixel, setScaleMetersPerPixel] = useState(DEFAULT_SCALE_METERS_PER_PIXEL);
   const [currentLine, setCurrentLine] = useState<{ start: CanvasPoint; end: CanvasPoint } | null>(null);
   const [undoStack, setUndoStack] = useState<WallSnapshot[]>([]);
   const [redoStack, setRedoStack] = useState<WallSnapshot[]>([]);
@@ -102,6 +96,8 @@ export function FloorPlanOverlay({
         context.beginPath(); context.moveTo(start.x, start.y); context.lineTo(end.x, end.y); context.strokeStyle = '#f8fafc'; context.lineWidth = 5; context.stroke();
       }
       if (currentLine) { context.beginPath(); context.moveTo(currentLine.start.x, currentLine.start.y); context.lineTo(currentLine.end.x, currentLine.end.y); context.strokeStyle = '#22d3ee'; context.lineWidth = 4; context.stroke(); }
+      if (!blueprintUploaded) { context.fillStyle = 'rgba(2,6,23,0.88)'; context.fillRect(0, 42, CANVAS_WIDTH, CANVAS_HEIGHT - 42); context.fillStyle = '#94a3b8'; context.fillText('Upload a blueprint to begin.', 125, CANVAS_HEIGHT / 2); }
+      else if (!scaleCalibrated) { context.fillStyle = 'rgba(2,6,23,0.78)'; context.fillRect(0, 42, CANVAS_WIDTH, CANVAS_HEIGHT - 42); context.fillStyle = '#94a3b8'; context.fillText('Apply scale calibration before tracing walls.', 78, CANVAS_HEIGHT / 2); }
     };
 
     if (!imageData) { drawForeground(); return; }
@@ -114,7 +110,7 @@ export function FloorPlanOverlay({
       context.globalAlpha = 0.78; context.drawImage(img, offsetX, offsetY, displayWidth, displayHeight); context.globalAlpha = 1; drawForeground();
     };
     img.src = imageData;
-  }, [currentLine, imageData, scaleMetersPerPixel, walls]);
+  }, [currentLine, imageData, scaleMetersPerPixel, walls, blueprintUploaded, scaleCalibrated]);
 
   const getCanvasPoint = (event: React.PointerEvent<HTMLCanvasElement>): CanvasPoint | null => {
     const canvas = canvasRef.current; if (!canvas) return null; const rect = canvas.getBoundingClientRect(); if (!rect.width || !rect.height) return null;
@@ -122,16 +118,15 @@ export function FloorPlanOverlay({
   };
   const replaceWalls = (next: WallSnapshot, recordUndo = true): void => {
     if (recordUndo) setUndoStack((previous) => [...previous, cloneWalls(walls)].slice(-50));
-    setWalls(cloneWalls(next));
-    setRedoStack([]);
-    setRooms([]);
+    setWalls(cloneWalls(next)); setRedoStack([]); setRooms([]);
   };
   const handlePointerDown = (event: React.PointerEvent<HTMLCanvasElement>): void => {
+    if (!blueprintUploaded || !scaleCalibrated) return;
     const point = getCanvasPoint(event); if (!point) return; event.currentTarget.setPointerCapture(event.pointerId);
     const start = snapToExistingEndpoint(point, walls, scaleMetersPerPixel); setIsDrawing(true); setCurrentLine({ start, end: start });
   };
   const handlePointerMove = (event: React.PointerEvent<HTMLCanvasElement>): void => {
-    if (!isDrawing || !currentLine) return; const point = getCanvasPoint(event); if (!point) return;
+    if (!blueprintUploaded || !scaleCalibrated || !isDrawing || !currentLine) return; const point = getCanvasPoint(event); if (!point) return;
     setCurrentLine({ start: currentLine.start, end: snapToExistingEndpoint(point, walls, scaleMetersPerPixel) });
   };
   const finishDrawing = (event: React.PointerEvent<HTMLCanvasElement>): void => {
@@ -139,14 +134,19 @@ export function FloorPlanOverlay({
     const pixelLength = Math.hypot(currentLine.end.x - currentLine.start.x, currentLine.end.y - currentLine.start.y);
     setIsDrawing(false); setCurrentLine(null);
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
-    if (pixelLength < 8) return;
+    if (pixelLength < 8 || !blueprintUploaded || !scaleCalibrated) return;
     replaceWalls([...walls, WallSegmentSchema.parse(createWall(currentLine.start, currentLine.end, scaleMetersPerPixel))]);
   };
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>): void => {
     const file = event.target.files?.[0]; if (!file || !['image/jpeg', 'image/png'].includes(file.type)) { window.alert('Blueprint upload currently supports JPG and PNG images.'); return; }
     const reader = new FileReader(); reader.onload = () => setImageData(typeof reader.result === 'string' ? reader.result : null); reader.readAsDataURL(file); onBlueprintUploaded?.(file);
   };
-  const handleReferenceScale = (): void => { const nextScale = referenceLengthMeters / 200; setScaleMetersPerPixel(nextScale > 0 ? nextScale : DEFAULT_SCALE_METERS_PER_PIXEL); };
+  const handleReferenceScale = (): void => {
+    if (!Number.isFinite(referenceLengthMeters) || referenceLengthMeters <= 0) return;
+    const nextScale = referenceLengthMeters / 200;
+    setScaleCalibratedLocal(nextScale);
+  };
+  const setScaleCalibratedLocal = (nextScale: number): void => { if (nextScale > 0) onScaleCalibrated?.(nextScale); };
   const handleRoomNameChange = (roomId: string, nextName: string): void => setRooms((previous) => previous.map((room) => room.id === roomId ? { ...room, name: nextName, updatedAt: new Date().toISOString() } : room));
   const handleUndo = (): void => { const previous = undoStack.at(-1); if (!previous) return; setRedoStack((redo) => [...redo, cloneWalls(walls)].slice(-50)); setUndoStack((stack) => stack.slice(0, -1)); setWalls(cloneWalls(previous)); setRooms([]); };
   const handleRedo = (): void => { const next = redoStack.at(-1); if (!next) return; setUndoStack((stack) => [...stack, cloneWalls(walls)].slice(-50)); setRedoStack((stack) => stack.slice(0, -1)); setWalls(cloneWalls(next)); setRooms([]); };
@@ -157,11 +157,12 @@ export function FloorPlanOverlay({
     <div className="space-y-4 p-4">
       <section className="rounded-xl border border-sky-500/30 bg-sky-500/5 p-4"><p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-sky-300">Spatial editor</p><h2 className="mt-1 text-base font-semibold text-white">2D Floor Plan → Rooms → 3D → Spatial</h2><p className="mt-1 text-xs leading-relaxed text-slate-400">Upload, calibrate, trace walls, detect rooms, review 3D, then enter Spatial View.</p></section>
       <section className="rounded-lg border border-slate-700 bg-slate-900/80 p-3"><label className="block text-xs uppercase tracking-[0.2em] text-slate-400">Project name</label><input value={projectName} onChange={(event) => onProjectNameChange(event.target.value)} className="mt-2 w-full rounded border border-slate-600 bg-slate-800 px-2 py-2 text-sm text-slate-100" /><div className="mt-3 grid grid-cols-2 gap-2"><button type="button" onClick={onSave} disabled={saveState === 'saving'} className="rounded bg-sky-600 px-3 py-2 text-sm font-medium text-white hover:bg-sky-500 disabled:opacity-60">{saveState === 'saving' ? 'Saving…' : 'Save Project'}</button><button type="button" onClick={onLoad} className="rounded bg-slate-700 px-3 py-2 text-sm font-medium text-slate-100 hover:bg-slate-600">Load Project</button><button type="button" onClick={onShare} className="rounded bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-500">Save & Share</button><button type="button" onClick={onSaveVersion} className="rounded bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">Save Version</button></div><div className="mt-2 grid grid-cols-2 gap-2"><button type="button" onClick={onRevert} disabled={!hasSavedBaseline} className="rounded bg-amber-700 px-3 py-2 text-sm font-medium text-white hover:bg-amber-600 disabled:opacity-40">Revert Changes</button><button type="button" onClick={handleClear} disabled={!walls.length} className="rounded bg-rose-700 px-3 py-2 text-sm font-medium text-white hover:bg-rose-600 disabled:opacity-40">Clear Plan</button></div>{onCompareVersions ? <button type="button" onClick={onCompareVersions} className="mt-2 w-full rounded bg-purple-600 px-3 py-2 text-sm font-medium text-white hover:bg-purple-500">Compare Versions ({savedVersionsCount} Saved)</button> : null}{shareUrl ? <div className="mt-3 break-all rounded border border-emerald-500/40 bg-emerald-500/10 p-2 text-xs text-emerald-100">{shareUrl}</div> : null}</section>
-      <section className="rounded-xl border border-slate-700 bg-slate-950 p-3"><div className="flex items-start justify-between gap-3"><div><h3 className="text-sm font-semibold text-white">Step 1 — Upload blueprint</h3><p className="mt-1 text-xs text-slate-400">JPG or PNG floor plan. Uploading the image does not create walls or rooms.</p></div><label className="cursor-pointer rounded-md border border-sky-500 bg-sky-500/10 px-3 py-2 text-xs font-medium text-sky-200">Upload blueprint<input type="file" accept="image/jpeg,image/png" className="hidden" onChange={handleImageUpload} /></label></div></section>
-      <section className="rounded-xl border border-slate-700 bg-slate-950 p-3"><h3 className="text-sm font-semibold text-white">Step 2–3 — Calibrate scale & draw walls</h3><p className="mt-1 text-xs text-slate-400">Choose a known distance, apply it, then press and drag to create each wall. Endpoints snap to nearby walls.</p><div className="mt-3 flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900 px-2 py-2 text-xs text-slate-300"><span>Known length</span><input type="number" min="0.1" step="0.1" value={referenceLengthMeters} onChange={(event) => setReferenceLengthMeters(Number(event.target.value) || 4)} className="w-20 rounded border border-slate-600 bg-slate-800 px-2 py-1 text-slate-100" /><span>m</span><button type="button" onClick={handleReferenceScale} className="rounded bg-slate-700 px-2 py-1 font-medium text-slate-100 hover:bg-slate-600">Apply</button></div><div className="mt-3 grid grid-cols-4 gap-2"><button type="button" onClick={handleUndo} disabled={!undoStack.length} className="rounded bg-slate-700 px-2 py-2 text-xs text-white disabled:opacity-40">Undo</button><button type="button" onClick={handleRedo} disabled={!redoStack.length} className="rounded bg-slate-700 px-2 py-2 text-xs text-white disabled:opacity-40">Redo</button><button type="button" onClick={handleDeleteLast} disabled={!walls.length} className="rounded bg-rose-700 px-2 py-2 text-xs text-white disabled:opacity-40">Delete Last</button><button type="button" onClick={handleClear} disabled={!walls.length} className="rounded bg-rose-900 px-2 py-2 text-xs text-white disabled:opacity-40">Clear</button></div><canvas ref={canvasRef} className="mt-3 block h-[520px] w-full touch-none cursor-crosshair rounded-md border border-slate-700 bg-slate-950" onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={finishDrawing} onPointerCancel={finishDrawing} aria-label="2D floor plan drawing canvas" /><div className="mt-3 flex justify-between rounded-lg border border-slate-800 bg-slate-900 p-3 text-xs"><span><strong className="text-white">{walls.length}</strong> wall segments drawn</span><span className="text-slate-400">{walls.length ? 'Ready for validation' : 'Draw your first wall'}</span></div></section>
-      <section className="rounded-xl border border-slate-700 bg-slate-950 p-3"><div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-sky-300">Step 4</p><h3 className="mt-1 text-sm font-semibold text-white">Detect & validate rooms</h3><p className="mt-1 text-xs text-slate-400">Close the wall loop, then explicitly run room detection.</p></div><button type="button" onClick={onDetectRooms} disabled={!onDetectRooms || walls.length < 3} className="rounded-md bg-sky-600 px-3 py-2 text-xs font-medium text-white hover:bg-sky-500 disabled:opacity-50">Detect Rooms</button></div><div className="mt-3 rounded-lg border border-slate-800 bg-slate-900 p-3 text-xs">{roomsValidated && rooms.length ? <div className="text-emerald-300">✓ {rooms.length} room{rooms.length === 1 ? '' : 's'} detected and validated.</div> : <div className="text-slate-400">No validated rooms yet. Close the loop and click Detect Rooms.</div>}</div>{rooms.map((room) => <div key={room.id} className="mt-2 rounded border border-slate-700 bg-slate-800/70 p-2"><input value={room.name} onChange={(event) => handleRoomNameChange(room.id, event.target.value)} className="w-full rounded border border-slate-600 bg-slate-900 px-2 py-1 text-xs text-slate-100" /><div className="mt-1 text-slate-400">{room.floorArea?.toFixed(2) ?? '0.00'} m² · {room.wallSegments.length} walls</div></div>)}</section>
-      <section className="rounded-xl border border-cyan-500/30 bg-cyan-500/5 p-3"><p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-300">Step 5</p><h3 className="mt-1 text-sm font-semibold text-white">Review the 3D model</h3><p className="mt-1 text-xs text-slate-400">The live 3D preview is on the right. Use this action to switch to the dedicated 3D review stage.</p><button type="button" onClick={onReview3D} disabled={!onReview3D || !walls.length} className="mt-3 w-full rounded bg-cyan-600 px-3 py-2 text-sm font-semibold text-white hover:bg-cyan-500 disabled:opacity-50">Review 3D Model ({walls.length} walls · {rooms.length} rooms)</button></section>
-      <section className="rounded-xl border border-teal-500/30 bg-teal-500/5 p-3"><p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-teal-300">Step 6</p><h3 className="mt-1 text-sm font-semibold text-white">Spatial / AR</h3><p className="mt-1 text-xs text-slate-400">Enter the spatial viewer only after you have verified the 3D geometry.</p><button type="button" onClick={onEnterSpatial ?? onEnterAr} disabled={!walls.length} className="mt-3 w-full rounded bg-teal-600 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-500 disabled:opacity-50">Enter Spatial View</button></section>
+      <section className="rounded-xl border border-slate-700 bg-slate-950 p-3"><div className="flex items-start justify-between gap-3"><div><h3 className="text-sm font-semibold text-white">Step 1 — Upload blueprint</h3><p className="mt-1 text-xs text-slate-400">JPG or PNG floor plan. Uploading the image does not create walls or rooms.</p></div><label className="cursor-pointer rounded-md border border-sky-500 bg-sky-500/10 px-3 py-2 text-xs font-medium text-sky-200">Upload blueprint<input type="file" accept="image/jpeg,image/png" className="hidden" onChange={handleImageUpload} /></label></div><div className="mt-3 text-xs text-slate-400">{blueprintUploaded ? 'Blueprint loaded.' : 'Waiting for blueprint upload.'}</div></section>
+      <section className="rounded-xl border border-slate-700 bg-slate-950 p-3"><h3 className="text-sm font-semibold text-white">Step 2 — Calibrate scale</h3><p className="mt-1 text-xs text-slate-400">Apply a known reference length before tracing. This establishes the world-space scale used by the 3D model.</p><div className="mt-3 flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900 px-2 py-2 text-xs text-slate-300"><span>Known length</span><input type="number" min="0.1" step="0.1" value={referenceLengthMeters} onChange={(event) => setReferenceLengthMeters(Number(event.target.value) || 4)} className="w-20 rounded border border-slate-600 bg-slate-800 px-2 py-1 text-slate-100" /><span>m</span><button type="button" onClick={handleReferenceScale} disabled={!blueprintUploaded} className="rounded bg-slate-700 px-2 py-1 font-medium text-slate-100 hover:bg-slate-600 disabled:opacity-40">Apply</button></div><div className="mt-2 rounded-lg border border-slate-800 bg-slate-900 p-2 text-xs">{scaleCalibrated ? <span className="text-emerald-300">✓ Calibrated · {scaleMetersPerPixel.toFixed(4)} m/pixel</span> : <span className="text-amber-300">Calibration required before wall tracing.</span>}</div></section>
+      <section className="rounded-xl border border-slate-700 bg-slate-950 p-3"><h3 className="text-sm font-semibold text-white">Step 3 — Trace walls</h3><p className="mt-1 text-xs text-slate-400">Press and drag to create each wall. Endpoints snap to nearby walls.</p><div className="mt-3 grid grid-cols-4 gap-2"><button type="button" onClick={handleUndo} disabled={!undoStack.length} className="rounded bg-slate-700 px-2 py-2 text-xs text-white disabled:opacity-40">Undo</button><button type="button" onClick={handleRedo} disabled={!redoStack.length} className="rounded bg-slate-700 px-2 py-2 text-xs text-white disabled:opacity-40">Redo</button><button type="button" onClick={handleDeleteLast} disabled={!walls.length} className="rounded bg-rose-700 px-2 py-2 text-xs text-white disabled:opacity-40">Delete Last</button><button type="button" onClick={handleClear} disabled={!walls.length} className="rounded bg-rose-900 px-2 py-2 text-xs text-white disabled:opacity-40">Clear</button></div><canvas ref={canvasRef} className={`mt-3 block h-[520px] w-full touch-none rounded-md border border-slate-700 bg-slate-950 ${!blueprintUploaded || !scaleCalibrated ? 'cursor-not-allowed opacity-75' : 'cursor-crosshair'}`} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={finishDrawing} onPointerCancel={finishDrawing} aria-label="2D floor plan drawing canvas" /><div className="mt-3 flex justify-between rounded-lg border border-slate-800 bg-slate-900 p-3 text-xs"><span><strong className="text-white">{walls.length}</strong> wall segments drawn</span><span className="text-slate-400">{!blueprintUploaded ? 'Upload blueprint first' : !scaleCalibrated ? 'Calibrate scale first' : walls.length ? 'Ready for validation' : 'Draw your first wall'}</span></div></section>
+      <section className="rounded-xl border border-slate-700 bg-slate-950 p-3"><div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-sky-300">Step 4</p><h3 className="mt-1 text-sm font-semibold text-white">Detect & validate rooms</h3><p className="mt-1 text-xs text-slate-400">Close the wall loop, then explicitly run room detection.</p></div><button type="button" onClick={onDetectRooms} disabled={!onDetectRooms || !scaleCalibrated || walls.length < 3} className="rounded-md bg-sky-600 px-3 py-2 text-xs font-medium text-white hover:bg-sky-500 disabled:opacity-50">Detect Rooms</button></div><div className="mt-3 rounded-lg border border-slate-800 bg-slate-900 p-3 text-xs">{roomsValidated && rooms.length ? <div className="text-emerald-300">✓ {rooms.length} room{rooms.length === 1 ? '' : 's'} detected and validated.</div> : <div className="text-slate-400">No validated rooms yet. {scaleCalibrated ? 'Close the loop and click Detect Rooms.' : 'Calibrate scale first.'}</div>}</div>{rooms.map((room) => <div key={room.id} className="mt-2 rounded border border-slate-700 bg-slate-800/70 p-2"><input value={room.name} onChange={(event) => handleRoomNameChange(room.id, event.target.value)} className="w-full rounded border border-slate-600 bg-slate-900 px-2 py-1 text-xs text-slate-100" /><div className="mt-1 text-slate-400">{room.floorArea?.toFixed(2) ?? '0.00'} m² · {room.wallSegments.length} walls</div></div>)}</section>
+      <section className="rounded-xl border border-cyan-500/30 bg-cyan-500/5 p-3"><p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-300">Step 5</p><h3 className="mt-1 text-sm font-semibold text-white">Review the 3D model</h3><p className="mt-1 text-xs text-slate-400">The live 3D preview is on the right. Use this action to switch to the dedicated 3D review stage.</p><button type="button" onClick={onReview3D} disabled={!onReview3D || !scaleCalibrated || !walls.length} className="mt-3 w-full rounded bg-cyan-600 px-3 py-2 text-sm font-semibold text-white hover:bg-cyan-500 disabled:opacity-50">Review 3D Model ({walls.length} walls · {rooms.length} rooms)</button></section>
+      <section className="rounded-xl border border-teal-500/30 bg-teal-500/5 p-3"><p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-teal-300">Step 6</p><h3 className="mt-1 text-sm font-semibold text-white">Spatial / AR</h3><p className="mt-1 text-xs text-slate-400">Enter the spatial viewer only after you have verified the 3D geometry.</p><button type="button" onClick={onEnterSpatial ?? onEnterAr} disabled={!scaleCalibrated || !walls.length} className="mt-3 w-full rounded bg-teal-600 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-500 disabled:opacity-50">Enter Spatial View</button></section>
     </div>
   );
 }
