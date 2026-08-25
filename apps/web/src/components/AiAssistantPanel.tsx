@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import type { SpatialActionCommand } from '../hooks/useSpatialActionDispatcher.js';
+import type { SpatialActionCommand } from '../hooks/useSpatialActionDispatcher';
 import type { WallSegment } from '@spatial/core';
 
 export interface AiAssistantPanelProps {
@@ -45,13 +45,7 @@ export function AiAssistantPanel({ walls, onDispatchAction }: AiAssistantPanelPr
           'Content-Type': 'application/json',
           'x-subscription-tier': 'studio',
         },
-        body: JSON.stringify({
-          provider,
-          model,
-          apiKey,
-          prompt,
-          temperature,
-        }),
+        body: JSON.stringify({ provider, model, apiKey, prompt, temperature }),
       });
 
       if (!response.ok) {
@@ -60,12 +54,14 @@ export function AiAssistantPanel({ walls, onDispatchAction }: AiAssistantPanelPr
       }
 
       const payload = (await response.json()) as AiCommandResponse;
-      if (!payload.action) {
-        throw new Error('AI response did not contain a valid action.');
-      }
+      if (!payload.action) throw new Error('AI response did not contain a valid action.');
 
       const dispatchMessage = onDispatchAction(payload.action);
-      const nextHistory = [`${new Date().toLocaleTimeString()}: ${prompt}`, `AI: ${JSON.stringify(payload.action)}`, `Dispatch: ${dispatchMessage}`];
+      const nextHistory = [
+        `${new Date().toLocaleTimeString()}: ${prompt}`,
+        `AI: ${JSON.stringify(payload.action)}`,
+        `Dispatch: ${dispatchMessage}`,
+      ];
       setHistory((previous) => [...nextHistory, ...previous].slice(0, 10));
       setStatus('Action dispatched successfully.');
     } catch (error) {
@@ -86,67 +82,34 @@ export function AiAssistantPanel({ walls, onDispatchAction }: AiAssistantPanelPr
 
       <div className="space-y-3">
         <label className="block text-xs uppercase tracking-[0.2em] text-slate-400">Instruction</label>
-        <textarea
-          value={prompt}
-          onChange={(event) => setPrompt(event.target.value)}
-          rows={4}
-          className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:border-sky-500 focus:outline-none"
-        />
+        <textarea value={prompt} onChange={(event) => setPrompt(event.target.value)} rows={4} className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:border-sky-500 focus:outline-none" />
 
         <div className="grid gap-2 sm:grid-cols-2">
           <label className="block text-xs uppercase tracking-[0.2em] text-slate-400">
             API Key
-            <input
-              value={apiKey}
-              onChange={(event) => setApiKey(event.target.value)}
-              className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-slate-100"
-              placeholder="sk-..."
-            />
+            <input value={apiKey} onChange={(event) => setApiKey(event.target.value)} className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-slate-100" placeholder="sk-..." />
           </label>
-
           <label className="block text-xs uppercase tracking-[0.2em] text-slate-400">
             Model
-            <input
-              value={model}
-              onChange={(event) => setModel(event.target.value)}
-              className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-slate-100"
-              placeholder="gpt-4o-mini"
-            />
+            <input value={model} onChange={(event) => setModel(event.target.value)} className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-slate-100" placeholder="gpt-4o-mini" />
           </label>
         </div>
 
         <div className="grid gap-2 sm:grid-cols-2">
           <label className="block text-xs uppercase tracking-[0.2em] text-slate-400">
             Provider
-            <select
-              value={provider}
-              onChange={(event) => setProvider(event.target.value as 'openai' | 'groq')}
-              className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-slate-100"
-            >
+            <select value={provider} onChange={(event) => setProvider(event.target.value as 'openai' | 'groq')} className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-slate-100">
               <option value="openai">OpenAI</option>
               <option value="groq">Groq</option>
             </select>
           </label>
-
           <label className="block text-xs uppercase tracking-[0.2em] text-slate-400">
             Temperature
-            <input
-              type="number"
-              min="0"
-              max="1"
-              step="0.05"
-              value={temperature}
-              onChange={(event) => setTemperature(Number(event.target.value))}
-              className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-slate-100"
-            />
+            <input type="number" min="0" max="1" step="0.05" value={temperature} onChange={(event) => setTemperature(Number(event.target.value))} className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-slate-100" />
           </label>
         </div>
 
-        <button
-          type="button"
-          onClick={handleSend}
-          className="w-full rounded bg-sky-600 px-3 py-2 text-sm font-semibold text-white hover:bg-sky-500"
-        >
+        <button type="button" onClick={handleSend} className="w-full rounded bg-sky-600 px-3 py-2 text-sm font-semibold text-white hover:bg-sky-500">
           Dispatch AI Action
         </button>
 
@@ -157,15 +120,7 @@ export function AiAssistantPanel({ walls, onDispatchAction }: AiAssistantPanelPr
 
         <div className="space-y-1 text-xs text-slate-300">
           <div className="uppercase tracking-[0.2em] text-slate-400">Recent activity</div>
-          {history.length === 0 ? (
-            <p className="text-slate-500">No history yet.</p>
-          ) : (
-            history.map((entry, index) => (
-              <div key={`${entry}-${index}`} className="rounded border border-slate-700 bg-slate-800/80 px-2 py-1">
-                {entry}
-              </div>
-            ))
-          )}
+          {history.length === 0 ? <p className="text-slate-500">No history yet.</p> : history.map((entry, index) => <div key={`${entry}-${index}`} className="rounded border border-slate-700 bg-slate-800/80 px-2 py-1">{entry}</div>)}
         </div>
       </div>
     </section>

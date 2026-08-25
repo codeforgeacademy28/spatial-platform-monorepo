@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { createSpatialComment, type SpatialComment } from '@spatial/collaboration';
 import { extrudeWallSegments, generateRoomFloorMesh } from '@spatial/geometry-engine';
 import type { Point, Room, WallSegment } from '@spatial/core';
-import { SpatialCommentPin } from './SpatialCommentPin.js';
+import { SpatialCommentPin } from './SpatialCommentPin';
 
 interface SpatialCanvasProps {
   projectId?: string;
@@ -20,12 +20,7 @@ function FloorGrid({ onSelectPoint }: { onSelectPoint?: (e: ThreeEvent<MouseEven
   return (
     <>
       <gridHelper args={[30, 30, '#38bdf8', '#334155']} />
-      <mesh
-        rotation-x={-Math.PI / 2}
-        position={[0, -0.01, 0]}
-        receiveShadow
-        onClick={(e) => onSelectPoint?.(e)}
-      >
+      <mesh rotation-x={-Math.PI / 2} position={[0, -0.01, 0]} receiveShadow onClick={(e) => onSelectPoint?.(e)}>
         <planeGeometry args={[30, 30]} />
         <meshStandardMaterial color="#0f172a" />
       </mesh>
@@ -37,21 +32,13 @@ function WallMesh({ wall, onSelectPoint }: { wall: WallSegment; onSelectPoint?: 
   const extrusion = useMemo(() => extrudeWallSegments([wall])[0], [wall]);
   const start = extrusion.bottomCorners[0];
   const end = extrusion.bottomCorners[1];
-  const dx = end.x - start.x;
-  const dy = end.y - start.y;
-  const length = Math.hypot(dx, dy) || 0.001;
-  const angle = Math.atan2(dy, dx);
+  const length = Math.hypot(end.x - start.x, end.y - start.y) || 0.001;
+  const angle = Math.atan2(end.y - start.y, end.x - start.x);
   const centerX = (start.x + end.x) / 2;
   const centerY = (start.y + end.y) / 2;
 
   return (
-    <mesh
-      position={[centerX, wall.height / 2, centerY]}
-      rotation={[0, -angle, 0]}
-      castShadow
-      receiveShadow
-      onClick={(e) => onSelectPoint?.(e)}
-    >
+    <mesh position={[centerX, wall.height / 2, centerY]} rotation={[0, -angle, 0]} castShadow receiveShadow onClick={(e) => onSelectPoint?.(e)}>
       <boxGeometry args={[length, wall.height, wall.thickness]} />
       <meshStandardMaterial color="#cbd5e1" metalness={0.12} roughness={0.7} />
     </mesh>
@@ -71,31 +58,21 @@ function RoomFloor({ room, onSelectPoint }: { room: Room; onSelectPoint?: (e: Th
   }, [room]);
 
   return (
-    <mesh geometry={geometry as any} position={[0, 0.01, 0]} receiveShadow onClick={(e) => onSelectPoint?.(e)}>
+    <mesh geometry={geometry} position={[0, 0.01, 0]} receiveShadow onClick={(e) => onSelectPoint?.(e)}>
       <meshStandardMaterial color="#1d4ed8" transparent opacity={0.35} />
     </mesh>
   );
 }
 
-export function SpatialCanvas({
-  projectId = 'project-1',
-  walls,
-  rooms,
-  points,
-  readOnly = false,
-  onCommentAdd,
-}: SpatialCanvasProps): JSX.Element {
+export function SpatialCanvas({ projectId = 'project-1', walls, rooms, points, readOnly = false, onCommentAdd }: SpatialCanvasProps): JSX.Element {
   const [comments, setComments] = useState<SpatialComment[]>([]);
 
   const handlePointClick = (e: ThreeEvent<MouseEvent>): void => {
     e.stopPropagation();
     const hitPoint = e.point;
     const hitNormal = e.face?.normal ?? new THREE.Vector3(0, 1, 0);
-
     const commentText = window.prompt('Add a 3D spatial comment at this position:');
-    if (!commentText || !commentText.trim()) {
-      return;
-    }
+    if (!commentText || !commentText.trim()) return;
 
     const comment = createSpatialComment({
       projectId,
@@ -116,32 +93,16 @@ export function SpatialCanvas({
         <ambientLight intensity={0.8} />
         <directionalLight position={[10, 12, 8]} intensity={1.2} castShadow />
         <FloorGrid onSelectPoint={readOnly ? undefined : handlePointClick} />
-
-        {rooms.map((room) => (
-          <RoomFloor key={room.id} room={room} onSelectPoint={readOnly ? undefined : handlePointClick} />
-        ))}
-
-        {walls.map((wall) => (
-          <WallMesh key={wall.id} wall={wall} onSelectPoint={readOnly ? undefined : handlePointClick} />
-        ))}
-
+        {rooms.map((room) => <RoomFloor key={room.id} room={room} onSelectPoint={readOnly ? undefined : handlePointClick} />)}
+        {walls.map((wall) => <WallMesh key={wall.id} wall={wall} onSelectPoint={readOnly ? undefined : handlePointClick} />)}
         {points.map((point, index) => (
           <mesh key={`${point.x}-${point.y}-${index}`} position={[point.x, 0.1, point.y]}>
             <sphereGeometry args={[0.12, 16, 16]} />
             <meshStandardMaterial color="#f59e0b" emissive="#f59e0b" emissiveIntensity={0.4} />
           </mesh>
         ))}
-
-        {comments.map((comment) => (
-          <SpatialCommentPin key={comment.id} comment={comment} />
-        ))}
-
-        <OrbitControls
-          enablePan={!readOnly}
-          enableZoom
-          enableRotate={!readOnly}
-          makeDefault
-        />
+        {comments.map((comment) => <SpatialCommentPin key={comment.id} comment={comment} />)}
+        <OrbitControls enablePan={!readOnly} enableZoom enableRotate={!readOnly} makeDefault />
       </Canvas>
     </div>
   );
