@@ -20,10 +20,7 @@ interface FloorPlanOverlayProps {
   onBlueprintUploaded?: (file: File) => void;
 }
 
-interface CanvasPoint {
-  x: number;
-  y: number;
-}
+interface CanvasPoint { x: number; y: number }
 
 const CANVAS_WIDTH = 400;
 const CANVAS_HEIGHT = 520;
@@ -198,7 +195,10 @@ export function FloorPlanOverlay({
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>): void => {
     const file = event.target.files?.[0];
-    if (!file || !['image/jpeg', 'image/png'].includes(file.type)) return;
+    if (!file || !['image/jpeg', 'image/png'].includes(file.type)) {
+      window.alert('Blueprint upload currently supports JPG and PNG images.');
+      return;
+    }
     const reader = new FileReader();
     reader.onload = () => setImageData(typeof reader.result === 'string' ? reader.result : null);
     reader.readAsDataURL(file);
@@ -263,21 +263,15 @@ export function FloorPlanOverlay({
       </section>
 
       <section className="rounded-lg border border-slate-700 bg-slate-900/80 p-3">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Step 4 — Validate rooms</p>
-        <p className="mt-1 text-xs text-slate-500">Close your wall loop. Detected rooms and calculated floor areas appear here.</p>
+        <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Step 4 — Detected rooms</p>
         <div className="mt-3 space-y-2 text-xs text-slate-300">
-          {rooms.length === 0 ? <div className="rounded border border-slate-700 bg-slate-800/70 px-2 py-2 text-slate-400">No closed room loops detected yet.</div> : rooms.map((room) => (
+          {rooms.length === 0 ? <div className="rounded border border-slate-700 bg-slate-800/70 px-2 py-2 text-slate-400">Draw a closed wall loop to detect a room.</div> : rooms.map((room) => (
             <div key={room.id} className="rounded border border-slate-700 bg-slate-800/70 p-2">
               <input value={room.name} onChange={(event) => handleRoomNameChange(room.id, event.target.value)} className="w-full rounded border border-slate-600 bg-slate-900 px-2 py-1 text-xs text-slate-100" />
               <div className="mt-1 text-slate-400">{room.floorArea?.toFixed(2) ?? '0.00'} m²</div>
             </div>
           ))}
         </div>
-      </section>
-
-      <section className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-300">Step 5 — 3D & spatial</p>
-        <p className="mt-1 text-xs leading-5 text-slate-400">Every wall is converted into a 3D wall automatically. Use the right viewport to orbit, zoom and pan. Then use AR to enter the spatial view.</p>
       </section>
     </div>
   );
