@@ -39,15 +39,19 @@ function createStarterWalls(): WallSegment[] {
   ];
 }
 
-function buildProject(projectName: string, walls: WallSegment[], rooms: Room[]): Project {
+function buildProject(projectName: string, walls: WallSegment[], rooms: Room[], id = 'project-1'): Project {
   return {
-    id: 'project-1',
+    id,
     name: projectName,
     walls,
     rooms,
     createdAt: '2026-08-25T00:00:00.000Z',
     updatedAt: new Date().toISOString(),
   };
+}
+
+function getApiBaseUrl(): string {
+  return import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') ?? '';
 }
 
 export function App(): JSX.Element {
@@ -115,6 +119,30 @@ export function App(): JSX.Element {
     }
   };
 
+  const handleShareDesign = async (): Promise<void> => {
+    setSaveState('saving');
+    setSaveMessage('Publishing project…');
+    try {
+      const response = await fetch(`${getApiBaseUrl()}/api/projects/${encodeURIComponent('project-1')}/publish`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(project),
+      });
+      if (!response.ok) throw new Error(`Publish failed (${response.status}).`);
+      const payload = (await response.json()) as { shareUrl?: string; shareToken?: string };
+      const nextShareUrl = payload.shareUrl
+        ? `${getApiBaseUrl()}${payload.shareUrl}`
+        : `${window.location.origin}/?share=${payload.shareToken ?? ''}`;
+      setShareUrl(nextShareUrl);
+      setSaveState('saved');
+      setSaveMessage('Project published successfully.');
+    } catch (error) {
+      console.error(error);
+      setSaveState('error');
+      setSaveMessage(error instanceof Error ? error.message : 'Project publish failed.');
+    }
+  };
+
   const handleLoadProject = (): void => {
     const loadedProject = loadProjectFromLocalStorage(STORAGE_KEY);
     if (!loadedProject) {
@@ -144,11 +172,12 @@ export function App(): JSX.Element {
   };
 
   const handleSaveVersion = async (): Promise<void> => {
-    const versionProject = buildProject(`${projectName} (v${versions.length + 1})`, walls, rooms);
+    const versionNumber = versions.length + 1;
+    const versionProject = buildProject(`${projectName} (v${versionNumber})`, walls, rooms, `project-1-v${versionNumber}`);
     setVersions((previous) => [...previous, versionProject]);
     try {
-      await saveProjectToServer({ ...versionProject, id: `project-1-v${versions.length + 1}` });
-      setSaveMessage(`Version ${versions.length + 1} saved to server.`);
+      await saveProjectToServer(versionProject);
+      setSaveMessage(`Version ${versionNumber} saved to server.`);
     } catch (error) {
       console.error(error);
       setSaveMessage('Version kept in this session, but server persistence failed.');
@@ -164,8 +193,7 @@ export function App(): JSX.Element {
   };
 
   const handleBlueprintUpload = (file: File): void => {
-    const supported = ['image/jpeg', 'image/png'];
-    if (!supported.includes(file.type)) {
+    if (!['image/jpeg', 'image/png'].includes(file.type)) {
       window.alert('Blueprint upload currently supports JPG and PNG images.');
       return;
     }
@@ -210,9 +238,7 @@ export function App(): JSX.Element {
     { number: 6, title: 'Spatial / AR', detail: 'Final presentation stage' },
   ];
 
-  if (sharedProject) {
-    return <ClientViewer project={sharedProject} />;
-  }
+  if (sharedProject) return <ClientViewer project={sharedProject} />;
 
   if (comparisonPair) {
     return <VersionComparer versionA={comparisonPair[0]} versionB={comparisonPair[1]} onClose={() => setComparisonPair(null)} />;
@@ -269,9 +295,7 @@ export function App(): JSX.Element {
           onProjectNameChange={setProjectName}
           onSave={handleSaveProject}
           onLoad={handleLoadProject}
-          onShare={async () => {
-            await handleSaveProject();
-          }}
+          onShare={handleShareDesign}
           onEnterAr={handleEnterSpatial}
           shareUrl={shareUrl}
           onSaveVersion={handleSaveVersion}
@@ -301,7 +325,7 @@ export function App(): JSX.Element {
           onProjectNameChange={setProjectName}
           onSave={handleSaveProject}
           onLoad={handleLoadProject}
-          onShare={async () => { await handleSaveProject(); }}
+          onShare={handleShareDesign}
           onSaveVersion={handleSaveVersion}
           onEnterAr={handleEnterSpatial}
           refLength={refLength}
