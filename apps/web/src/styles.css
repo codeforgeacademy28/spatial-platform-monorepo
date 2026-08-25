@@ -2,24 +2,27 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  color-scheme: dark;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-  background: #020617;
-  color: #e2e8f0;
-}
-
-html,
-body,
-#root {
-  margin: 0;
-  width: 100%;
-  height: 100%;
-}
-
-body {
-  min-height: 100vh;
-  overflow: hidden;
-}
+:root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #020617; color: #e2e8f0; }
+* { box-sizing: border-box; }
+html, body, #root { margin:0; width:100%; height:100%; }
+body { min-height:100vh; overflow:hidden; background: radial-gradient(circle at 20% 10%, rgba(14,165,233,.12), transparent 32%), radial-gradient(circle at 80% 80%, rgba(99,102,241,.12), transparent 35%), #020617; }
+button,input,select,textarea { font: inherit; }
+button { cursor:pointer; }
+input,textarea,select { caret-color:#38bdf8; }
+canvas { display:block; }
+.spatial-shell { background:linear-gradient(180deg, rgba(15,23,42,.98), rgba(2,6,23,.98)); }
+.spatial-sidebar { background:linear-gradient(180deg, rgba(15,23,42,.96), rgba(2,6,23,.98)); box-shadow:20px 0 60px rgba(2,6,23,.35); }
+.spatial-panel { border:1px solid rgba(148,163,184,.14); background:linear-gradient(180deg, rgba(30,41,59,.68), rgba(15,23,42,.78)); box-shadow:0 18px 50px rgba(2,6,23,.24); border-radius:16px; }
+.spatial-stepper { display:grid; gap:8px; }
+.spatial-step { display:flex; align-items:center; gap:10px; min-height:44px; padding:8px 10px; border-radius:12px; border:1px solid rgba(148,163,184,.12); background:rgba(15,23,42,.55); }
+.spatial-step-number { display:grid; width:28px; height:28px; place-items:center; border-radius:999px; background:rgba(51,65,85,.9); color:#cbd5e1; font-size:12px; font-weight:700; }
+.spatial-step.is-active { border-color:rgba(56,189,248,.4); background:linear-gradient(90deg, rgba(14,165,233,.14), rgba(15,23,42,.78)); }
+.spatial-step.is-active .spatial-step-number { background:#0284c7; color:white; box-shadow:0 0 0 4px rgba(14,165,233,.12); }
+.spatial-step.is-complete .spatial-step-number { background:#059669; color:white; }
+.spatial-field { width:100%; border:1px solid rgba(148,163,184,.18); border-radius:10px; background:rgba(2,6,23,.72); color:#e2e8f0; outline:none; }
+.spatial-field:focus { border-color:rgba(56,189,248,.8); box-shadow:0 0 0 3px rgba(56,189,248,.12); }
+.spatial-viewport-card { position:absolute; left:24px; bottom:24px; z-index:20; max-width:360px; padding:14px 16px; border:1px solid rgba(148,163,184,.14); border-radius:14px; background:rgba(15,23,42,.82); backdrop-filter:blur(18px); box-shadow:0 20px 60px rgba(2,6,23,.42); }
+.spatial-viewport-label { font-size:11px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:#7dd3fc; }
+.spatial-grid-hint { margin-top:6px; font-size:12px; color:#94a3b8; }
+.spatial-header { backdrop-filter:blur(22px); background:rgba(15,23,42,.72); border-color:rgba(255,255,255,.1); box-shadow:0 16px 40px rgba(2,6,23,.28); }
+.spatial-badge { display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border-radius:999px; background:rgba(51,65,85,.7); color:#cbd5e1; font-size:11px; }

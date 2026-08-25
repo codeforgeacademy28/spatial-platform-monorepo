@@ -48,6 +48,7 @@ export function App(): JSX.Element {
   const [comparisonPair, setComparisonPair] = useState<[Project, Project] | null>(null);
   const [isArMode, setIsArMode] = useState(false);
   const [refLength, setRefLength] = useState<number>(4);
+  const [blueprintUploaded, setBlueprintUploaded] = useState(false);
 
   useEffect(() => {
     const validatedPoints = walls.flatMap((wall) => [wall.start, wall.end]).map((point) => PointSchema.parse(point));
@@ -139,6 +140,17 @@ export function App(): JSX.Element {
     setComparisonPair([versions[versions.length - 2], versions[versions.length - 1]]);
   };
 
+  const handleBlueprintUpload = (file: File): void => {
+    const supported = ['image/jpeg', 'image/png'];
+    if (!supported.includes(file.type)) {
+      window.alert('Blueprint upload currently supports JPG and PNG images.');
+      return;
+    }
+    setBlueprintUploaded(true);
+  };
+
+  const currentStep = blueprintUploaded ? (rooms.length > 0 ? 4 : walls.length > 4 ? 3 : 2) : 1;
+
   if (sharedProject) return <ClientViewer project={sharedProject} />;
 
   if (isArMode) {
@@ -152,11 +164,45 @@ export function App(): JSX.Element {
     );
   }
 
+  const steps = [
+    { number: 1, title: 'Upload blueprint', detail: 'JPG/PNG floor plan' },
+    { number: 2, title: 'Calibrate scale', detail: 'Set a known length' },
+    { number: 3, title: 'Trace walls', detail: 'Draw wall segments in 2D' },
+    { number: 4, title: 'Validate rooms', detail: 'Close loops and inspect areas' },
+    { number: 5, title: '3D & spatial', detail: 'Orbit, save and enter AR' },
+  ];
+
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-slate-950 text-slate-100">
+    <div className="spatial-shell flex h-screen w-screen overflow-hidden text-slate-100">
       {comparisonPair && <VersionComparer versionA={comparisonPair[0]} versionB={comparisonPair[1]} onClose={() => setComparisonPair(null)} />}
 
-      <aside className="relative z-30 h-full w-[440px] shrink-0 overflow-y-auto border-r border-slate-800 bg-slate-900/80 backdrop-blur-sm">
+      <aside className="spatial-sidebar relative z-30 h-full w-[440px] shrink-0 overflow-y-auto border-r border-slate-800/80 p-3">
+        <div className="spatial-panel mb-3 p-3">
+          <div className="mb-2 flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-300">Workflow</p>
+              <h1 className="mt-1 text-lg font-semibold text-white">Blueprint → Spatial 3D</h1>
+            </div>
+            <span className="spatial-badge">Step {currentStep}/5</span>
+          </div>
+          <p className="mb-3 text-xs leading-5 text-slate-400">Follow these steps in order. The 2D plan on the left becomes the 3D model on the right.</p>
+          <div className="spatial-stepper">
+            {steps.map((step) => {
+              const complete = currentStep > step.number;
+              const active = currentStep === step.number;
+              return (
+                <div key={step.number} className={`spatial-step ${active ? 'is-active' : ''} ${complete ? 'is-complete' : ''}`}>
+                  <span className="spatial-step-number">{complete ? '✓' : step.number}</span>
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-slate-100">{step.title}</div>
+                    <div className="text-xs text-slate-500">{step.detail}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
         <FloorPlanOverlay
           walls={walls}
           rooms={rooms}
@@ -172,14 +218,20 @@ export function App(): JSX.Element {
           onSaveVersion={handleSaveVersion}
           onCompareVersions={handleCompareVersions}
           savedVersionsCount={versions.length}
+          onBlueprintUploaded={handleBlueprintUpload}
         />
-        <div className="border-t border-slate-800 p-4">
+        <div className="border-t border-slate-800 p-3">
           <AiAssistantPanel walls={walls} onDispatchAction={dispatchSpatialAction} />
         </div>
       </aside>
 
       <main className="relative min-w-0 flex-1 overflow-hidden">
         <SpatialCanvas walls={walls} rooms={rooms} points={points} />
+        <div className="spatial-viewport-card">
+          <div className="spatial-viewport-label">3D Model View</div>
+          <div className="mt-1 text-sm font-medium text-white">Blueprint converted to spatial geometry</div>
+          <div className="spatial-grid-hint">Drag to orbit · scroll to zoom · right-drag to pan</div>
+        </div>
         <SpatialHeader
           projectName={projectName}
           onProjectNameChange={setProjectName}
@@ -187,9 +239,10 @@ export function App(): JSX.Element {
           onLoad={handleLoadProject}
           onShare={handleShareDesign}
           onSaveVersion={handleSaveVersion}
-          onEnterAr={handleToggleArMode}
+          onEnterAR={handleToggleArMode}
           refLength={refLength}
           onScaleChange={setRefLength}
+          onUploadBlueprint={handleBlueprintUpload}
         />
         <CanvasOverlay scaleMetric={refLength} unit="meters" />
       </main>
