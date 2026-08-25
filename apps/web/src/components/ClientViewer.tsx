@@ -14,7 +14,7 @@ export function ClientViewer({ project }: ClientViewerProps): JSX.Element {
   const handleCommentAdd = useCallback(
     async (comment: SpatialComment): Promise<void> => {
       try {
-        await fetch(`/api/projects/${encodeURIComponent(project.id)}/comments`, {
+        await fetch(`http://localhost:4000/api/projects/${encodeURIComponent(project.id)}/comments`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(comment),
