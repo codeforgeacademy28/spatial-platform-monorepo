@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { createSpatialComment, type SpatialComment } from '@spatial/collaboration';
 import { extrudeWallSegments, generateRoomFloorMesh } from '@spatial/geometry-engine';
 import type { Point, Room, WallSegment } from '@spatial/core';
-import { SpatialCommentPin } from './SpatialCommentPin.js';
+import { SpatialCommentPin } from './SpatialCommentPin';
 
 interface SpatialCanvasProps {
   projectId?: string;
@@ -53,7 +53,7 @@ function WallMesh({ wall, onSelectPoint }: { wall: WallSegment; onSelectPoint?: 
       onClick={(e) => onSelectPoint?.(e)}
     >
       <boxGeometry args={[length, wall.height, wall.thickness]} />
-      <meshStandardMaterial color="#cbd5e1" metalness={0.12} roughness={0.7} />
+      <meshStandardMaterial color={wall.materialHex ?? '#cbd5e1'} metalness={0.12} roughness={0.7} />
     </mesh>
   );
 }
@@ -71,7 +71,7 @@ function RoomFloor({ room, onSelectPoint }: { room: Room; onSelectPoint?: (e: Th
   }, [room]);
 
   return (
-    <mesh geometry={geometry as any} position={[0, 0.01, 0]} receiveShadow onClick={(e) => onSelectPoint?.(e)}>
+    <mesh geometry={geometry} position={[0, 0.01, 0]} receiveShadow onClick={(e) => onSelectPoint?.(e)}>
       <meshStandardMaterial color="#1d4ed8" transparent opacity={0.35} />
     </mesh>
   );
@@ -93,9 +93,7 @@ export function SpatialCanvas({
     const hitNormal = e.face?.normal ?? new THREE.Vector3(0, 1, 0);
 
     const commentText = window.prompt('Add a 3D spatial comment at this position:');
-    if (!commentText || !commentText.trim()) {
-      return;
-    }
+    if (!commentText || !commentText.trim()) return;
 
     const comment = createSpatialComment({
       projectId,
