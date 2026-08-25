@@ -9,7 +9,7 @@ function pointsMatch(p1: Point, p2: Point, tolerance = POINT_TOLERANCE): boolean
 function calculatePolygonArea(points: Point[]): number { if (points.length < 3) return 0; let area = 0; for (let index = 0; index < points.length; index += 1) { const current = points[index]; const next = points[(index + 1) % points.length]; area += current.x * next.y - next.x * current.y; } return Math.abs(area) / 2; }
 
 function traceLoopFromWall(walls: readonly WallSegment[], startWall: WallSegment, unvisited: Set<string>): { points: Point[]; wallIds: string[] } | null {
-  const points: Point[] = [startWall.start];
+  const points: Point[] = [startWall.start, startWall.end];
   const wallIds: string[] = [startWall.id];
   unvisited.delete(startWall.id);
   let previousEndpoint = startWall.start;
