@@ -50,3 +50,18 @@ The web editor is implemented as a dependency-ordered workflow rather than a col
 **Implementation:** Validate upload → calibration → walls → rooms → 3D → save → compare → spatial; ensure generated runtime artifacts cannot reintroduce PointerLockControls.
 
 **Acceptance:** No PointerLockControls errors in the current production bundle and every workflow stage is reachable and observable.
+
+## Current implementation branch
+`fix/editor-workflow-persistence-and-spatial`
+
+## Pull request
+#13 — Fix spatial editor workflow, persistence, comparison, and AR flow
+
+## Validation notes
+- Canonical walls are included in saved projects and versions.
+- Room detection is an explicit user action with endpoint snapping.
+- 3D review and Spatial View are explicit workflow stages.
+- Save Project posts to `/api/projects` and retains a local recovery copy.
+- Comparison diffs canonical wall geometry and frames each version.
+- Spatial View is centered and does not use PointerLockControls.
+- API CORS accepts configured `WEB_ORIGINS` for deployed web clients.
