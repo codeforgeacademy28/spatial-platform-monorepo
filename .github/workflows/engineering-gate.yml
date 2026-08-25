@@ -6,10 +6,13 @@ on:
   pull_request:
     branches: ['main']
 
+permissions:
+  contents: read
+
 jobs:
   web-gate:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -17,11 +20,18 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Regenerate lockfile for diagnostics
         run: npm install --package-lock-only --ignore-scripts
+
+      - name: Upload generated lockfile
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-package-lock
+          path: package-lock.json
+          if-no-files-found: error
 
       - name: Check lockfile drift
         run: git diff --exit-code -- package-lock.json
