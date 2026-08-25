@@ -1,8 +1,8 @@
 import { Canvas, useFrame } from '@react-three/fiber';
 import { IfInSessionMode, XR, XROrigin, createXRStore, useXR, useXRControllerLocomotion, useXRInputSourceState } from '@react-three/xr';
 import { OrbitControls } from '@react-three/drei';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import type { MutableRefObject } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { MutableRefObject, ReactNode } from 'react';
 import * as THREE from 'three';
 import type { Group } from 'three';
 import { extrudeWallSegments, generateRoomFloorMesh } from '@spatial/geometry-engine';
@@ -38,20 +38,20 @@ function RoomFloor({ room }: { room: Room }): JSX.Element {
   return <mesh geometry={geometry} position={[0, 0.01, 0]} receiveShadow><meshStandardMaterial color="#2563eb" transparent opacity={0.35} /></mesh>;
 }
 
-function XRTrackingReporter({ onChange }: { onChange: (status: ControllerTracking) => void }): JSX.Element {
+function XRTrackingReporter({ onChange }: { onChange: (status: ControllerTracking) => void }): ReactNode {
   const session = useXR((state) => state.session);
   const left = useXRInputSourceState('controller', 'left');
   const right = useXRInputSourceState('controller', 'right');
   useEffect(() => { onChange({ sessionActive: Boolean(session), leftTracked: Boolean(left), rightTracked: Boolean(right) }); }, [left, right, session, onChange]);
-  return <></>;
+  return null;
 }
 
-function XRLocomotion({ originRef }: { originRef: MutableRefObject<Group | null> }): JSX.Element {
+function XRLocomotion({ originRef }: { originRef: MutableRefObject<Group | null> }): ReactNode {
   useXRControllerLocomotion(originRef, { speed: 1.5 }, { type: 'snap', degrees: 30, deadZone: 0.18 }, 'left');
   return <XROrigin ref={originRef} position={[0, 0, 0]} />;
 }
 
-function KeyboardSpatialMovement({ originRef }: { originRef: MutableRefObject<Group | null> }): JSX.Element {
+function KeyboardSpatialMovement({ originRef }: { originRef: MutableRefObject<Group | null> }): ReactNode {
   const pressed = useRef(new Set<string>());
   useEffect(() => {
     const down = (event: KeyboardEvent) => pressed.current.add(event.key.toLowerCase());
@@ -68,12 +68,13 @@ function KeyboardSpatialMovement({ originRef }: { originRef: MutableRefObject<Gr
     originRef.current.position.x += strafe * speed;
     originRef.current.position.z -= forward * speed;
   });
-  return <></>;
+  return null;
 }
 
 export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element {
   const [tracking, setTracking] = useState<ControllerTracking>({ sessionActive: false, leftTracked: false, rightTracked: false });
   const originRef = useRef<Group | null>(null);
+  const handleTrackingChange = useCallback((status: ControllerTracking) => setTracking(status), []);
   const modelTransform = useMemo<[number, number, number]>(() => {
     if (!walls.length) return [0, 0, -4];
     const xs = walls.flatMap((wall) => [wall.start.x, wall.end.x]); const ys = walls.flatMap((wall) => [wall.start.y, wall.end.y]);
@@ -95,7 +96,7 @@ export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element {
         <ambientLight intensity={0.8} />
         <directionalLight position={[10, 12, 8]} intensity={1.2} castShadow />
         <XR store={xrStore}>
-          <XRTrackingReporter onChange={setTracking} />
+          <XRTrackingReporter onChange={handleTrackingChange} />
           <XRLocomotion originRef={originRef} />
           <group position={modelTransform}>
             <FloorGrid />
