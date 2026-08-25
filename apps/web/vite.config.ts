@@ -11,7 +11,7 @@ export default defineConfig({
   resolve: {
     extensions: ['.tsx', '.ts', '.jsx', '.js', '.mjs', '.json'],
     alias: { three: rootThree },
-    dedupe: ['react', 'react-dom', 'three', '@react-three/fiber', '@react-three/xr', 'zustand'],
+    dedupe: ['react', 'react-dom', 'three', '@react-three/fiber', '@react-three/xr'],
   },
   optimizeDeps: {
     include: ['react', 'react-dom', 'three', '@react-three/fiber', '@react-three/xr', 'zustand', '@iwer/devui'],
