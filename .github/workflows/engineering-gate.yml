@@ -1,0 +1,39 @@
+name: Engineering Gate
+
+on:
+  push:
+    branches: ['fix/editor-workflow-persistence-and-spatial']
+  pull_request:
+    branches: ['main']
+
+jobs:
+  web-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Regenerate lockfile for diagnostics
+        run: npm install --package-lock-only --ignore-scripts
+
+      - name: Check lockfile drift
+        run: git diff --exit-code -- package-lock.json
+
+      - name: Clean install
+        run: npm ci --ignore-scripts
+
+      - name: Verify critical runtime graph
+        run: npm ls @react-three/xr react react-dom three @react-three/fiber zustand
+
+      - name: Web type-check
+        run: npx tsc --noEmit -p apps/web/tsconfig.json
+
+      - name: Web production build
+        run: npx turbo build --filter=@spatial/web --force
