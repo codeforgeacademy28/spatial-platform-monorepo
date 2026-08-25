@@ -35,6 +35,7 @@ export interface Project {
   description?: string;
   walls: WallSegment[];
   rooms: Room[];
+  scaleMetersPerPixel?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -81,6 +82,7 @@ export const ProjectSchema = z.object({
   description: z.string().max(2000).optional(),
   walls: z.array(WallSegmentSchema).default([]),
   rooms: z.array(RoomSchema).default([]),
+  scaleMetersPerPixel: z.number().finite().positive().optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 }).transform((project) => ({
