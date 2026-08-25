@@ -20,11 +20,11 @@
 
 **Acceptance:** Start Immersive AR creates one session; controller models move with physical controllers; left/right tracking status is observable; clicking Start again does not create a second session; leaving Spatial View ends the session; no Context Lost or `Can't change size while VR device is presenting` errors caused by manual session management.
 
-**Implementation status:** Migrated the web app to `@react-three/xr` v6 store-based session management, removed manual `renderer.xr.setSession()`, removed legacy `<Controllers>/<Hands>` wiring, and enabled default tracked controllers through the XR store.
+**Implementation status:** Migrated the web app to `@react-three/xr` v6 store-based session management, removed manual `renderer.xr.setSession()`, removed legacy `<Controllers>/<Hands>` wiring, and enabled default tracked controllers through the XR store. The first v6 dependency build failed because an older bundle still referenced legacy exports; the latest source commit removes those references and is under Vercel validation.
 
 **Dependency:** Browser/device must support WebXR. Unsupported devices retain the normal 3D spatial fallback.
 
-**Status:** Code Complete / Hardware Verification Pending
+**Status:** Code Complete / Preview Validation In Progress
 
 ## T-17 — Comparison loads and displays saved versions
 **Goal:** Saved versions appear as explicit selectable entries and comparison renders the selected pair.
@@ -33,9 +33,11 @@
 
 **Acceptance:** Save Version A and Version B; both appear in a visible version history; the user can select two versions and click Compare; both models render; comparison does not depend on rooms; no empty comparison when walls exist; no undefined `.length` errors.
 
-**Current finding:** Versions currently exist only in React session state and there is no API endpoint for listing version history. The compare action always uses the latest two versions. This needs a dedicated UI/data task.
+**Implementation status:** Added browser-persisted version history, explicit A/B selection, and `Compare Selected Versions`.
 
-**Status:** Planned
+**Dependency:** API persistence is still separately blocked by Render CORS until that deployment is updated.
+
+**Status:** Code Complete / Preview Validation Pending
 
 ## T-18 — Identify and remove application-owned 404
 **Goal:** Eliminate the reported 404 or identify it as an intentional third-party/WebXR resource request.
@@ -43,6 +45,8 @@
 **Scope:** Final browser network trace and only the owning resource path.
 
 **Acceptance:** No application-owned 404 in production; any intentional third-party/WebXR 404 is documented and does not break the workflow.
+
+**Evidence:** The supplied HAR contains no HTTP 404 entry, so this task requires a fresh browser network capture from the current deployment to identify the resource.
 
 **Status:** Planned
 
