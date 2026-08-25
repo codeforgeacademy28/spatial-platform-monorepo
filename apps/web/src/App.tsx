@@ -8,12 +8,14 @@ import { SpatialCanvas } from './components/SpatialCanvas';
 import { VersionComparer } from './components/VersionComparer';
 import { AiAssistantPanel } from './components/AiAssistantPanel';
 import { ArViewport } from './components/ArViewport';
-import { SpatialHeader } from './components/ui/SpatialHeader';
 import { CanvasOverlay } from './components/ui/CanvasOverlay';
+import { SpatialHeader } from './components/ui/SpatialHeader';
 import { useSpatialActionDispatcher } from './hooks/useSpatialActionDispatcher';
-import { fetchSharedProject } from './services/api-client';
+import { fetchSharedProject, saveProject as saveProjectToServer } from './services/api-client';
 
 const STORAGE_KEY = 'spatial-platform-project-v1';
+type ViewMode = 'editor' | '3d' | 'spatial';
+type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 
 function createStarterWalls(): WallSegment[] {
   const now = new Date().toISOString();
@@ -37,38 +39,59 @@ function createStarterWalls(): WallSegment[] {
   ];
 }
 
+function buildProject(projectName: string, walls: WallSegment[], rooms: Room[], id = 'project-1'): Project {
+  return {
+    id,
+    name: projectName,
+    walls,
+    rooms,
+    createdAt: '2026-08-25T00:00:00.000Z',
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function getApiBaseUrl(): string {
+  return import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') ?? '';
+}
+
 export function App(): JSX.Element {
-  const [projectName, setProjectName] = useState('Starter Spatial Project');
-  const [walls, setWalls] = useState<WallSegment[]>(() => createStarterWalls());
+  const [projectName, setProjectName] = useState('Spatial Project');
+  const [walls, setWalls] = useState<WallSegment[]>([]);
   const [points, setPoints] = useState<Point[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [shareUrl, setShareUrl] = useState<string>('');
   const [sharedProject, setSharedProject] = useState<Project | null>(null);
   const [versions, setVersions] = useState<Project[]>([]);
   const [comparisonPair, setComparisonPair] = useState<[Project, Project] | null>(null);
-  const [isArMode, setIsArMode] = useState(false);
-  const [refLength, setRefLength] = useState<number>(4);
+  const [viewMode, setViewMode] = useState<ViewMode>('editor');
+  const [saveState, setSaveState] = useState<SaveState>('idle');
+  const [saveMessage, setSaveMessage] = useState('');
   const [blueprintUploaded, setBlueprintUploaded] = useState(false);
+  const [roomsValidated, setRoomsValidated] = useState(false);
+  const [refLength, setRefLength] = useState(4);
 
   useEffect(() => {
-    const validatedPoints = walls.flatMap((wall) => [wall.start, wall.end]).map((point) => PointSchema.parse(point));
-    setPoints(validatedPoints);
-  }, [walls]);
-
-  useEffect(() => {
-    const nextRooms = detectClosedRooms(walls, 'project-1', 'Room');
-    setRooms(nextRooms);
+    setPoints(walls.flatMap((wall) => [wall.start, wall.end]).map((point) => PointSchema.parse(point)));
   }, [walls]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const shareToken = params.get('share');
-    if (!shareToken) return;
+    if (!shareToken) {
+      setWalls(createStarterWalls());
+      return;
+    }
 
     let isMounted = true;
     fetchSharedProject(shareToken)
       .then((project) => {
-        if (isMounted) setSharedProject(project);
+        if (!isMounted) return;
+        setProjectName(project.name);
+        setWalls(project.walls);
+        setRooms(project.rooms);
+        setRoomsValidated(true);
+        setViewMode('3d');
+        setSharedProject(project);
       })
       .catch((error) => console.error(error));
 
@@ -77,105 +100,164 @@ export function App(): JSX.Element {
     };
   }, []);
 
-  const project = useMemo<Project>(
-    () => ({
-      id: 'project-1',
-      name: projectName,
-      rooms,
-      createdAt: '2026-08-25T00:00:00.000Z',
-      updatedAt: new Date().toISOString(),
-    }),
-    [projectName, rooms],
-  );
+  const project = useMemo(() => buildProject(projectName, walls, rooms), [projectName, rooms, walls]);
+  const { dispatchSpatialAction } = useSpatialActionDispatcher(walls, rooms, setWalls, setRooms);
 
-  const handleSaveProject = (): void => saveProjectToLocalStorage(project, STORAGE_KEY);
-
-  const handleLoadProject = (): void => {
-    const loadedProject = loadProjectFromLocalStorage(STORAGE_KEY);
-    if (!loadedProject) return;
-
-    const loadedWalls: WallSegment[] = loadedProject.rooms.flatMap((room: Room) => room.wallSegments);
-    setProjectName(loadedProject.name);
-    setRooms(loadedProject.rooms);
-    setWalls(loadedWalls);
+  const handleSaveProject = async (): Promise<void> => {
+    setSaveState('saving');
+    setSaveMessage('Saving project…');
+    try {
+      saveProjectToLocalStorage(project, STORAGE_KEY);
+      const savedProject = await saveProjectToServer(project);
+      setProjectName(savedProject.name);
+      setSaveState('saved');
+      setSaveMessage(`Saved to server · ${savedProject.walls.length} walls · ${savedProject.rooms.length} rooms`);
+    } catch (error) {
+      console.error(error);
+      setSaveState('error');
+      setSaveMessage(error instanceof Error ? error.message : 'Server save failed. Local copy retained.');
+    }
   };
 
   const handleShareDesign = async (): Promise<void> => {
-    if (walls.length === 0 && rooms.length === 0) return;
-
+    setSaveState('saving');
+    setSaveMessage('Publishing project…');
     try {
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '');
-      const response = await fetch(`${apiBaseUrl ?? ''}/api/projects/${encodeURIComponent('project-1')}/publish`, {
+      const response = await fetch(`${getApiBaseUrl()}/api/projects/${encodeURIComponent('project-1')}/publish`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(project),
       });
-
-      if (!response.ok) throw new Error('Unable to publish design.');
-
+      if (!response.ok) throw new Error(`Publish failed (${response.status}).`);
       const payload = (await response.json()) as { shareUrl?: string; shareToken?: string };
-      const nextShareUrl = payload.shareUrl ?? `${window.location.origin}/?share=${payload.shareToken ?? 'unknown'}`;
+      const nextShareUrl = payload.shareUrl
+        ? `${getApiBaseUrl()}${payload.shareUrl}`
+        : `${window.location.origin}/?share=${payload.shareToken ?? ''}`;
       setShareUrl(nextShareUrl);
-      window.alert(`Design share link: ${nextShareUrl}`);
+      setSaveState('saved');
+      setSaveMessage('Project published successfully.');
     } catch (error) {
       console.error(error);
-      window.alert('Unable to create a share link. Verify VITE_API_BASE_URL and the API deployment.');
+      setSaveState('error');
+      setSaveMessage(error instanceof Error ? error.message : 'Project publish failed.');
     }
   };
 
-  const { dispatchSpatialAction } = useSpatialActionDispatcher(walls, rooms, setWalls, setRooms);
-  const handleToggleArMode = (): void => setIsArMode((current) => !current);
+  const handleLoadProject = (): void => {
+    const loadedProject = loadProjectFromLocalStorage(STORAGE_KEY);
+    if (!loadedProject) {
+      setSaveMessage('No local project found.');
+      return;
+    }
+    setProjectName(loadedProject.name);
+    setWalls(loadedProject.walls);
+    setRooms(loadedProject.rooms);
+    setRoomsValidated(loadedProject.rooms.length > 0);
+    setViewMode('editor');
+    setSaveState('saved');
+    setSaveMessage(`Loaded local copy · ${loadedProject.walls.length} walls`);
+  };
 
-  const handleSaveVersion = (): void => {
-    const nextVersion: Project = { ...project, name: `${projectName} (v${versions.length + 1})` };
-    setVersions((prev) => [...prev, nextVersion]);
-    window.alert(`Saved version: ${nextVersion.name}`);
+  const handleDetectRooms = (): void => {
+    const nextRooms = detectClosedRooms(walls, 'project-1', 'Room');
+    setRooms(nextRooms);
+    setRoomsValidated(true);
+    if (nextRooms.length === 0) {
+      setSaveState('error');
+      setSaveMessage('No closed rooms detected. Check wall endpoints and close the loop.');
+      return;
+    }
+    setSaveState('saved');
+    setSaveMessage(`${nextRooms.length} room${nextRooms.length === 1 ? '' : 's'} detected.`);
+  };
+
+  const handleSaveVersion = async (): Promise<void> => {
+    const versionNumber = versions.length + 1;
+    const versionProject = buildProject(`${projectName} (v${versionNumber})`, walls, rooms, `project-1-v${versionNumber}`);
+    setVersions((previous) => [...previous, versionProject]);
+    try {
+      await saveProjectToServer(versionProject);
+      setSaveMessage(`Version ${versionNumber} saved to server.`);
+    } catch (error) {
+      console.error(error);
+      setSaveMessage('Version kept in this session, but server persistence failed.');
+    }
   };
 
   const handleCompareVersions = (): void => {
     if (versions.length < 2) {
-      window.alert('You need at least 2 saved versions to compare.');
+      setSaveMessage('Save at least two versions before comparing them.');
       return;
     }
     setComparisonPair([versions[versions.length - 2], versions[versions.length - 1]]);
   };
 
   const handleBlueprintUpload = (file: File): void => {
-    const supported = ['image/jpeg', 'image/png'];
-    if (!supported.includes(file.type)) {
+    if (!['image/jpeg', 'image/png'].includes(file.type)) {
       window.alert('Blueprint upload currently supports JPG and PNG images.');
       return;
     }
     setBlueprintUploaded(true);
+    setRoomsValidated(false);
+    setSaveState('idle');
+    setSaveMessage('Blueprint loaded. Calibrate the scale, then trace walls.');
   };
 
-  const currentStep = blueprintUploaded ? (rooms.length > 0 ? 4 : walls.length > 4 ? 3 : 2) : 1;
+  const handleReview3D = (): void => {
+    if (walls.length === 0) {
+      setSaveMessage('Draw at least one wall before opening the 3D review.');
+      return;
+    }
+    setViewMode('3d');
+  };
 
-  if (sharedProject) return <ClientViewer project={sharedProject} />;
+  const handleEnterSpatial = (): void => {
+    if (walls.length === 0) {
+      setSaveMessage('Create wall geometry before entering Spatial View.');
+      return;
+    }
+    setViewMode('spatial');
+  };
 
-  if (isArMode) {
-    return (
-      <div className="relative h-screen w-screen">
-        <ArViewport walls={walls} rooms={rooms} points={points} />
-        <button type="button" onClick={handleToggleArMode} className="absolute left-4 top-4 z-[100] rounded bg-slate-900/90 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-slate-950/50 hover:bg-slate-800">
-          Exit AR
-        </button>
-      </div>
-    );
-  }
+  const currentStep = !blueprintUploaded
+    ? 1
+    : walls.length === 0
+      ? 3
+      : !roomsValidated
+        ? 4
+        : viewMode === 'editor'
+          ? 5
+          : 6;
 
   const steps = [
     { number: 1, title: 'Upload blueprint', detail: 'JPG/PNG floor plan' },
     { number: 2, title: 'Calibrate scale', detail: 'Set a known length' },
-    { number: 3, title: 'Trace walls', detail: 'Draw wall segments in 2D' },
-    { number: 4, title: 'Validate rooms', detail: 'Close loops and inspect areas' },
-    { number: 5, title: '3D & spatial', detail: 'Orbit, save and enter AR' },
+    { number: 3, title: 'Trace walls', detail: `${walls.length} wall segment${walls.length === 1 ? '' : 's'}` },
+    { number: 4, title: 'Detect & validate rooms', detail: `${rooms.length} room${rooms.length === 1 ? '' : 's'} detected` },
+    { number: 5, title: 'Review 3D model', detail: 'Inspect generated geometry' },
+    { number: 6, title: 'Spatial / AR', detail: 'Final presentation stage' },
   ];
+
+  if (sharedProject) return <ClientViewer project={sharedProject} />;
+
+  if (comparisonPair) {
+    return <VersionComparer versionA={comparisonPair[0]} versionB={comparisonPair[1]} onClose={() => setComparisonPair(null)} />;
+  }
+
+  if (viewMode === 'spatial') {
+    return (
+      <div className="relative h-screen w-screen bg-slate-950">
+        <ArViewport walls={walls} rooms={rooms} points={points} />
+        <div className="absolute left-4 top-4 z-50 flex gap-2">
+          <button type="button" onClick={() => setViewMode('3d')} className="rounded-lg bg-slate-900/90 px-4 py-2 text-sm font-medium text-white shadow-lg">Back to 3D</button>
+          <button type="button" onClick={() => setViewMode('editor')} className="rounded-lg bg-slate-900/90 px-4 py-2 text-sm font-medium text-white shadow-lg">Back to Editor</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="spatial-shell flex h-screen w-screen overflow-hidden text-slate-100">
-      {comparisonPair && <VersionComparer versionA={comparisonPair[0]} versionB={comparisonPair[1]} onClose={() => setComparisonPair(null)} />}
-
       <aside className="spatial-sidebar relative z-30 h-full w-[440px] shrink-0 overflow-y-auto border-r border-slate-800/80 p-3">
         <div className="spatial-panel mb-3 p-3">
           <div className="mb-2 flex items-center justify-between">
@@ -183,9 +265,9 @@ export function App(): JSX.Element {
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-300">Workflow</p>
               <h1 className="mt-1 text-lg font-semibold text-white">Blueprint → Spatial 3D</h1>
             </div>
-            <span className="spatial-badge">Step {currentStep}/5</span>
+            <span className="spatial-badge">Step {Math.min(currentStep, 6)}/6</span>
           </div>
-          <p className="mb-3 text-xs leading-5 text-slate-400">Follow these steps in order. The 2D plan on the left becomes the 3D model on the right.</p>
+          <p className="mb-3 text-xs leading-5 text-slate-400">Complete each stage in order. Your traced wall geometry is the canonical model used by 3D, versions, comparison and spatial view.</p>
           <div className="spatial-stepper">
             {steps.map((step) => {
               const complete = currentStep > step.number;
@@ -201,6 +283,7 @@ export function App(): JSX.Element {
               );
             })}
           </div>
+          {saveMessage ? <div className={`mt-3 rounded-lg border px-3 py-2 text-xs ${saveState === 'error' ? 'border-rose-500/40 bg-rose-500/10 text-rose-200' : 'border-slate-700 bg-slate-900/70 text-slate-300'}`}>{saveMessage}</div> : null}
         </div>
 
         <FloorPlanOverlay
@@ -213,12 +296,17 @@ export function App(): JSX.Element {
           onSave={handleSaveProject}
           onLoad={handleLoadProject}
           onShare={handleShareDesign}
-          onEnterAr={handleToggleArMode}
+          onEnterAr={handleEnterSpatial}
           shareUrl={shareUrl}
           onSaveVersion={handleSaveVersion}
           onCompareVersions={handleCompareVersions}
           savedVersionsCount={versions.length}
           onBlueprintUploaded={handleBlueprintUpload}
+          onDetectRooms={handleDetectRooms}
+          roomsValidated={roomsValidated}
+          onReview3D={handleReview3D}
+          onEnterSpatial={handleEnterSpatial}
+          saveState={saveState}
         />
         <div className="border-t border-slate-800 p-3">
           <AiAssistantPanel walls={walls} onDispatchAction={dispatchSpatialAction} />
@@ -228,8 +316,8 @@ export function App(): JSX.Element {
       <main className="relative min-w-0 flex-1 overflow-hidden">
         <SpatialCanvas walls={walls} rooms={rooms} points={points} />
         <div className="spatial-viewport-card">
-          <div className="spatial-viewport-label">3D Model View</div>
-          <div className="mt-1 text-sm font-medium text-white">Blueprint converted to spatial geometry</div>
+          <div className="spatial-viewport-label">{viewMode === '3d' ? '3D REVIEW' : 'LIVE 3D PREVIEW'}</div>
+          <div className="mt-1 text-sm font-medium text-white">{walls.length} wall segments · {rooms.length} rooms</div>
           <div className="spatial-grid-hint">Drag to orbit · scroll to zoom · right-drag to pan</div>
         </div>
         <SpatialHeader
@@ -239,7 +327,7 @@ export function App(): JSX.Element {
           onLoad={handleLoadProject}
           onShare={handleShareDesign}
           onSaveVersion={handleSaveVersion}
-          onEnterAr={handleToggleArMode}
+          onEnterAr={handleEnterSpatial}
           refLength={refLength}
           onScaleChange={setRefLength}
           onUploadBlueprint={handleBlueprintUpload}
