@@ -15,9 +15,31 @@ import { fetchSharedProject } from './services/api-client';
 
 const STORAGE_KEY = 'spatial-platform-project-v1';
 
+function createStarterWalls(): WallSegment[] {
+  const now = new Date().toISOString();
+  const makeWall = (id: string, start: Point, end: Point): WallSegment => ({
+    id,
+    roomId: 'room-1',
+    start,
+    end,
+    thickness: 0.2,
+    height: 3,
+    length: Math.hypot(end.x - start.x, end.y - start.y),
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  return [
+    makeWall('starter-wall-1', { x: 1, y: 1 }, { x: 5, y: 1 }),
+    makeWall('starter-wall-2', { x: 5, y: 1 }, { x: 5, y: 4 }),
+    makeWall('starter-wall-3', { x: 5, y: 4 }, { x: 1, y: 4 }),
+    makeWall('starter-wall-4', { x: 1, y: 4 }, { x: 1, y: 1 }),
+  ];
+}
+
 export function App(): JSX.Element {
-  const [projectName, setProjectName] = useState('Spatial Project');
-  const [walls, setWalls] = useState<WallSegment[]>([]);
+  const [projectName, setProjectName] = useState('Starter Spatial Project');
+  const [walls, setWalls] = useState<WallSegment[]>(() => createStarterWalls());
   const [points, setPoints] = useState<Point[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [shareUrl, setShareUrl] = useState<string>('');
@@ -25,7 +47,7 @@ export function App(): JSX.Element {
   const [versions, setVersions] = useState<Project[]>([]);
   const [comparisonPair, setComparisonPair] = useState<[Project, Project] | null>(null);
   const [isArMode, setIsArMode] = useState(false);
-  const [refLength, setRefLength] = useState<number>(0);
+  const [refLength, setRefLength] = useState<number>(4);
 
   useEffect(() => {
     const validatedPoints = walls.flatMap((wall) => [wall.start, wall.end]).map((point) => PointSchema.parse(point));
@@ -59,7 +81,7 @@ export function App(): JSX.Element {
       id: 'project-1',
       name: projectName,
       rooms,
-      createdAt: new Date().toISOString(),
+      createdAt: '2026-08-25T00:00:00.000Z',
       updatedAt: new Date().toISOString(),
     }),
     [projectName, rooms],
@@ -81,27 +103,22 @@ export function App(): JSX.Element {
     if (walls.length === 0 && rooms.length === 0) return;
 
     try {
-      const response = await fetch(`http://localhost:4000/api/projects/${encodeURIComponent('project-1')}/publish`, {
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '');
+      const response = await fetch(`${apiBaseUrl ?? ''}/api/projects/${encodeURIComponent('project-1')}/publish`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: 'project-1',
-          name: projectName,
-          rooms,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        }),
+        body: JSON.stringify(project),
       });
 
       if (!response.ok) throw new Error('Unable to publish design.');
 
       const payload = (await response.json()) as { shareUrl?: string; shareToken?: string };
-      const nextShareUrl = payload.shareUrl ?? `${window.location.origin}/share/${payload.shareToken ?? 'unknown'}`;
+      const nextShareUrl = payload.shareUrl ?? `${window.location.origin}/?share=${payload.shareToken ?? 'unknown'}`;
       setShareUrl(nextShareUrl);
       window.alert(`Design share link: ${nextShareUrl}`);
     } catch (error) {
       console.error(error);
-      window.alert('Unable to create a share link right now.');
+      window.alert('Unable to create a share link. Verify VITE_API_BASE_URL and the API deployment.');
     }
   };
 
@@ -180,7 +197,7 @@ export function App(): JSX.Element {
           onLoad={handleLoadProject}
           onShare={handleShareDesign}
           onSaveVersion={handleSaveVersion}
-          onEnterAR={handleToggleArMode}
+          onEnterAr={handleToggleArMode}
           refLength={refLength}
           onScaleChange={setRefLength}
         />
