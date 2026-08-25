@@ -1,7 +1,7 @@
 import { Canvas } from '@react-three/fiber';
 import { IfInSessionMode, XR, XROrigin, createXRStore, useXR, useXRInputSourceState } from '@react-three/xr';
 import { OrbitControls } from '@react-three/drei';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import * as THREE from 'three';
 import { extrudeWallSegments, generateRoomFloorMesh } from '@spatial/geometry-engine';
 import type { Room, WallSegment } from '@spatial/core';
@@ -53,11 +53,10 @@ function XRTrackingReporter({ onChange }: { onChange: (status: ControllerTrackin
     rightTracked: Boolean(right),
   }), [session, left, right]);
 
-  return <TrackingStatusBridge status={status} onChange={onChange} />;
-}
+  useEffect(() => {
+    onChange(status);
+  }, [onChange, status]);
 
-function TrackingStatusBridge({ status, onChange }: { status: ControllerTracking; onChange: (status: ControllerTracking) => void }): JSX.Element {
-  useState(() => { onChange(status); return status; });
   return <group />;
 }
 
