@@ -14,6 +14,7 @@ import { useSpatialActionDispatcher } from './hooks/useSpatialActionDispatcher';
 import { fetchSharedProject, saveProject as saveProjectToServer } from './services/api-client';
 
 const STORAGE_KEY = 'spatial-platform-project-v1';
+const VERSION_STORAGE_KEY = 'spatial-platform-version-history-v1';
 type ViewMode = 'editor' | '3d' | 'spatial';
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -28,6 +29,21 @@ function buildProject(projectName: string, walls: WallSegment[], rooms: Room[], 
   };
 }
 
+function readLocalVersions(): Project[] {
+  try {
+    const raw = window.localStorage.getItem(VERSION_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.flatMap((item) => {
+      const result = ProjectSchema.safeParse(item);
+      return result.success ? [result.data] : [];
+    });
+  } catch {
+    return [];
+  }
+}
+
 export function App(): JSX.Element {
   const [projectName, setProjectName] = useState('Spatial Project');
   const [walls, setWalls] = useState<WallSegment[]>([]);
@@ -36,6 +52,7 @@ export function App(): JSX.Element {
   const [shareUrl, setShareUrl] = useState('');
   const [sharedProject, setSharedProject] = useState<Project | null>(null);
   const [versions, setVersions] = useState<Project[]>([]);
+  const [selectedVersionIds, setSelectedVersionIds] = useState<string[]>([]);
   const [comparisonPair, setComparisonPair] = useState<[Project, Project] | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('editor');
   const [saveState, setSaveState] = useState<SaveState>('idle');
@@ -48,6 +65,10 @@ export function App(): JSX.Element {
   useEffect(() => {
     setPoints(walls.flatMap((wall) => [wall.start, wall.end]).map((point) => PointSchema.parse(point)));
   }, [walls]);
+
+  useEffect(() => {
+    setVersions(readLocalVersions());
+  }, []);
 
   useEffect(() => {
     const token = new URLSearchParams(window.location.search).get('share');
@@ -181,23 +202,45 @@ export function App(): JSX.Element {
 
   const handleSaveVersion = async (): Promise<void> => {
     const versionNumber = versions.length + 1;
-    const version = buildProject(`${projectName} (v${versionNumber})`, walls, rooms, `project-1-v${versionNumber}`);
-    setVersions((previous) => [...previous, version]);
+    const version = buildProject(`${projectName} (v${versionNumber})`, walls, rooms, `project-1-v${Date.now()}-${versionNumber}`);
+    const nextVersions = [...versions, version];
+    setVersions(nextVersions);
+    window.localStorage.setItem(VERSION_STORAGE_KEY, JSON.stringify(nextVersions));
+    setSelectedVersionIds(nextVersions.length <= 2 ? nextVersions.map((item) => item.id) : [nextVersions[nextVersions.length - 2].id, nextVersions[nextVersions.length - 1].id]);
+
     try {
       await saveProjectToServer(version);
-      setSaveMessage(`Version ${versionNumber} saved to server.`);
+      setSaveMessage(`Version ${versionNumber} saved · ${nextVersions.length} versions available for comparison.`);
     } catch (error) {
       console.error(error);
-      setSaveMessage('Version kept in this session, but server persistence failed.');
+      setSaveState('error');
+      setSaveMessage(`Version ${versionNumber} kept locally · server persistence failed.`);
     }
   };
 
+  const toggleVersionSelection = (versionId: string): void => {
+    setSelectedVersionIds((current) => {
+      if (current.includes(versionId)) return current.filter((id) => id !== versionId);
+      if (current.length >= 2) return [current[1], versionId];
+      return [...current, versionId];
+    });
+  };
+
   const handleCompareVersions = (): void => {
-    if (versions.length < 2) {
-      setSaveMessage('Save at least two versions before comparing them.');
+    if (selectedVersionIds.length !== 2) {
+      setSaveState('error');
+      setSaveMessage('Select exactly two saved versions to compare.');
       return;
     }
-    setComparisonPair([versions[versions.length - 2], versions[versions.length - 1]]);
+    const selected = selectedVersionIds
+      .map((id) => versions.find((version) => version.id === id))
+      .filter((version): version is Project => Boolean(version));
+    if (selected.length !== 2) {
+      setSaveState('error');
+      setSaveMessage('The selected versions are no longer available in this browser session.');
+      return;
+    }
+    setComparisonPair([selected[0], selected[1]]);
   };
 
   const handleBlueprintUpload = (file: File): void => {
@@ -291,6 +334,31 @@ export function App(): JSX.Element {
           hasSavedBaseline={Boolean(lastSavedProject)}
           saveState={saveState}
         />
+
+        {versions.length > 0 ? (
+          <section className="mx-4 mb-4 rounded-xl border border-purple-500/30 bg-purple-500/5 p-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-purple-300">Version history</p>
+                <h3 className="mt-1 text-sm font-semibold text-white">Select two versions to compare</h3>
+              </div>
+              <span className="rounded-full border border-purple-500/30 px-2 py-1 text-[10px] text-purple-200">{selectedVersionIds.length}/2 selected</span>
+            </div>
+            <div className="mt-3 space-y-2">
+              {versions.map((version, index) => {
+                const selected = selectedVersionIds.includes(version.id);
+                return (
+                  <button key={version.id} type="button" onClick={() => toggleVersionSelection(version.id)} className={`w-full rounded-lg border px-3 py-2 text-left ${selected ? 'border-purple-400 bg-purple-500/15' : 'border-slate-700 bg-slate-900/70 hover:border-slate-600'}`}>
+                    <div className="flex items-center justify-between gap-3"><span className="text-sm font-medium text-white">Version {index + 1}</span><span className="text-xs text-slate-400">{selected ? 'Selected' : 'Select'}</span></div>
+                    <div className="mt-1 text-xs text-slate-400">{version.name} · {version.walls.length} walls · {version.rooms.length} rooms</div>
+                  </button>
+                );
+              })}
+            </div>
+            <button type="button" onClick={handleCompareVersions} disabled={selectedVersionIds.length !== 2} className="mt-3 w-full rounded bg-purple-600 px-3 py-2 text-sm font-semibold text-white hover:bg-purple-500 disabled:cursor-not-allowed disabled:opacity-40">Compare Selected Versions</button>
+          </section>
+        ) : null}
+
         <div className="border-t border-slate-800 p-3"><AiAssistantPanel walls={walls} onDispatchAction={dispatchSpatialAction} /></div>
       </aside>
 
