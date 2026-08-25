@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { detectClosedRooms } from '@spatial/geometry-engine';
 import { PointSchema, ProjectSchema, loadProjectFromLocalStorage, saveProjectToLocalStorage } from '@spatial/core';
 import type { Point, Project, Room, WallSegment } from '@spatial/core';
+import type { Dispatch, SetStateAction } from 'react';
 import { ClientViewer } from './components/ClientViewer';
 import { FloorPlanOverlay } from './components/FloorPlanOverlay';
 import { SpatialCanvas } from './components/SpatialCanvas';
@@ -17,6 +18,7 @@ import { fetchSharedProject, saveProject as saveProjectToServer } from './servic
 
 const STORAGE_KEY = 'spatial-platform-project-v1';
 const VERSION_STORAGE_KEY = 'spatial-platform-project-versions-v2';
+const DEFAULT_SCALE_METERS_PER_PIXEL = 0.02;
 type ViewMode = 'editor' | '3d' | 'spatial';
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -25,22 +27,11 @@ function cloneWalls(walls: WallSegment[]): WallSegment[] {
 }
 
 function cloneProject(project: Project): Project {
-  return {
-    ...project,
-    walls: cloneWalls(project.walls),
-    rooms: project.rooms.map((room) => ({ ...room, polygon: room.polygon.map((point) => ({ ...point })), wallSegments: cloneWalls(room.wallSegments) })),
-  };
+  return { ...project, walls: cloneWalls(project.walls), rooms: project.rooms.map((room) => ({ ...room, polygon: room.polygon.map((point) => ({ ...point })), wallSegments: cloneWalls(room.wallSegments) })) };
 }
 
-function buildProject(projectName: string, walls: WallSegment[], rooms: Room[], id = 'project-1'): Project {
-  return {
-    id,
-    name: projectName,
-    walls: cloneWalls(walls),
-    rooms: rooms.map((room) => ({ ...room, polygon: room.polygon.map((point) => ({ ...point })), wallSegments: cloneWalls(room.wallSegments) })),
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
+function buildProject(projectName: string, walls: WallSegment[], rooms: Room[], scaleMetersPerPixel: number, id = 'project-1'): Project {
+  return { id, name: projectName, walls: cloneWalls(walls), rooms: rooms.map((room) => ({ ...room, polygon: room.polygon.map((point) => ({ ...point })), wallSegments: cloneWalls(room.wallSegments) })), scaleMetersPerPixel, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
 }
 
 function readLocalVersions(): Project[] {
@@ -49,13 +40,8 @@ function readLocalVersions(): Project[] {
     if (!raw) return [];
     const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed.flatMap((item) => {
-      const result = ProjectSchema.safeParse(item);
-      return result.success ? [result.data] : [];
-    });
-  } catch {
-    return [];
-  }
+    return parsed.flatMap((item) => { const result = ProjectSchema.safeParse(item); return result.success ? [result.data] : []; });
+  } catch { return []; }
 }
 
 export function App(): JSX.Element {
@@ -72,118 +58,76 @@ export function App(): JSX.Element {
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [saveMessage, setSaveMessage] = useState('');
   const [blueprintUploaded, setBlueprintUploaded] = useState(false);
+  const [scaleCalibrated, setScaleCalibrated] = useState(false);
+  const [scaleMetersPerPixel, setScaleMetersPerPixel] = useState(DEFAULT_SCALE_METERS_PER_PIXEL);
   const [roomsValidated, setRoomsValidated] = useState(false);
   const [refLength, setRefLength] = useState(4);
   const [lastSavedProject, setLastSavedProject] = useState<Project | null>(null);
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
 
-  useEffect(() => {
-    setPoints(walls.flatMap((wall) => [wall.start, wall.end]).map((point) => PointSchema.parse(point)));
-  }, [walls]);
-
-  useEffect(() => {
-    const localVersions = readLocalVersions();
-    setVersions(localVersions);
-    if (localVersions.length === 2) setSelectedVersionIds(localVersions.map((version) => version.id));
-  }, []);
+  useEffect(() => { setPoints(walls.flatMap((wall) => [wall.start, wall.end]).map((point) => PointSchema.parse(point))); }, [walls]);
+  useEffect(() => { const localVersions = readLocalVersions(); setVersions(localVersions); if (localVersions.length === 2) setSelectedVersionIds(localVersions.map((version) => version.id)); }, []);
 
   useEffect(() => {
     const token = new URLSearchParams(window.location.search).get('share');
     if (!token) return;
     let mounted = true;
-    fetchSharedProject(token)
-      .then((loaded) => {
-        if (!mounted) return;
-        const normalized = ProjectSchema.parse(loaded);
-        setProjectName(normalized.name);
-        setWalls(cloneWalls(normalized.walls));
-        setRooms(normalized.rooms.filter((room) => room.wallSegments.length > 0));
-        setRoomsValidated(normalized.rooms.length > 0);
-        setBlueprintUploaded(true);
-        setLastSavedProject(cloneProject(normalized));
-        setViewMode('3d');
-        setSharedProject(normalized);
-        setSaveState('saved');
-        setSaveMessage(`Loaded shared project · ${normalized.walls.length} walls`);
-      })
-      .catch((error) => {
-        console.error(error);
-        setSaveState('error');
-        setSaveMessage(error instanceof Error ? error.message : 'Unable to load shared project.');
-      });
+    fetchSharedProject(token).then((loaded) => {
+      if (!mounted) return;
+      const normalized = ProjectSchema.parse(loaded);
+      setProjectName(normalized.name); setWalls(cloneWalls(normalized.walls)); setRooms(normalized.rooms.filter((room) => room.wallSegments.length > 0)); setRoomsValidated(normalized.rooms.length > 0); setBlueprintUploaded(true); setScaleMetersPerPixel(normalized.scaleMetersPerPixel ?? DEFAULT_SCALE_METERS_PER_PIXEL); setScaleCalibrated(Boolean(normalized.scaleMetersPerPixel)); setLastSavedProject(cloneProject(normalized)); setViewMode('3d'); setSharedProject(normalized); setSaveState('saved'); setSaveMessage(`Loaded shared project · ${normalized.walls.length} walls`);
+    }).catch((error) => { console.error(error); setSaveState('error'); setSaveMessage(error instanceof Error ? error.message : 'Unable to load shared project.'); });
     return () => { mounted = false; };
   }, []);
 
-  const project = useMemo(() => buildProject(projectName, walls, rooms), [projectName, walls, rooms]);
-  const { dispatchSpatialAction } = useSpatialActionDispatcher(walls, rooms, setWalls, setRooms);
+  const project = useMemo(() => buildProject(projectName, walls, rooms, scaleMetersPerPixel), [projectName, walls, rooms, scaleMetersPerPixel]);
+  const updateWalls: Dispatch<SetStateAction<WallSegment[]>> = useCallback((next) => { setRoomsValidated(false); setSelectedRoomId(null); setRooms([]); setWalls(next); }, []);
+  const { dispatchSpatialAction } = useSpatialActionDispatcher(walls, rooms, updateWalls, setRooms);
 
   const handleSaveProject = async (): Promise<void> => {
-    setSaveState('saving');
-    setSaveMessage('Saving project…');
-    try {
-      saveProjectToLocalStorage(project, STORAGE_KEY);
-      const saved = ProjectSchema.parse(await saveProjectToServer(project));
-      setProjectName(saved.name);
-      setLastSavedProject(cloneProject(saved));
-      setSaveState('saved');
-      setSaveMessage(`Saved to server · ${saved.walls.length} walls · ${saved.rooms.length} rooms`);
-    } catch (error) {
-      console.error(error);
-      setSaveState('error');
-      setSaveMessage(error instanceof Error ? error.message : 'Server save failed. Local copy retained.');
-    }
+    setSaveState('saving'); setSaveMessage('Saving project…');
+    try { saveProjectToLocalStorage(project, STORAGE_KEY); const saved = ProjectSchema.parse(await saveProjectToServer(project)); setProjectName(saved.name); setScaleMetersPerPixel(saved.scaleMetersPerPixel ?? scaleMetersPerPixel); setScaleCalibrated(Boolean(saved.scaleMetersPerPixel)); setLastSavedProject(cloneProject(saved)); setSaveState('saved'); setSaveMessage(`Saved to server · ${saved.walls.length} walls · ${saved.rooms.length} rooms`); }
+    catch (error) { console.error(error); setSaveState('error'); setSaveMessage(error instanceof Error ? error.message : 'Server save failed. Local copy retained.'); }
   };
 
   const handleShareDesign = async (): Promise<void> => {
-    setSaveState('saving');
-    setSaveMessage('Publishing project…');
+    setSaveState('saving'); setSaveMessage('Publishing project…');
     try {
       const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') ?? '';
       const response = await fetch(`${apiBaseUrl}/api/projects/${encodeURIComponent(project.id)}/publish`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(project) });
       if (!response.ok) throw new Error(`Publish failed (${response.status}).`);
       const payload = (await response.json()) as { shareUrl?: string; shareToken?: string };
-      const nextShareUrl = payload.shareToken ? `${window.location.origin}/?share=${payload.shareToken}` : payload.shareUrl ?? `${window.location.origin}/?share=`;
-      setShareUrl(nextShareUrl);
-      setSaveState('saved');
-      setSaveMessage('Project published successfully.');
-    } catch (error) {
-      console.error(error);
-      setSaveState('error');
-      setSaveMessage(error instanceof Error ? error.message : 'Project publish failed.');
-    }
+      setShareUrl(payload.shareToken ? `${window.location.origin}/?share=${payload.shareToken}` : payload.shareUrl ?? `${window.location.origin}/?share=`); setSaveState('saved'); setSaveMessage('Project published successfully.');
+    } catch (error) { console.error(error); setSaveState('error'); setSaveMessage(error instanceof Error ? error.message : 'Project publish failed.'); }
   };
 
   const handleLoadProject = (): void => {
     try {
       const loaded = loadProjectFromLocalStorage(STORAGE_KEY);
       if (!loaded) { setSaveState('error'); setSaveMessage('No local project found.'); return; }
-      const normalized = ProjectSchema.parse(loaded);
-      const validatedRooms = normalized.rooms.filter((room) => room.wallSegments.length > 0);
-      setProjectName(normalized.name); setWalls(cloneWalls(normalized.walls)); setRooms(validatedRooms); setRoomsValidated(validatedRooms.length > 0); setBlueprintUploaded(normalized.walls.length > 0 || validatedRooms.length > 0); setLastSavedProject(cloneProject(normalized)); setSelectedRoomId(null); setViewMode('editor'); setSaveState('saved'); setSaveMessage(`Loaded local copy · ${normalized.walls.length} walls`);
+      const normalized = ProjectSchema.parse(loaded); const validatedRooms = normalized.rooms.filter((room) => room.wallSegments.length > 0);
+      setProjectName(normalized.name); setWalls(cloneWalls(normalized.walls)); setRooms(validatedRooms); setRoomsValidated(validatedRooms.length > 0); setBlueprintUploaded(normalized.walls.length > 0 || validatedRooms.length > 0); setScaleMetersPerPixel(normalized.scaleMetersPerPixel ?? DEFAULT_SCALE_METERS_PER_PIXEL); setScaleCalibrated(Boolean(normalized.scaleMetersPerPixel)); setLastSavedProject(cloneProject(normalized)); setSelectedRoomId(null); setViewMode('editor'); setSaveState('saved'); setSaveMessage(`Loaded local copy · ${normalized.walls.length} walls`);
     } catch (error) { console.error(error); setSaveState('error'); setSaveMessage(error instanceof Error ? error.message : 'Unable to load the saved project.'); }
   };
 
   const handleRevertProject = (): void => {
     if (!lastSavedProject) { setSaveMessage('No saved baseline is available to revert to.'); return; }
     if (!window.confirm('Revert all unsaved wall and room changes to the last saved project?')) return;
-    setProjectName(lastSavedProject.name); setWalls(cloneWalls(lastSavedProject.walls)); setRooms(lastSavedProject.rooms.filter((room) => room.wallSegments.length > 0)); setRoomsValidated(lastSavedProject.rooms.length > 0); setSelectedRoomId(null); setViewMode('editor'); setSaveState('saved'); setSaveMessage('Reverted to the last saved project.');
+    setProjectName(lastSavedProject.name); setWalls(cloneWalls(lastSavedProject.walls)); setRooms(lastSavedProject.rooms.filter((room) => room.wallSegments.length > 0)); setRoomsValidated(lastSavedProject.rooms.length > 0); setScaleMetersPerPixel(lastSavedProject.scaleMetersPerPixel ?? DEFAULT_SCALE_METERS_PER_PIXEL); setScaleCalibrated(Boolean(lastSavedProject.scaleMetersPerPixel)); setSelectedRoomId(null); setViewMode('editor'); setSaveState('saved'); setSaveMessage('Reverted to the last saved project.');
   };
 
   const handleDetectRooms = (): void => {
-    const nextRooms = detectClosedRooms(walls, 'project-1', 'Room');
-    setRooms(nextRooms); setSelectedRoomId(null); setRoomsValidated(nextRooms.length > 0);
-    if (nextRooms.length === 0) { setSaveState('error'); setSaveMessage('No closed rooms detected. Check wall endpoints and close the loop.'); return; }
+    if (!scaleCalibrated) { setSaveState('error'); setSaveMessage('Calibrate scale before validating rooms.'); return; }
+    const nextRooms = detectClosedRooms(walls, 'project-1', 'Room'); setRooms(nextRooms); setSelectedRoomId(null); setRoomsValidated(nextRooms.length > 0);
+    if (!nextRooms.length) { setSaveState('error'); setSaveMessage('No closed rooms detected. Check wall endpoints and close the loop.'); return; }
     setSaveState('saved'); setSaveMessage(`${nextRooms.length} room${nextRooms.length === 1 ? '' : 's'} detected.`);
   };
 
   const handleSaveVersion = async (): Promise<void> => {
     const versionNumber = versions.length + 1;
     if (!walls.length) { setSaveState('error'); setSaveMessage('Cannot save an empty version. Draw wall geometry first.'); return; }
-    const version = cloneProject(buildProject(`${projectName} (v${versionNumber})`, walls, rooms, `project-1-v${Date.now()}-${versionNumber}`));
-    const nextVersions = [...versions, version];
-    setVersions(nextVersions);
-    window.localStorage.setItem(VERSION_STORAGE_KEY, JSON.stringify(nextVersions));
-    setSelectedVersionIds(nextVersions.length <= 2 ? nextVersions.map((item) => item.id) : [nextVersions[nextVersions.length - 2].id, nextVersions[nextVersions.length - 1].id]);
+    const version = cloneProject(buildProject(`${projectName} (v${versionNumber})`, walls, rooms, scaleMetersPerPixel, `project-1-v${Date.now()}-${versionNumber}`));
+    const nextVersions = [...versions, version]; setVersions(nextVersions); window.localStorage.setItem(VERSION_STORAGE_KEY, JSON.stringify(nextVersions)); setSelectedVersionIds(nextVersions.length <= 2 ? nextVersions.map((item) => item.id) : [nextVersions[nextVersions.length - 2].id, nextVersions[nextVersions.length - 1].id]);
     try { await saveProjectToServer(version); setSaveState('saved'); setSaveMessage(`Version ${versionNumber} saved · ${nextVersions.length} versions available.`); }
     catch (error) { console.error(error); setSaveState('error'); setSaveMessage(`Version ${versionNumber} kept locally · server persistence failed.`); }
   };
@@ -200,16 +144,29 @@ export function App(): JSX.Element {
 
   const handleBlueprintUpload = (file: File): void => {
     if (!['image/jpeg', 'image/png'].includes(file.type)) { window.alert('Blueprint upload currently supports JPG and PNG images.'); return; }
-    setBlueprintUploaded(true); setRoomsValidated(false); setSaveState('idle'); setSaveMessage('Blueprint loaded. Calibrate the scale, then trace walls.');
+    setBlueprintUploaded(true); setScaleCalibrated(false); setRoomsValidated(false); setSelectedRoomId(null); setSaveState('idle'); setSaveMessage('Blueprint loaded. Calibrate the scale before tracing walls.');
   };
 
-  const handleReview3D = (): void => { if (!walls.length) { setSaveState('error'); setSaveMessage('Draw at least one wall before opening the 3D review.'); return; } setViewMode('3d'); };
-  const handleEnterSpatial = (): void => { if (!walls.length) { setSaveState('error'); setSaveMessage('Create wall geometry before entering Spatial View.'); return; } setViewMode('spatial'); };
+  const handleScaleCalibrated = (nextScale: number): void => {
+    if (!Number.isFinite(nextScale) || nextScale <= 0) { setScaleCalibrated(false); setSaveState('error'); setSaveMessage('Scale must be a positive number.'); return; }
+    setScaleMetersPerPixel(nextScale); setScaleCalibrated(true); setRoomsValidated(false); setSaveState('saved'); setSaveMessage(`Scale calibrated · ${nextScale.toFixed(4)} m/pixel`);
+  };
 
-  const currentStep = !blueprintUploaded ? 1 : !walls.length ? 3 : !roomsValidated ? 4 : viewMode === 'editor' ? 5 : 6;
+  const handleReview3D = (): void => {
+    if (!scaleCalibrated) { setSaveState('error'); setSaveMessage('Calibrate scale before opening the 3D review.'); return; }
+    if (!walls.length) { setSaveState('error'); setSaveMessage('Draw at least one wall before opening the 3D review.'); return; }
+    setViewMode('3d');
+  };
+  const handleEnterSpatial = (): void => {
+    if (!scaleCalibrated) { setSaveState('error'); setSaveMessage('Calibrate scale before entering Spatial View.'); return; }
+    if (!walls.length) { setSaveState('error'); setSaveMessage('Create wall geometry before entering Spatial View.'); return; }
+    setViewMode('spatial');
+  };
+
+  const currentStep = !blueprintUploaded ? 1 : !scaleCalibrated ? 2 : !walls.length ? 3 : !roomsValidated ? 4 : viewMode === 'editor' ? 5 : 6;
   const steps = [
     { number: 1, title: 'Upload blueprint', detail: 'JPG/PNG floor plan' },
-    { number: 2, title: 'Calibrate scale', detail: 'Set a known length' },
+    { number: 2, title: 'Calibrate scale', detail: scaleCalibrated ? `${scaleMetersPerPixel.toFixed(4)} m/pixel` : 'Apply a known length' },
     { number: 3, title: 'Trace walls', detail: `${walls.length} wall segments` },
     { number: 4, title: 'Detect & validate rooms', detail: `${rooms.length} rooms detected` },
     { number: 5, title: 'Review 3D model', detail: 'Inspect generated geometry' },
@@ -224,7 +181,7 @@ export function App(): JSX.Element {
     <div className="spatial-shell flex h-screen w-screen overflow-hidden text-slate-100">
       <aside className="spatial-sidebar relative z-30 h-full w-[440px] shrink-0 overflow-y-auto border-r border-slate-800/80 p-3">
         <div className="spatial-panel mb-3 p-3"><div className="mb-2 flex items-center justify-between"><div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-300">Workflow</p><h1 className="mt-1 text-lg font-semibold text-white">Blueprint → Spatial 3D</h1></div><span className="spatial-badge">Step {Math.min(currentStep, 6)}/6</span></div><p className="mb-3 text-xs leading-5 text-slate-400">Complete each stage in order. Drawn walls are the canonical geometry used by 3D, versions, comparison and spatial view.</p><div className="spatial-stepper">{steps.map((step) => { const complete = currentStep > step.number; const active = currentStep === step.number; return <div key={step.number} className={`spatial-step ${active ? 'is-active' : ''} ${complete ? 'is-complete' : ''}`}><span className="spatial-step-number">{complete ? '✓' : step.number}</span><div className="min-w-0"><div className="text-sm font-medium text-slate-100">{step.title}</div><div className="text-xs text-slate-500">{step.detail}</div></div></div>; })}</div>{saveMessage ? <div className={`mt-3 rounded-lg border px-3 py-2 text-xs ${saveState === 'error' ? 'border-rose-500/40 bg-rose-500/10 text-rose-200' : 'border-slate-700 bg-slate-900/70 text-slate-300'}`}>{saveMessage}</div> : null}</div>
-        <FloorPlanOverlay walls={walls} rooms={rooms} setWalls={setWalls} setRooms={setRooms} projectName={projectName} onProjectNameChange={setProjectName} onSave={handleSaveProject} onLoad={handleLoadProject} onShare={handleShareDesign} onEnterAr={handleEnterSpatial} shareUrl={shareUrl} onSaveVersion={handleSaveVersion} onCompareVersions={handleCompareVersions} savedVersionsCount={versions.length} onBlueprintUploaded={handleBlueprintUpload} onDetectRooms={handleDetectRooms} roomsValidated={roomsValidated} onReview3D={handleReview3D} onEnterSpatial={handleEnterSpatial} onRevert={handleRevertProject} hasSavedBaseline={Boolean(lastSavedProject)} saveState={saveState} />
+        <FloorPlanOverlay walls={walls} rooms={rooms} setWalls={updateWalls} setRooms={setRooms} projectName={projectName} onProjectNameChange={setProjectName} onSave={handleSaveProject} onLoad={handleLoadProject} onShare={handleShareDesign} onEnterAr={handleEnterSpatial} shareUrl={shareUrl} onSaveVersion={handleSaveVersion} onCompareVersions={handleCompareVersions} savedVersionsCount={versions.length} onBlueprintUploaded={handleBlueprintUpload} onDetectRooms={handleDetectRooms} roomsValidated={roomsValidated} onReview3D={handleReview3D} onEnterSpatial={handleEnterSpatial} onRevert={handleRevertProject} hasSavedBaseline={Boolean(lastSavedProject)} saveState={saveState} blueprintUploaded={blueprintUploaded} scaleCalibrated={scaleCalibrated} scaleMetersPerPixel={scaleMetersPerPixel} onScaleCalibrated={handleScaleCalibrated} />
         <div className="mt-3 space-y-3"><RoomHighlightList rooms={rooms} walls={walls} selectedRoomId={selectedRoomId} onSelect={setSelectedRoomId} /><VersionHistoryPanel versions={versions} selectedVersionIds={selectedVersionIds} onToggle={toggleVersionSelection} onCompare={handleCompareVersions} /></div>
         <div className="border-t border-slate-800 p-3 mt-3"><AiAssistantPanel walls={walls} onDispatchAction={dispatchSpatialAction} /></div>
       </aside>
