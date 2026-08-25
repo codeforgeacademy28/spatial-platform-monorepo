@@ -70,66 +70,67 @@ Implemented:
 - wall changes invalidate room validation through the central wall updater
 - shared/load/revert paths restore calibration state
 
-Verification:
-- engineering gate after implementation passed lockfile generation, clean install, dependency graph, strict TypeScript, and forced production build
-- source inspection confirms prerequisites and transitions are deterministic
-
-Remaining release-level verification: interactive browser walkthrough in the final matrix.
-
 #### G2.2 — Blueprint and scale UX
 **Status: ✅ COMPLETE (static gate; browser matrix pending)**
 Implemented:
 - real two-point reference-line gesture over the uploaded blueprint
-- live measured pixel distance displayed on the canvas
-- meters-per-pixel calculated as `knownMeters / measuredPixels`
+- live measured pixel distance
+- `knownMeters / measuredPixels` scale calculation
 - invalid/too-short/zero calibration blocked
 - recalibration supported
 
-Verification:
-- engineering gate after implementation passed clean install, dependency graph, strict TypeScript, and forced production build
-- source inspection confirms the scale calculation uses actual measured pixels instead of the previous hardcoded 200-pixel assumption
-
-Remaining release-level verification: verify a known dimension produces the expected world-space wall length in the browser.
-
 #### G2.3 — 2D-to-3D geometry contract
 **Status: ✅ COMPLETE (static gate; browser matrix pending)**
-Implemented:
-- focused Node test suite covering wall extrusion identity/dimensions, closed-room membership/area, open-loop rejection, and endpoint tolerance
-- canonical wall mesh placement in both normal 3D and Spatial views now uses the actual `WallSegment.start/end` centerline instead of offset extrusion corners
-- camera target now uses the true wall-bounds center
-- room-loop traversal fixed to retain the first wall endpoint; this corrected a real 4×4 room-area bug from 8 m² to 16 m²
+Implemented and verified:
+- wall identity/dimension contract tests
+- closed-room membership/area, open-loop rejection, endpoint tolerance
+- canonical wall centerline placement in normal 3D and Spatial views
+- true model-center camera targeting
+- fixed room traversal defect that halved a 4×4 room from 16 m² to 8 m²
 
-Verification gate:
-- latest engineering gate: clean install ✅
-- critical dependency graph ✅
-- strict web type-check ✅
-- forced web production build ✅
-- geometry contract tests: 4/4 ✅
-
-Browser-level verification remains in the final matrix.
+Gate: clean install ✅, graph ✅, strict TS ✅, forced build ✅, geometry tests 4/4 ✅.
 
 #### G2.4 — Predictable 3D interaction
-**Status: IN PROGRESS**
-Goal: normal 3D navigation must never trigger commenting. Spatial comments require explicit user intent.
+**Status: ✅ COMPLETE (static gate; browser matrix pending)**
+Implemented:
+- explicit `navigate` / `comment` interaction modes
+- navigation is the default
+- Comment mode appears only in editable 3D view
+- surface handlers are only attached while Comment mode is active
+- successful comment placement returns to navigation automatically
+- read-only viewer receives no comment controls/handlers
+- orbit/pan/zoom and room highlighting remain unchanged
 
-Tasks:
-- add `navigate` vs `comment` interaction mode
-- default to navigation
-- show Comment mode only in editable 3D view
-- only attach canvas click-to-comment handlers while Comment mode is active
-- automatically return to navigation after one successful pin placement
-- keep read-only share/viewer free from comment controls
-- preserve orbit, pan, zoom, and room highlighting in both modes
-
-Verification gate:
-- normal click/drag/zoom never opens the comment prompt
-- explicit Comment mode places exactly one pin
-- comment mode auto-exits after placement
-- read-only viewer cannot comment
+Gate: engineering build and geometry suite remain green after the interaction change; browser interaction remains in the release matrix.
 
 #### G2.5 — Persistence, versions, compare, share, revert
-**Status: PLANNED**
-Gate: Save → reload → version A/B → compare → mutate current model → verify snapshots unchanged → revert → share.
+**Status: IN PROGRESS**
+Goal: project data must be durable, explicit about local-vs-server persistence, immutable when versioned, and safe to revert/share.
+
+Current evidence:
+- browser local recovery is available through `packages/core` serializer/localStorage helpers
+- Save writes a local recovery copy before server persistence
+- versions are deep-cloned before local storage/comparison
+- comparison operates on cloned snapshots
+- Revert restores a cloned saved baseline
+- shared viewer parses through `ProjectSchema`
+- API has Supabase persistence code, but the current migration requires `organization_id`, `owner_id`, and `tenant_id` while the project handler does not supply an authenticated tenant/user context
+- API currently logs Supabase failures and returns the in-memory project, which can falsely look durable
+
+Tasks:
+1. Make server persistence truthful: if durable persistence is configured but fails, the API must return an error instead of reporting a successful durable save.
+2. Define the tenant/organization/owner persistence context as an explicit server contract; do not invent system identities or bypass RLS.
+3. Make published shared-project reads fall back to Supabase after process restart instead of relying only on in-memory `publishedStore`.
+4. Add focused API tests for save failure, publish/read after store loss, and canonical `Project.walls` persistence.
+5. Verify local recovery remains intact when server save fails.
+6. Verify version snapshots cannot mutate after subsequent editor changes.
+
+Verification gate:
+- failed durable save is visible and retains local recovery
+- successful durable save has an actual database-backed read path
+- published share survives API process restart when Supabase is configured
+- version A/B remain unchanged after current editor mutation
+- Revert restores the exact saved baseline
 
 #### G2.6 — Production UX, accessibility, and performance
 **Status: PLANNED**
@@ -165,6 +166,7 @@ Gate: every primary action is discoverable, keyboard reachable, visually legible
 - **2026-08-26:** Existing PR #27 changes are treated as in-progress product work, not duplicated tasks.
 - **2026-08-26:** G2.1 and G2.2 are accepted on static engineering evidence; browser acceptance remains grouped into the release verification matrix to avoid repeated deployment consumption.
 - **2026-08-26:** G2.3 uncovered and fixed a genuine room-area topology bug; focused tests now protect that contract.
+- **2026-08-26:** G2.4 makes commenting explicit rather than hijacking normal 3D navigation.
 
 ## Status board
 | Goal | Status | Verification |
@@ -173,11 +175,11 @@ Gate: every primary action is discoverable, keyboard reachable, visually legible
 | G2.1 Workflow state | ✅ COMPLETE (static) | post-change engineering gate green |
 | G2.2 Calibration UX | ✅ COMPLETE (static) | post-change engineering gate green + source verification |
 | G2.3 2D/3D geometry | ✅ COMPLETE (static) | post-change engineering gate green + 4/4 geometry tests |
-| G2.4 3D interaction | IN PROGRESS | comment-mode implementation + gate |
-| G2.5 Persistence | PLANNED | end-to-end persistence acceptance |
+| G2.4 3D interaction | ✅ COMPLETE (static) | post-change engineering gate green |
+| G2.5 Persistence | IN PROGRESS | server contract + focused tests |
 | G2.6 UX/accessibility/performance | PLANNED | browser interaction/accessibility/performance acceptance |
 | G3 Spatial/AR | BLOCKED BY G2 | capability/XR/browser gates |
 | Release | BLOCKED | final browser + Vercel candidate gate |
 
 ## Current next action
-**Complete G2.4 only:** make 3D commenting an explicit interaction mode and verify navigation never triggers comment prompts. Then advance to persistence/version integrity.
+**Complete G2.5 only:** make server persistence truthful and durable, then verify version/revert/share integrity before starting UX/accessibility/performance work.
