@@ -13,13 +13,15 @@ The API may keep an in-memory copy for local development, but this is **not dura
 ### Durable mode
 `SUPABASE_PERSISTENCE_ENABLED=true`
 
-The API requires these request headers:
+The API obtains persistence context in this order:
 
-- `x-tenant-id`
-- `x-organization-id`
-- `x-owner-id`
+1. authenticated/request headers: `x-tenant-id`, `x-organization-id`, `x-owner-id`
+2. server-owned single-workspace fallback:
+   - `PERSISTENCE_DEFAULT_TENANT_ID`
+   - `PERSISTENCE_DEFAULT_ORGANIZATION_ID`
+   - `PERSISTENCE_DEFAULT_OWNER_ID`
 
-All three must be valid UUIDs and must identify records that satisfy the Supabase foreign-key/RLS model. The API does not invent identities or bypass tenant isolation.
+All values must be valid UUIDs and must identify records that satisfy the Supabase foreign-key/RLS model. Browser-controlled identifiers should only be used as an interim contract; the production target is authenticated session context.
 
 ## Save behavior
 1. Validate `ProjectSchema`.
@@ -37,13 +39,13 @@ A share URL must not be presented as durable when the database is unavailable.
 When durable mode is enabled and the in-memory published cache is empty, `GET /api/projects/share/:token` reads `share_tokens` and then `projects.project_data` from Supabase and validates the stored project with `ProjectSchema`.
 
 ## Version integrity
-Versions are deep snapshots. Subsequent editor mutations must not change previously saved A/B comparison data.
+Versions are deep snapshots. Subsequent editor mutations must not change previously saved A/B comparison data. The reusable `@spatial/core` `cloneProject()` helper and its contract test enforce deep-copy semantics.
 
 ## Security rules
 - Never use a synthetic user/org/tenant identity merely to satisfy database foreign keys.
 - Never disable RLS to make the editor appear to save.
-- Tenant context should ultimately come from the authenticated user/session, not arbitrary browser-entered identifiers.
+- Prefer authenticated session context over browser-entered identifiers.
 - Keep service-role credentials server-side only.
 
 ## Release requirement
-Before production release, configure durable persistence and authenticate the request context. A production build with local-only persistence is not considered a complete release.
+Before production release, configure durable persistence, provision the referenced organization/user/tenant records, and authenticate the request context. A production build with local-only persistence is not considered a complete release.
