@@ -2,230 +2,27 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  color-scheme: dark;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-  background: #020617;
-  color: #e2e8f0;
-}
-
-* {
-  box-sizing: border-box;
-}
-
-html,
-body,
-#root {
-  margin: 0;
-  width: 100%;
-  height: 100%;
-}
-
-body {
-  min-height: 100vh;
-  overflow: hidden;
-  background:
-    radial-gradient(circle at 20% 10%, rgba(14, 165, 233, 0.12), transparent 32%),
-    radial-gradient(circle at 80% 80%, rgba(99, 102, 241, 0.12), transparent 35%),
-    #020617;
-}
-
-button,
-input,
-select,
-textarea {
-  font: inherit;
-}
-
-button,
-label[role="button"] {
-  cursor: pointer;
-}
-
-input,
-textarea,
-select {
-  caret-color: #38bdf8;
-}
-
-canvas {
-  display: block;
-}
-
-.spatial-shell {
-  background:
-    linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.98));
-}
-
-.spatial-sidebar {
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(2, 6, 23, 0.98));
-  box-shadow: 20px 0 60px rgba(2, 6, 23, 0.35);
-}
-
-.spatial-panel {
-  border: 1px solid rgba(148, 163, 184, 0.14);
-  background: linear-gradient(180deg, rgba(30, 41, 59, 0.68), rgba(15, 23, 42, 0.78));
-  box-shadow: 0 18px 50px rgba(2, 6, 23, 0.24);
-  border-radius: 16px;
-}
-
-.spatial-stepper {
-  display: grid;
-  gap: 8px;
-}
-
-.spatial-step {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 44px;
-  padding: 8px 10px;
-  border-radius: 12px;
-  border: 1px solid rgba(148, 163, 184, 0.12);
-  background: rgba(15, 23, 42, 0.55);
-}
-
-.spatial-step-number {
-  display: grid;
-  width: 28px;
-  height: 28px;
-  place-items: center;
-  border-radius: 999px;
-  background: rgba(51, 65, 85, 0.9);
-  color: #cbd5e1;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.spatial-step.is-active {
-  border-color: rgba(56, 189, 248, 0.4);
-  background: linear-gradient(90deg, rgba(14, 165, 233, 0.14), rgba(15, 23, 42, 0.78));
-}
-
-.spatial-step.is-active .spatial-step-number {
-  background: #0284c7;
-  color: white;
-  box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.12);
-}
-
-.spatial-step.is-complete .spatial-step-number {
-  background: #059669;
-  color: white;
-}
-
-.spatial-field {
-  width: 100%;
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  border-radius: 10px;
-  background: rgba(2, 6, 23, 0.72);
-  color: #e2e8f0;
-  outline: none;
-  transition: border-color 120ms ease, box-shadow 120ms ease, background 120ms ease;
-}
-
-.spatial-field:focus {
-  border-color: rgba(56, 189, 248, 0.8);
-  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.12);
-  background: rgba(2, 6, 23, 0.9);
-}
-
-.spatial-primary {
-  border: 1px solid rgba(56, 189, 248, 0.28);
-  background: linear-gradient(180deg, #0ea5e9, #0284c7);
-  color: white;
-  box-shadow: 0 12px 24px rgba(2, 132, 199, 0.2);
-}
-
-.spatial-primary:hover {
-  filter: brightness(1.06);
-}
-
-.spatial-secondary {
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  background: rgba(51, 65, 85, 0.7);
-  color: #e2e8f0;
-}
-
-.spatial-viewport {
-  position: relative;
-  height: 100%;
-  width: 100%;
-  overflow: hidden;
-  background:
-    radial-gradient(circle at 50% 40%, rgba(14, 165, 233, 0.08), transparent 40%),
-    #020617;
-}
-
-.spatial-viewport-card {
-  position: absolute;
-  left: 24px;
-  bottom: 24px;
-  z-index: 20;
-  max-width: 360px;
-  padding: 14px 16px;
-  border: 1px solid rgba(148, 163, 184, 0.14);
-  border-radius: 14px;
-  background: rgba(15, 23, 42, 0.82);
-  backdrop-filter: blur(18px);
-  box-shadow: 0 20px 60px rgba(2, 6, 23, 0.42);
-}
-
-.spatial-viewport-label {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: #7dd3fc;
-}
-
-.spatial-grid-hint {
-  margin-top: 6px;
-  font-size: 12px;
-  color: #94a3b8;
-}
-
-.spatial-2d-canvas {
-  cursor: crosshair;
-  touch-action: none;
-  border: 1px solid rgba(56, 189, 248, 0.22);
-  border-radius: 14px;
-  background:
-    linear-gradient(rgba(56, 189, 248, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(56, 189, 248, 0.05) 1px, transparent 1px),
-    #020617;
-  background-size: 20px 20px;
-}
-
-.spatial-2d-help {
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid rgba(56, 189, 248, 0.16);
-  background: rgba(14, 165, 233, 0.06);
-  color: #bae6fd;
-  font-size: 12px;
-}
-
-.spatial-header {
-  backdrop-filter: blur(22px);
-  background: rgba(15, 23, 42, 0.72);
-  border-color: rgba(255, 255, 255, 0.1);
-  box-shadow: 0 16px 40px rgba(2, 6, 23, 0.28);
-}
-
-.spatial-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
-  border-radius: 999px;
-  background: rgba(51, 65, 85, 0.7);
-  color: #cbd5e1;
-  font-size: 11px;
-}
-
-.spatial-divider {
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.16), transparent);
-}
+:root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #020617; color: #e2e8f0; }
+* { box-sizing: border-box; }
+html, body, #root { margin:0; width:100%; height:100%; }
+body { min-height:100vh; overflow:hidden; background: radial-gradient(circle at 20% 10%, rgba(14,165,233,.12), transparent 32%), radial-gradient(circle at 80% 80%, rgba(99,102,241,.12), transparent 35%), #020617; }
+button,input,select,textarea { font: inherit; }
+button { cursor:pointer; }
+input,textarea,select { caret-color:#38bdf8; }
+canvas { display:block; }
+.spatial-shell { background:linear-gradient(180deg, rgba(15,23,42,.98), rgba(2,6,23,.98)); }
+.spatial-sidebar { background:linear-gradient(180deg, rgba(15,23,42,.96), rgba(2,6,23,.98)); box-shadow:20px 0 60px rgba(2,6,23,.35); }
+.spatial-panel { border:1px solid rgba(148,163,184,.14); background:linear-gradient(180deg, rgba(30,41,59,.68), rgba(15,23,42,.78)); box-shadow:0 18px 50px rgba(2,6,23,.24); border-radius:16px; }
+.spatial-stepper { display:grid; gap:8px; }
+.spatial-step { display:flex; align-items:center; gap:10px; min-height:44px; padding:8px 10px; border-radius:12px; border:1px solid rgba(148,163,184,.12); background:rgba(15,23,42,.55); }
+.spatial-step-number { display:grid; width:28px; height:28px; place-items:center; border-radius:999px; background:rgba(51,65,85,.9); color:#cbd5e1; font-size:12px; font-weight:700; }
+.spatial-step.is-active { border-color:rgba(56,189,248,.4); background:linear-gradient(90deg, rgba(14,165,233,.14), rgba(15,23,42,.78)); }
+.spatial-step.is-active .spatial-step-number { background:#0284c7; color:white; box-shadow:0 0 0 4px rgba(14,165,233,.12); }
+.spatial-step.is-complete .spatial-step-number { background:#059669; color:white; }
+.spatial-field { width:100%; border:1px solid rgba(148,163,184,.18); border-radius:10px; background:rgba(2,6,23,.72); color:#e2e8f0; outline:none; }
+.spatial-field:focus { border-color:rgba(56,189,248,.8); box-shadow:0 0 0 3px rgba(56,189,248,.12); }
+.spatial-viewport-card { position:absolute; left:24px; bottom:24px; z-index:20; max-width:360px; padding:14px 16px; border:1px solid rgba(148,163,184,.14); border-radius:14px; background:rgba(15,23,42,.82); backdrop-filter:blur(18px); box-shadow:0 20px 60px rgba(2,6,23,.42); }
+.spatial-viewport-label { font-size:11px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:#7dd3fc; }
+.spatial-grid-hint { margin-top:6px; font-size:12px; color:#94a3b8; }
+.spatial-header { backdrop-filter:blur(22px); background:rgba(15,23,42,.72); border-color:rgba(255,255,255,.1); box-shadow:0 16px 40px rgba(2,6,23,.28); }
+.spatial-badge { display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border-radius:999px; background:rgba(51,65,85,.7); color:#cbd5e1; font-size:11px; }
