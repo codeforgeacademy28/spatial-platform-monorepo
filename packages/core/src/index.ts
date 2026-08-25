@@ -94,6 +94,7 @@ export const UserRoleSchema = z.nativeEnum(UserRole);
 
 export * from './database.js';
 export * from './serializer.js';
+export * from './project-snapshot.js';
 
 export type PointInput = z.infer<typeof PointSchema>;
 export type WallSegmentInput = z.infer<typeof WallSegmentSchema>;
