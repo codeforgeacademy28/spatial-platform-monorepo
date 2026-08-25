@@ -17,6 +17,7 @@ interface FloorPlanOverlayProps {
   onSaveVersion?: () => void;
   onCompareVersions?: () => void;
   savedVersionsCount?: number;
+  onBlueprintUploaded?: (file: File) => void;
 }
 
 interface CanvasPoint {
@@ -29,24 +30,17 @@ const CANVAS_HEIGHT = 520;
 const DEFAULT_SCALE_METERS_PER_PIXEL = 0.02;
 
 function canvasToWorld(point: CanvasPoint, scaleMetersPerPixel: number): Point {
-  return {
-    x: point.x * scaleMetersPerPixel,
-    y: point.y * scaleMetersPerPixel,
-  };
+  return { x: point.x * scaleMetersPerPixel, y: point.y * scaleMetersPerPixel };
 }
 
 function worldToCanvas(point: Point, scaleMetersPerPixel: number): CanvasPoint {
-  return {
-    x: point.x / scaleMetersPerPixel,
-    y: point.y / scaleMetersPerPixel,
-  };
+  return { x: point.x / scaleMetersPerPixel, y: point.y / scaleMetersPerPixel };
 }
 
 function createWall(start: CanvasPoint, end: CanvasPoint, scaleMetersPerPixel: number, roomId = 'room-1'): WallSegment {
   const worldStart = canvasToWorld(start, scaleMetersPerPixel);
   const worldEnd = canvasToWorld(end, scaleMetersPerPixel);
   const now = new Date().toISOString();
-
   return {
     id: `wall-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     roomId,
@@ -75,6 +69,7 @@ export function FloorPlanOverlay({
   onSaveVersion,
   onCompareVersions,
   savedVersionsCount = 0,
+  onBlueprintUploaded,
 }: FloorPlanOverlayProps): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [imageData, setImageData] = useState<string | null>(null);
@@ -85,37 +80,14 @@ export function FloorPlanOverlay({
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const context = canvas.getContext('2d');
-    if (!context) return;
+    const context = canvas?.getContext('2d');
+    if (!canvas || !context) return;
 
     canvas.width = CANVAS_WIDTH;
     canvas.height = CANVAS_HEIGHT;
     context.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
     context.fillStyle = '#020617';
     context.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-
-    if (imageData) {
-      const img = new Image();
-      img.onload = () => {
-        const aspectRatio = img.width / img.height || 1;
-        const maxWidth = CANVAS_WIDTH - 20;
-        const maxHeight = CANVAS_HEIGHT - 60;
-        let displayWidth = maxWidth;
-        let displayHeight = displayWidth / aspectRatio;
-
-        if (displayHeight > maxHeight) {
-          displayHeight = maxHeight;
-          displayWidth = displayHeight * aspectRatio;
-        }
-
-        const offsetX = (CANVAS_WIDTH - displayWidth) / 2;
-        const offsetY = 40 + (maxHeight - displayHeight) / 2;
-        context.drawImage(img, offsetX, offsetY, displayWidth, displayHeight);
-      };
-      img.src = imageData;
-    }
 
     context.strokeStyle = '#334155';
     context.lineWidth = 1;
@@ -132,40 +104,65 @@ export function FloorPlanOverlay({
       context.stroke();
     }
 
-    context.fillStyle = '#cbd5e1';
-    context.font = '12px sans-serif';
-    context.fillText('2D FLOOR PLAN — drag to draw wall segments', 12, 20);
-    context.fillStyle = '#64748b';
-    context.fillText(`1 px = ${scaleMetersPerPixel.toFixed(3)} m`, 12, 36);
+    const drawForeground = (): void => {
+      context.fillStyle = '#e2e8f0';
+      context.font = '12px sans-serif';
+      context.fillText('2D FLOOR PLAN — drag to draw wall segments', 12, 20);
+      context.fillStyle = '#64748b';
+      context.fillText(`1 px = ${scaleMetersPerPixel.toFixed(3)} m`, 12, 36);
 
-    for (const wall of walls) {
-      const start = worldToCanvas(wall.start, scaleMetersPerPixel);
-      const end = worldToCanvas(wall.end, scaleMetersPerPixel);
-      context.beginPath();
-      context.moveTo(start.x, start.y);
-      context.lineTo(end.x, end.y);
-      context.strokeStyle = '#f8fafc';
-      context.lineWidth = 5;
-      context.stroke();
+      for (const wall of walls) {
+        const start = worldToCanvas(wall.start, scaleMetersPerPixel);
+        const end = worldToCanvas(wall.end, scaleMetersPerPixel);
+        context.beginPath();
+        context.moveTo(start.x, start.y);
+        context.lineTo(end.x, end.y);
+        context.strokeStyle = '#f8fafc';
+        context.lineWidth = 5;
+        context.stroke();
+      }
+
+      if (currentLine) {
+        context.beginPath();
+        context.moveTo(currentLine.start.x, currentLine.start.y);
+        context.lineTo(currentLine.end.x, currentLine.end.y);
+        context.strokeStyle = '#22d3ee';
+        context.lineWidth = 4;
+        context.stroke();
+      }
+    };
+
+    if (!imageData) {
+      drawForeground();
+      return;
     }
 
-    if (currentLine) {
-      context.beginPath();
-      context.moveTo(currentLine.start.x, currentLine.start.y);
-      context.lineTo(currentLine.end.x, currentLine.end.y);
-      context.strokeStyle = '#22d3ee';
-      context.lineWidth = 4;
-      context.stroke();
-    }
+    const img = new Image();
+    img.onload = () => {
+      const aspectRatio = img.width / img.height || 1;
+      const maxWidth = CANVAS_WIDTH - 20;
+      const maxHeight = CANVAS_HEIGHT - 60;
+      let displayWidth = maxWidth;
+      let displayHeight = displayWidth / aspectRatio;
+      if (displayHeight > maxHeight) {
+        displayHeight = maxHeight;
+        displayWidth = displayHeight * aspectRatio;
+      }
+      const offsetX = (CANVAS_WIDTH - displayWidth) / 2;
+      const offsetY = 40 + (maxHeight - displayHeight) / 2;
+      context.globalAlpha = 0.78;
+      context.drawImage(img, offsetX, offsetY, displayWidth, displayHeight);
+      context.globalAlpha = 1;
+      drawForeground();
+    };
+    img.src = imageData;
   }, [currentLine, imageData, scaleMetersPerPixel, walls]);
 
   const getCanvasPoint = (event: React.PointerEvent<HTMLCanvasElement>): CanvasPoint | null => {
     const canvas = canvasRef.current;
     if (!canvas) return null;
-
     const rect = canvas.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) return null;
-
     return {
       x: ((event.clientX - rect.left) / rect.width) * CANVAS_WIDTH,
       y: ((event.clientY - rect.top) / rect.height) * CANVAS_HEIGHT,
@@ -175,7 +172,6 @@ export function FloorPlanOverlay({
   const handlePointerDown = (event: React.PointerEvent<HTMLCanvasElement>): void => {
     const point = getCanvasPoint(event);
     if (!point) return;
-
     event.currentTarget.setPointerCapture(event.pointerId);
     setIsDrawing(true);
     setCurrentLine({ start: point, end: point });
@@ -183,42 +179,30 @@ export function FloorPlanOverlay({
 
   const handlePointerMove = (event: React.PointerEvent<HTMLCanvasElement>): void => {
     if (!isDrawing || !currentLine) return;
-
     const point = getCanvasPoint(event);
     if (!point) return;
-
     setCurrentLine({ start: currentLine.start, end: point });
   };
 
   const handlePointerUp = (event: React.PointerEvent<HTMLCanvasElement>): void => {
     if (!isDrawing || !currentLine) return;
-
-    const start = canvasToWorld(currentLine.start, scaleMetersPerPixel);
-    const end = canvasToWorld(currentLine.end, scaleMetersPerPixel);
     const pixelLength = Math.hypot(currentLine.end.x - currentLine.start.x, currentLine.end.y - currentLine.start.y);
-
     setIsDrawing(false);
     setCurrentLine(null);
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
     if (pixelLength < 8) return;
 
-    const wall = createWall(currentLine.start, currentLine.end, scaleMetersPerPixel);
-    wall.start = start;
-    wall.end = end;
-    const parsedWall = WallSegmentSchema.parse(wall);
+    const parsedWall = WallSegmentSchema.parse(createWall(currentLine.start, currentLine.end, scaleMetersPerPixel));
     setWalls((previous) => [...previous, parsedWall]);
   };
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>): void => {
     const file = event.target.files?.[0];
     if (!file || !['image/jpeg', 'image/png'].includes(file.type)) return;
-
     const reader = new FileReader();
     reader.onload = () => setImageData(typeof reader.result === 'string' ? reader.result : null);
     reader.readAsDataURL(file);
+    onBlueprintUploaded?.(file);
   };
 
   const handleReferenceScale = (): void => {
@@ -227,41 +211,20 @@ export function FloorPlanOverlay({
   };
 
   const handleRoomNameChange = (roomId: string, nextName: string): void => {
-    setRooms((previous) =>
-      previous.map((room) =>
-        room.id === roomId
-          ? { ...room, name: nextName, updatedAt: new Date().toISOString() }
-          : room,
-      ),
-    );
+    setRooms((previous) => previous.map((room) => room.id === roomId ? { ...room, name: nextName, updatedAt: new Date().toISOString() } : room));
   };
 
   return (
     <div className="space-y-4 p-4">
       <section className="rounded-xl border border-sky-500/30 bg-sky-500/5 p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-sky-300">Spatial editor</p>
-            <h2 className="mt-1 text-base font-semibold text-white">2D Floor Plan → 3D Model</h2>
-            <p className="mt-1 text-xs leading-relaxed text-slate-400">
-              Draw wall segments in the 2D plan below. Every completed wall is converted to real-world metres and appears immediately in the 3D viewport on the right.
-            </p>
-          </div>
-          <div className="rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-right text-[10px] text-slate-400">
-            <div className="text-slate-200">{walls.length} walls</div>
-            <div>{rooms.length} rooms</div>
-          </div>
-        </div>
+        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-sky-300">Spatial editor</p>
+        <h2 className="mt-1 text-base font-semibold text-white">2D Floor Plan → 3D Model</h2>
+        <p className="mt-1 text-xs leading-relaxed text-slate-400">Upload a blueprint first. Then calibrate its scale, trace wall segments, validate closed rooms, and inspect the resulting 3D spatial model.</p>
       </section>
 
       <section className="rounded-lg border border-slate-700 bg-slate-900/80 p-3">
         <label className="block text-xs uppercase tracking-[0.2em] text-slate-400">Project name</label>
-        <input
-          value={projectName}
-          onChange={(event) => onProjectNameChange(event.target.value)}
-          className="mt-2 w-full rounded border border-slate-600 bg-slate-800 px-2 py-2 text-sm text-slate-100"
-        />
-
+        <input value={projectName} onChange={(event) => onProjectNameChange(event.target.value)} className="mt-2 w-full rounded border border-slate-600 bg-slate-800 px-2 py-2 text-sm text-slate-100" />
         <div className="mt-3 grid grid-cols-2 gap-2">
           <button type="button" onClick={onSave} className="rounded bg-sky-600 px-3 py-2 text-sm font-medium text-white hover:bg-sky-500">Save Project</button>
           <button type="button" onClick={onLoad} className="rounded bg-slate-700 px-3 py-2 text-sm font-medium text-slate-100 hover:bg-slate-600">Load Project</button>
@@ -270,53 +233,51 @@ export function FloorPlanOverlay({
         </div>
         {onEnterAr ? <button type="button" onClick={onEnterAr} className="mt-2 w-full rounded bg-teal-600 px-3 py-2 text-sm font-medium text-white hover:bg-teal-500">Enter AR Viewport</button> : null}
         {onCompareVersions ? <button type="button" onClick={onCompareVersions} className="mt-2 w-full rounded bg-purple-600 px-3 py-2 text-sm font-medium text-white hover:bg-purple-500">Compare Versions ({savedVersionsCount} Saved)</button> : null}
-        {shareUrl ? <div className="mt-3 rounded border border-emerald-500/40 bg-emerald-500/10 p-2 text-xs text-emerald-100 break-all">{shareUrl}</div> : null}
+        {shareUrl ? <div className="mt-3 break-all rounded border border-emerald-500/40 bg-emerald-500/10 p-2 text-xs text-emerald-100">{shareUrl}</div> : null}
       </section>
 
       <section className="rounded-xl border border-slate-700 bg-slate-950 p-3">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h3 className="text-sm font-semibold text-white">Draw walls in 2D</h3>
-            <p className="mt-1 text-xs text-slate-400">Press and drag inside the grid. Release to create one wall.</p>
+            <h3 className="text-sm font-semibold text-white">Step 1 — Upload blueprint</h3>
+            <p className="mt-1 text-xs text-slate-400">JPG or PNG floor plan. The uploaded plan becomes the background for tracing.</p>
           </div>
-          <label className="cursor-pointer rounded-md border border-sky-500 bg-sky-500/10 px-3 py-2 text-xs font-medium text-sky-200">
-            Upload blueprint
-            <input type="file" accept="image/jpeg,image/png" className="hidden" onChange={handleImageUpload} />
-          </label>
+          <label className="cursor-pointer rounded-md border border-sky-500 bg-sky-500/10 px-3 py-2 text-xs font-medium text-sky-200">Upload blueprint<input type="file" accept="image/jpeg,image/png" className="hidden" onChange={handleImageUpload} /></label>
         </div>
+      </section>
 
+      <section className="rounded-xl border border-slate-700 bg-slate-950 p-3">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-semibold text-white">Step 2–3 — Calibrate scale & draw walls</h3>
+            <p className="mt-1 text-xs text-slate-400">Choose a known distance, click Apply, then press and drag in the blueprint to create each wall.</p>
+          </div>
+        </div>
         <div className="mt-3 flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900 px-2 py-2 text-xs text-slate-300">
-          <span>Reference length</span>
+          <span>Known length</span>
           <input type="number" min="0.1" step="0.1" value={referenceLengthMeters} onChange={(event) => setReferenceLengthMeters(Number(event.target.value) || 4)} className="w-20 rounded border border-slate-600 bg-slate-800 px-2 py-1 text-slate-100" />
           <span>m</span>
           <button type="button" onClick={handleReferenceScale} className="rounded bg-slate-700 px-2 py-1 font-medium text-slate-100 hover:bg-slate-600">Apply</button>
         </div>
-
-        <canvas
-          ref={canvasRef}
-          className="mt-3 block h-[520px] w-full touch-none cursor-crosshair rounded-md border border-slate-700 bg-slate-950"
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerCancel={handlePointerUp}
-          aria-label="2D floor plan drawing canvas"
-        />
+        <canvas ref={canvasRef} className="mt-3 block h-[520px] w-full touch-none cursor-crosshair rounded-md border border-slate-700 bg-slate-950" onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={handlePointerUp} aria-label="2D floor plan drawing canvas" />
       </section>
 
       <section className="rounded-lg border border-slate-700 bg-slate-900/80 p-3">
-        <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Detected rooms</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Step 4 — Validate rooms</p>
+        <p className="mt-1 text-xs text-slate-500">Close your wall loop. Detected rooms and calculated floor areas appear here.</p>
         <div className="mt-3 space-y-2 text-xs text-slate-300">
-          {rooms.length === 0 ? (
-            <div className="rounded border border-slate-700 bg-slate-800/70 px-2 py-2 text-slate-400">Draw a closed wall loop to detect a room.</div>
-          ) : (
-            rooms.map((room) => (
-              <div key={room.id} className="rounded border border-slate-700 bg-slate-800/70 p-2">
-                <input value={room.name} onChange={(event) => handleRoomNameChange(room.id, event.target.value)} className="w-full rounded border border-slate-600 bg-slate-900 px-2 py-1 text-xs text-slate-100" />
-                <div className="mt-1 text-slate-400">{room.floorArea?.toFixed(2) ?? '0.00'} m²</div>
-              </div>
-            ))
-          )}
+          {rooms.length === 0 ? <div className="rounded border border-slate-700 bg-slate-800/70 px-2 py-2 text-slate-400">No closed room loops detected yet.</div> : rooms.map((room) => (
+            <div key={room.id} className="rounded border border-slate-700 bg-slate-800/70 p-2">
+              <input value={room.name} onChange={(event) => handleRoomNameChange(room.id, event.target.value)} className="w-full rounded border border-slate-600 bg-slate-900 px-2 py-1 text-xs text-slate-100" />
+              <div className="mt-1 text-slate-400">{room.floorArea?.toFixed(2) ?? '0.00'} m²</div>
+            </div>
+          ))}
         </div>
+      </section>
+
+      <section className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-300">Step 5 — 3D & spatial</p>
+        <p className="mt-1 text-xs leading-5 text-slate-400">Every wall is converted into a 3D wall automatically. Use the right viewport to orbit, zoom and pan. Then use AR to enter the spatial view.</p>
       </section>
     </div>
   );
