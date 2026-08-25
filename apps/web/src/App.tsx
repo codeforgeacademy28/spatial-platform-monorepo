@@ -239,7 +239,7 @@ export function App(): JSX.Element {
           onLoad={handleLoadProject}
           onShare={handleShareDesign}
           onSaveVersion={handleSaveVersion}
-          onEnterAR={handleToggleArMode}
+          onEnterAr={handleToggleArMode}
           refLength={refLength}
           onScaleChange={setRefLength}
           onUploadBlueprint={handleBlueprintUpload}
