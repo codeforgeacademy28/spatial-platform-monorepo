@@ -46,12 +46,7 @@ function XRTrackingReporter({ onChange }: { onChange: (status: ControllerTrackin
   const session = useXR((state) => state.session);
   const left = useXRInputSourceState('controller', 'left');
   const right = useXRInputSourceState('controller', 'right');
-
-  const status = useMemo(() => ({
-    sessionActive: Boolean(session),
-    leftTracked: Boolean(left),
-    rightTracked: Boolean(right),
-  }), [session, left, right]);
+  const status = useMemo(() => ({ sessionActive: Boolean(session), leftTracked: Boolean(left), rightTracked: Boolean(right) }), [session, left, right]);
 
   useEffect(() => {
     onChange(status);
@@ -62,7 +57,6 @@ function XRTrackingReporter({ onChange }: { onChange: (status: ControllerTrackin
 
 export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element {
   const [tracking, setTracking] = useState<ControllerTracking>({ sessionActive: false, leftTracked: false, rightTracked: false });
-
   const modelTransform = useMemo((): [number, number, number] => {
     if (!walls.length) return [0, 0, -4];
     const xs = walls.flatMap((wall) => [wall.start.x, wall.end.x]);
@@ -71,7 +65,6 @@ export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element {
     const centerY = (Math.min(...ys) + Math.max(...ys)) / 2;
     return [-centerX, 0, -centerY - 4];
   }, [walls]);
-
   const fallbackCamera = useMemo<[number, number, number]>(() => {
     if (!walls.length) return [8, 7, 10];
     const xs = walls.flatMap((wall) => [wall.start.x, wall.end.x]);
@@ -82,7 +75,6 @@ export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element {
     const distance = Math.max(span * 2, 8);
     return [centerX + distance, distance * 0.8, centerY + distance];
   }, [walls]);
-
   const startAr = async (): Promise<void> => {
     try {
       if (xrStore.getState().session) return;
@@ -106,25 +98,22 @@ export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element {
             {rooms.map((room) => <RoomFloor key={room.id} room={room} />)}
             {walls.map((wall) => <WallMesh key={wall.id} wall={wall} />)}
           </group>
+          <IfInSessionMode deny={['immersive-ar', 'immersive-vr']}>
+            <OrbitControls target={[0, 0, -4]} enablePan enableZoom enableRotate />
+          </IfInSessionMode>
         </XR>
-        <IfInSessionMode deny={['immersive-ar', 'immersive-vr']}>
-          <OrbitControls target={[0, 0, -4]} enablePan enableZoom enableRotate />
-        </IfInSessionMode>
       </Canvas>
-
       <div className="pointer-events-none absolute right-4 top-4 z-20 rounded-xl border border-slate-700 bg-slate-900/90 px-4 py-3 text-xs text-slate-200 shadow-xl backdrop-blur">
         <div className="font-semibold uppercase tracking-[0.18em] text-teal-300">XR status</div>
         <div className="mt-1">Session: <span className={tracking.sessionActive ? 'text-emerald-300' : 'text-slate-400'}>{tracking.sessionActive ? 'active' : 'inactive'}</span></div>
         <div>Left controller: <span className={tracking.leftTracked ? 'text-emerald-300' : 'text-slate-400'}>{tracking.leftTracked ? 'tracked' : 'not detected'}</span></div>
         <div>Right controller: <span className={tracking.rightTracked ? 'text-emerald-300' : 'text-slate-400'}>{tracking.rightTracked ? 'tracked' : 'not detected'}</span></div>
       </div>
-
       <div className="pointer-events-none absolute left-4 top-4 z-20 rounded-xl border border-slate-700 bg-slate-900/85 px-4 py-3 text-xs text-slate-200 shadow-xl backdrop-blur">
         <div className="font-semibold uppercase tracking-[0.18em] text-teal-300">Spatial View</div>
         <div className="mt-1 text-sm font-medium text-white">{walls.length} walls · {rooms.length} rooms</div>
         <div className="mt-1 text-slate-400">3D spatial fallback is available before entering AR.</div>
       </div>
-
       <div className="absolute bottom-4 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/90 p-2 shadow-xl backdrop-blur">
         <button type="button" onClick={startAr} className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-500">Start Immersive AR</button>
         <span className="px-2 text-xs text-slate-400">Controllers are tracked by the XR store when supported.</span>
