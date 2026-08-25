@@ -30,14 +30,10 @@ function FloorGrid({ onSelectPoint }: { onSelectPoint?: (e: ThreeEvent<MouseEven
 }
 
 function WallMesh({ wall, highlighted, onSelectPoint }: { wall: WallSegment; highlighted: boolean; onSelectPoint?: (e: ThreeEvent<MouseEvent>) => void }): JSX.Element {
-  const extrusion = useMemo(() => extrudeWallSegments([wall])[0], [wall]);
-  const start = extrusion.bottomCorners[0];
-  const end = extrusion.bottomCorners[1];
-  const length = Math.hypot(end.x - start.x, end.y - start.y) || 0.001;
-  const angle = Math.atan2(end.y - start.y, end.x - start.x);
-
+  const length = Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y) || 0.001;
+  const angle = Math.atan2(wall.end.y - wall.start.y, wall.end.x - wall.start.x);
   return (
-    <mesh position={[(start.x + end.x) / 2, wall.height / 2, (start.y + end.y) / 2]} rotation={[0, -angle, 0]} castShadow receiveShadow onClick={(e) => onSelectPoint?.(e)}>
+    <mesh position={[(wall.start.x + wall.end.x) / 2, wall.height / 2, (wall.start.y + wall.end.y) / 2]} rotation={[0, -angle, 0]} castShadow receiveShadow onClick={(e) => onSelectPoint?.(e)}>
       <boxGeometry args={[length, wall.height, wall.thickness]} />
       <meshStandardMaterial color={highlighted ? '#f59e0b' : '#cbd5e1'} emissive={highlighted ? '#f59e0b' : '#000000'} emissiveIntensity={highlighted ? 0.8 : 0} metalness={0.12} roughness={0.7} />
     </mesh>
