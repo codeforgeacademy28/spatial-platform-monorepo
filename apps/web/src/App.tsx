@@ -242,7 +242,6 @@ export function App(): JSX.Element {
           onEnterAR={handleToggleArMode}
           refLength={refLength}
           onScaleChange={setRefLength}
-          onUploadBlueprint={handleBlueprintUpload}
         />
         <CanvasOverlay scaleMetric={refLength} unit="meters" />
       </main>
