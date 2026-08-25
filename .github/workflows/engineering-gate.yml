@@ -7,7 +7,7 @@ on:
     branches: ['main']
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   web-gate:
@@ -23,7 +23,7 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Regenerate lockfile for diagnostics
+      - name: Regenerate lockfile from current manifests
         run: npm install --package-lock-only --ignore-scripts
 
       - name: Upload generated lockfile
@@ -32,6 +32,18 @@ jobs:
           name: generated-package-lock
           path: package-lock.json
           if-no-files-found: error
+
+      - name: Commit canonical lockfile when manifests changed
+        run: |
+          if git diff --quiet -- package-lock.json; then
+            echo "Lockfile already matches manifests."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "chore: synchronize package lock"
+          git push origin HEAD:${GITHUB_REF_NAME}
 
       - name: Check lockfile drift
         run: git diff --exit-code -- package-lock.json
