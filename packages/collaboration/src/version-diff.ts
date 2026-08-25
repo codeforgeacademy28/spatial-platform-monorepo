@@ -21,52 +21,38 @@ export interface ProjectDiff {
   };
 }
 
-function pointsMatch(p1: Point, p2: Point, tolerance = 0.01): boolean {
+function getProjectWalls(project: Project): WallSegment[] {
+  return project.walls.length > 0 ? project.walls : project.rooms.flatMap((room) => room.wallSegments);
+}
+
+function pointsMatch(p1: Point, p2: Point, tolerance = 0.05): boolean {
   return Math.abs(p1.x - p2.x) <= tolerance && Math.abs(p1.y - p2.y) <= tolerance;
 }
 
-function wallGeometryMatches(w1: WallSegment, w2: WallSegment, tolerance = 0.01): boolean {
-  const directMatch =
-    pointsMatch(w1.start, w2.start, tolerance) && pointsMatch(w1.end, w2.end, tolerance);
-  const reverseMatch =
-    pointsMatch(w1.start, w2.end, tolerance) && pointsMatch(w1.end, w2.start, tolerance);
-
-  return (
-    (directMatch || reverseMatch) &&
-    Math.abs(w1.thickness - w2.thickness) <= tolerance &&
-    Math.abs(w1.height - w2.height) <= tolerance
-  );
+function wallGeometryMatches(w1: WallSegment, w2: WallSegment, tolerance = 0.05): boolean {
+  const directMatch = pointsMatch(w1.start, w2.start, tolerance) && pointsMatch(w1.end, w2.end, tolerance);
+  const reverseMatch = pointsMatch(w1.start, w2.end, tolerance) && pointsMatch(w1.end, w2.start, tolerance);
+  return (directMatch || reverseMatch) && Math.abs(w1.thickness - w2.thickness) <= tolerance && Math.abs(w1.height - w2.height) <= tolerance;
 }
 
 function wallMoved(w1: WallSegment, w2: WallSegment): boolean {
-  const sameStartOrEnd =
-    pointsMatch(w1.start, w2.start) ||
-    pointsMatch(w1.start, w2.end) ||
-    pointsMatch(w1.end, w2.start) ||
-    pointsMatch(w1.end, w2.end);
-
-  return sameStartOrEnd || w1.id === w2.id;
+  const sameEndpoint = pointsMatch(w1.start, w2.start) || pointsMatch(w1.start, w2.end) || pointsMatch(w1.end, w2.start) || pointsMatch(w1.end, w2.end);
+  return sameEndpoint || w1.id === w2.id;
 }
 
 export function diffProjects(versionA: Project, versionB: Project): ProjectDiff {
-  const wallsA = versionA.rooms.flatMap((r) => r.wallSegments);
-  const wallsB = versionB.rooms.flatMap((r) => r.wallSegments);
-
+  const wallsA = getProjectWalls(versionA);
+  const wallsB = getProjectWalls(versionB);
   const diffsA: WallDiffResult[] = [];
   const diffsB: WallDiffResult[] = [];
-
   const matchedBIds = new Set<string>();
-
   let addedCount = 0;
   let removedCount = 0;
   let shiftedCount = 0;
   let unchangedCount = 0;
 
   for (const wallA of wallsA) {
-    const exactMatchB = wallsB.find(
-      (wB) => !matchedBIds.has(wB.id) && wallGeometryMatches(wallA, wB),
-    );
-
+    const exactMatchB = wallsB.find((wallB) => !matchedBIds.has(wallB.id) && wallGeometryMatches(wallA, wallB));
     if (exactMatchB) {
       matchedBIds.add(exactMatchB.id);
       diffsA.push({ wall: wallA, changeType: 'unchanged', comparedWall: exactMatchB });
@@ -74,10 +60,7 @@ export function diffProjects(versionA: Project, versionB: Project): ProjectDiff 
       continue;
     }
 
-    const movedMatchB = wallsB.find(
-      (wB) => !matchedBIds.has(wB.id) && wallMoved(wallA, wB),
-    );
-
+    const movedMatchB = wallsB.find((wallB) => !matchedBIds.has(wallB.id) && wallMoved(wallA, wallB));
     if (movedMatchB) {
       matchedBIds.add(movedMatchB.id);
       diffsA.push({ wall: wallA, changeType: 'shifted', comparedWall: movedMatchB });
@@ -90,29 +73,14 @@ export function diffProjects(versionA: Project, versionB: Project): ProjectDiff 
   }
 
   for (const wallB of wallsB) {
-    if (matchedBIds.has(wallB.id)) {
-      const matchInA = diffsA.find((dA) => dA.comparedWall?.id === wallB.id);
-      diffsB.push({
-        wall: wallB,
-        changeType: matchInA?.changeType ?? 'unchanged',
-        comparedWall: matchInA?.wall,
-      });
+    const matchInA = diffsA.find((diff) => diff.comparedWall?.id === wallB.id);
+    if (matchInA) {
+      diffsB.push({ wall: wallB, changeType: matchInA.changeType, comparedWall: matchInA.wall });
     } else {
       diffsB.push({ wall: wallB, changeType: 'added' });
       addedCount += 1;
     }
   }
 
-  return {
-    versionA,
-    versionB,
-    wallsA: diffsA,
-    wallsB: diffsB,
-    stats: {
-      addedCount,
-      removedCount,
-      shiftedCount,
-      unchangedCount,
-    },
-  };
+  return { versionA, versionB, wallsA: diffsA, wallsB: diffsB, stats: { addedCount, removedCount, shiftedCount, unchangedCount } };
 }
