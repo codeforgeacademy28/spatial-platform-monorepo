@@ -2,44 +2,21 @@ import earcut from 'earcut';
 import { RoomSchema } from '@spatial/core';
 import type { Point, Room, WallSegment } from '@spatial/core';
 
-export interface RoomFloorMesh {
-  roomId: string;
-  vertices: number[];
-  indices: number[];
-}
-
+export interface RoomFloorMesh { roomId: string; vertices: number[]; indices: number[] }
 const POINT_TOLERANCE = 0.05;
 
-function pointsMatch(p1: Point, p2: Point, tolerance = POINT_TOLERANCE): boolean {
-  return Math.hypot(p1.x - p2.x, p1.y - p2.y) <= tolerance;
-}
-
-function calculatePolygonArea(points: Point[]): number {
-  if (points.length < 3) return 0;
-  let area = 0;
-  for (let index = 0; index < points.length; index += 1) {
-    const current = points[index];
-    const next = points[(index + 1) % points.length];
-    area += current.x * next.y - next.x * current.y;
-  }
-  return Math.abs(area) / 2;
-}
+function pointsMatch(p1: Point, p2: Point, tolerance = POINT_TOLERANCE): boolean { return Math.hypot(p1.x - p2.x, p1.y - p2.y) <= tolerance; }
+function calculatePolygonArea(points: Point[]): number { if (points.length < 3) return 0; let area = 0; for (let index = 0; index < points.length; index += 1) { const current = points[index]; const next = points[(index + 1) % points.length]; area += current.x * next.y - next.x * current.y; } return Math.abs(area) / 2; }
 
 function traceLoopFromWall(walls: readonly WallSegment[], startWall: WallSegment, unvisited: Set<string>): { points: Point[]; wallIds: string[] } | null {
   const points: Point[] = [startWall.start];
   const wallIds: string[] = [startWall.id];
   unvisited.delete(startWall.id);
-
   let previousEndpoint = startWall.start;
   let currentEndpoint = startWall.end;
-  let currentWall = startWall;
 
   for (let step = 0; step < walls.length + 1; step += 1) {
-    const nextWalls = walls.filter((wall) => {
-      if (!unvisited.has(wall.id)) return false;
-      return pointsMatch(wall.start, currentEndpoint) || pointsMatch(wall.end, currentEndpoint);
-    });
-
+    const nextWalls = walls.filter((wall) => unvisited.has(wall.id) && (pointsMatch(wall.start, currentEndpoint) || pointsMatch(wall.end, currentEndpoint)));
     if (nextWalls.length === 0) return null;
 
     const nextWall = nextWalls.find((wall) => {
@@ -48,11 +25,7 @@ function traceLoopFromWall(walls: readonly WallSegment[], startWall: WallSegment
     }) ?? nextWalls[0];
 
     const nextEndpoint = pointsMatch(nextWall.start, currentEndpoint) ? nextWall.end : nextWall.start;
-
-    if (pointsMatch(nextEndpoint, startWall.start)) {
-      return { points: [...points, startWall.start], wallIds: [...wallIds, nextWall.id] };
-    }
-
+    if (pointsMatch(nextEndpoint, startWall.start)) return { points: [...points, startWall.start], wallIds: [...wallIds, nextWall.id] };
     if (points.some((point) => pointsMatch(point, nextEndpoint))) return null;
 
     points.push(nextEndpoint);
@@ -60,20 +33,14 @@ function traceLoopFromWall(walls: readonly WallSegment[], startWall: WallSegment
     unvisited.delete(nextWall.id);
     previousEndpoint = currentEndpoint;
     currentEndpoint = nextEndpoint;
-    currentWall = nextWall;
   }
-
   return null;
 }
 
-function normalizeLoop(points: Point[]): Point[] {
-  if (points.length >= 2 && pointsMatch(points[0], points[points.length - 1])) return points.slice(0, -1);
-  return points;
-}
+function normalizeLoop(points: Point[]): Point[] { return points.length >= 2 && pointsMatch(points[0], points[points.length - 1]) ? points.slice(0, -1) : points; }
 
 export function detectClosedRooms(walls: readonly WallSegment[], projectId = 'project-1', roomNamePrefix = 'Room'): Room[] {
   if (walls.length < 3) return [];
-
   const unvisited = new Set(walls.map((wall) => wall.id));
   const detectedLoops: Array<{ points: Point[]; wallIds: string[] }> = [];
 
@@ -81,11 +48,9 @@ export function detectClosedRooms(walls: readonly WallSegment[], projectId = 'pr
     if (!unvisited.has(wall.id)) continue;
     const loop = traceLoopFromWall(walls, wall, unvisited);
     if (!loop) continue;
-
     const points = normalizeLoop(loop.points);
     const uniqueWallIds = [...new Set(loop.wallIds)];
     if (points.length < 3 || uniqueWallIds.length < 3) continue;
-
     const area = calculatePolygonArea(points);
     if (area <= POINT_TOLERANCE * POINT_TOLERANCE) continue;
     detectedLoops.push({ points, wallIds: uniqueWallIds });
@@ -94,7 +59,7 @@ export function detectClosedRooms(walls: readonly WallSegment[], projectId = 'pr
   return detectedLoops.map((loop, index) => {
     const roomWallIds = new Set(loop.wallIds);
     const wallSegments = walls.filter((wall) => roomWallIds.has(wall.id));
-    const room: Room = {
+    return RoomSchema.parse({
       id: `room-${index + 1}`,
       projectId,
       name: `${roomNamePrefix} ${index + 1}`,
@@ -103,8 +68,7 @@ export function detectClosedRooms(walls: readonly WallSegment[], projectId = 'pr
       floorArea: calculatePolygonArea(loop.points),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-    };
-    return RoomSchema.parse(room);
+    } as Room);
   });
 }
 
