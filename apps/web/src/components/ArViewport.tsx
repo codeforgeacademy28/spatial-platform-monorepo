@@ -1,12 +1,13 @@
 import { Canvas } from '@react-three/fiber';
 import { IfInSessionMode, XR, XROrigin, createXRStore, useXR, useXRInputSourceState } from '@react-three/xr';
 import { OrbitControls } from '@react-three/drei';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import * as THREE from 'three';
 import { extrudeWallSegments, generateRoomFloorMesh } from '@spatial/geometry-engine';
 import type { Room, WallSegment } from '@spatial/core';
 
 interface ArViewportProps { walls: WallSegment[]; rooms: Room[]; points: Array<{ x: number; y: number }> }
+interface ControllerTracking { sessionActive: boolean; leftTracked: boolean; rightTracked: boolean }
 
 const xrStore = createXRStore({
   offerSession: 'immersive-ar',
@@ -41,22 +42,28 @@ function RoomFloor({ room }: { room: Room }): JSX.Element {
   return <mesh geometry={geometry} position={[0, 0.01, 0]} receiveShadow><meshStandardMaterial color="#2563eb" transparent opacity={0.35} /></mesh>;
 }
 
-function ControllerStatus(): JSX.Element {
+function XRTrackingReporter({ onChange }: { onChange: (status: ControllerTracking) => void }): JSX.Element {
   const session = useXR((state) => state.session);
   const left = useXRInputSourceState('controller', 'left');
   const right = useXRInputSourceState('controller', 'right');
 
-  return (
-    <div className="pointer-events-none absolute right-4 top-4 z-20 rounded-xl border border-slate-700 bg-slate-900/90 px-4 py-3 text-xs text-slate-200 shadow-xl backdrop-blur">
-      <div className="font-semibold uppercase tracking-[0.18em] text-teal-300">XR status</div>
-      <div className="mt-1">Session: <span className={session ? 'text-emerald-300' : 'text-slate-400'}>{session ? 'active' : 'inactive'}</span></div>
-      <div>Left controller: <span className={left ? 'text-emerald-300' : 'text-slate-400'}>{left ? 'tracked' : 'not detected'}</span></div>
-      <div>Right controller: <span className={right ? 'text-emerald-300' : 'text-slate-400'}>{right ? 'tracked' : 'not detected'}</span></div>
-    </div>
-  );
+  const status = useMemo(() => ({
+    sessionActive: Boolean(session),
+    leftTracked: Boolean(left),
+    rightTracked: Boolean(right),
+  }), [session, left, right]);
+
+  return <TrackingStatusBridge status={status} onChange={onChange} />;
+}
+
+function TrackingStatusBridge({ status, onChange }: { status: ControllerTracking; onChange: (status: ControllerTracking) => void }): JSX.Element {
+  useState(() => { onChange(status); return status; });
+  return <group />;
 }
 
 export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element {
+  const [tracking, setTracking] = useState<ControllerTracking>({ sessionActive: false, leftTracked: false, rightTracked: false });
+
   const modelTransform = useMemo((): [number, number, number] => {
     if (!walls.length) return [0, 0, -4];
     const xs = walls.flatMap((wall) => [wall.start.x, wall.end.x]);
@@ -79,6 +86,7 @@ export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element {
 
   const startAr = async (): Promise<void> => {
     try {
+      if (xrStore.getState().session) return;
       await xrStore.enterAR();
     } catch (error) {
       console.error('Unable to start immersive AR:', error);
@@ -93,6 +101,7 @@ export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element {
         <directionalLight position={[10, 12, 8]} intensity={1.2} castShadow />
         <XR store={xrStore}>
           <XROrigin position={[0, 0, 0]} />
+          <XRTrackingReporter onChange={setTracking} />
           <group position={modelTransform}>
             <FloorGrid />
             {rooms.map((room) => <RoomFloor key={room.id} room={room} />)}
@@ -103,12 +112,20 @@ export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element {
           <OrbitControls target={[0, 0, -4]} enablePan enableZoom enableRotate />
         </IfInSessionMode>
       </Canvas>
-      <ControllerStatus />
+
+      <div className="pointer-events-none absolute right-4 top-4 z-20 rounded-xl border border-slate-700 bg-slate-900/90 px-4 py-3 text-xs text-slate-200 shadow-xl backdrop-blur">
+        <div className="font-semibold uppercase tracking-[0.18em] text-teal-300">XR status</div>
+        <div className="mt-1">Session: <span className={tracking.sessionActive ? 'text-emerald-300' : 'text-slate-400'}>{tracking.sessionActive ? 'active' : 'inactive'}</span></div>
+        <div>Left controller: <span className={tracking.leftTracked ? 'text-emerald-300' : 'text-slate-400'}>{tracking.leftTracked ? 'tracked' : 'not detected'}</span></div>
+        <div>Right controller: <span className={tracking.rightTracked ? 'text-emerald-300' : 'text-slate-400'}>{tracking.rightTracked ? 'tracked' : 'not detected'}</span></div>
+      </div>
+
       <div className="pointer-events-none absolute left-4 top-4 z-20 rounded-xl border border-slate-700 bg-slate-900/85 px-4 py-3 text-xs text-slate-200 shadow-xl backdrop-blur">
         <div className="font-semibold uppercase tracking-[0.18em] text-teal-300">Spatial View</div>
         <div className="mt-1 text-sm font-medium text-white">{walls.length} walls · {rooms.length} rooms</div>
         <div className="mt-1 text-slate-400">3D spatial fallback is available before entering AR.</div>
       </div>
+
       <div className="absolute bottom-4 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/90 p-2 shadow-xl backdrop-blur">
         <button type="button" onClick={startAr} className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-500">Start Immersive AR</button>
         <span className="px-2 text-xs text-slate-400">Controllers are tracked by the XR store when supported.</span>
