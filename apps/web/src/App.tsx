@@ -145,11 +145,7 @@ export function App(): JSX.Element {
     return (
       <div className="relative h-screen w-screen">
         <ArViewport walls={walls} rooms={rooms} points={points} />
-        <button
-          type="button"
-          onClick={handleToggleArMode}
-          className="absolute left-4 top-4 z-[100] rounded bg-slate-900/90 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-slate-950/50 hover:bg-slate-800"
-        >
+        <button type="button" onClick={handleToggleArMode} className="absolute left-4 top-4 z-[100] rounded bg-slate-900/90 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-slate-950/50 hover:bg-slate-800">
           Exit AR
         </button>
       </div>
@@ -158,13 +154,7 @@ export function App(): JSX.Element {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-950 text-slate-100">
-      {comparisonPair && (
-        <VersionComparer
-          versionA={comparisonPair[0]}
-          versionB={comparisonPair[1]}
-          onClose={() => setComparisonPair(null)}
-        />
-      )}
+      {comparisonPair && <VersionComparer versionA={comparisonPair[0]} versionB={comparisonPair[1]} onClose={() => setComparisonPair(null)} />}
 
       <aside className="relative z-30 h-full w-[440px] shrink-0 overflow-y-auto border-r border-slate-800 bg-slate-900/80 backdrop-blur-sm">
         <FloorPlanOverlay
@@ -197,7 +187,7 @@ export function App(): JSX.Element {
           onLoad={handleLoadProject}
           onShare={handleShareDesign}
           onSaveVersion={handleSaveVersion}
-          onEnterAr={handleToggleArMode}
+          onEnterAR={handleToggleArMode}
           refLength={refLength}
           onScaleChange={setRefLength}
         />
