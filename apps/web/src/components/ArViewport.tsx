@@ -2,6 +2,7 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { IfInSessionMode, XR, XROrigin, createXRStore, useXR, useXRControllerLocomotion, useXRInputSourceState } from '@react-three/xr';
 import { OrbitControls } from '@react-three/drei';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import type { MutableRefObject } from 'react';
 import * as THREE from 'three';
 import type { Group } from 'three';
 import { extrudeWallSegments, generateRoomFloorMesh } from '@spatial/geometry-engine';
@@ -49,12 +50,12 @@ function XRTrackingReporter({ onChange }: { onChange: (status: ControllerTrackin
   return null;
 }
 
-function XRLocomotion({ originRef }: { originRef: React.MutableRefObject<Group | null> }): JSX.Element {
+function XRLocomotion({ originRef }: { originRef: MutableRefObject<Group | null> }): JSX.Element {
   useXRControllerLocomotion(originRef, { speed: 1.5 }, { type: 'snap', degrees: 30, deadZone: 0.18 }, 'left');
   return <XROrigin ref={originRef} position={[0, 0, 0]} />;
 }
 
-function KeyboardSpatialMovement({ originRef }: { originRef: React.MutableRefObject<Group | null> }): JSX.Element {
+function KeyboardSpatialMovement({ originRef }: { originRef: MutableRefObject<Group | null> }): JSX.Element {
   const pressed = useRef(new Set<string>());
   useEffect(() => {
     const down = (event: KeyboardEvent) => pressed.current.add(event.key.toLowerCase());
