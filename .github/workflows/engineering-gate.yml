@@ -59,3 +59,6 @@ jobs:
 
       - name: Web production build
         run: npx turbo build --filter=@spatial/web --force
+
+      - name: Geometry contract tests
+        run: npm run test --workspace=@spatial/geometry-engine
