@@ -9,15 +9,26 @@ import { sanitizeRequestBody } from './middleware/sanitizer.js';
 
 const app = express();
 
-const allowedOrigins = (process.env.WEB_ORIGINS ?? 'http://localhost:5173')
+const configuredOrigins = (process.env.WEB_ORIGINS ?? '')
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);
 
+const projectVercelOriginPattern = /^https:\/\/spatial-platform-monorepo(?:-[a-z0-9-]+)?-snm5\.vercel\.app$/i;
+const productionVercelOrigin = 'https://spatial-platform-monorepo-web.vercel.app';
+
+function isAllowedOrigin(origin?: string): boolean {
+  if (!origin) return true;
+  if (configuredOrigins.includes(origin)) return true;
+  if (origin === 'http://localhost:5173') return true;
+  if (origin === productionVercelOrigin) return true;
+  return projectVercelOriginPattern.test(origin);
+}
+
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
+      if (isAllowedOrigin(origin)) {
         callback(null, true);
         return;
       }
