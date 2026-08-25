@@ -11,7 +11,7 @@ interface SpatialHeaderProps {
   onEnterAr: () => void;
   refLength: number;
   onScaleChange?: (scale: number) => void;
-  onUploadBlueprint?: (file: File) => void;
+  onUploadBlueprint: (file: File) => void;
 }
 
 export function SpatialHeader({
@@ -41,7 +41,7 @@ export function SpatialHeader({
 
   const handleFileUpload = (e: ChangeEvent<HTMLInputElement>): void => {
     const file = e.target.files?.[0];
-    if (file) onUploadBlueprint?.(file);
+    if (file) onUploadBlueprint(file);
   };
 
   return (
