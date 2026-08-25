@@ -65,3 +65,4 @@ The web editor is implemented as a dependency-ordered workflow rather than a col
 - Comparison diffs canonical wall geometry and frames each version.
 - Spatial View is centered and does not use PointerLockControls.
 - API CORS accepts configured `WEB_ORIGINS` for deployed web clients.
+- Vercel preview builds for the major workflow commits are READY; final branch-tip deployment is still pending CI propagation.
