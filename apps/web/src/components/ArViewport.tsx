@@ -3,7 +3,7 @@ import { IfInSessionMode, XR, XROrigin, createXRStore, useXR, useXRControllerLoc
 import { OrbitControls } from '@react-three/drei';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { Group } from 'three';
+import type { Group } from 'three';
 import { extrudeWallSegments, generateRoomFloorMesh } from '@spatial/geometry-engine';
 import type { Room, WallSegment } from '@spatial/core';
 
