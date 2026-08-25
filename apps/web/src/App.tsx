@@ -40,20 +40,14 @@ export function App(): JSX.Element {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const shareToken = params.get('share');
-    if (!shareToken) {
-      return;
-    }
+    if (!shareToken) return;
 
     let isMounted = true;
     fetchSharedProject(shareToken)
       .then((project) => {
-        if (isMounted) {
-          setSharedProject(project);
-        }
+        if (isMounted) setSharedProject(project);
       })
-      .catch((error) => {
-        console.error(error);
-      });
+      .catch((error) => console.error(error));
 
     return () => {
       isMounted = false;
@@ -71,27 +65,20 @@ export function App(): JSX.Element {
     [projectName, rooms],
   );
 
-  const handleSaveProject = (): void => {
-    saveProjectToLocalStorage(project, STORAGE_KEY);
-  };
+  const handleSaveProject = (): void => saveProjectToLocalStorage(project, STORAGE_KEY);
 
   const handleLoadProject = (): void => {
     const loadedProject = loadProjectFromLocalStorage(STORAGE_KEY);
-    if (!loadedProject) {
-      return;
-    }
+    if (!loadedProject) return;
 
     const loadedWalls: WallSegment[] = loadedProject.rooms.flatMap((room: Room) => room.wallSegments);
-
     setProjectName(loadedProject.name);
     setRooms(loadedProject.rooms);
     setWalls(loadedWalls);
   };
 
   const handleShareDesign = async (): Promise<void> => {
-    if (walls.length === 0 && rooms.length === 0) {
-      return;
-    }
+    if (walls.length === 0 && rooms.length === 0) return;
 
     try {
       const response = await fetch(`http://localhost:4000/api/projects/${encodeURIComponent('project-1')}/publish`, {
@@ -106,14 +93,9 @@ export function App(): JSX.Element {
         }),
       });
 
-      if (!response.ok) {
-        throw new Error('Unable to publish design.');
-      }
+      if (!response.ok) throw new Error('Unable to publish design.');
 
-      const payload = (await response.json()) as {
-        shareUrl?: string;
-        shareToken?: string;
-      };
+      const payload = (await response.json()) as { shareUrl?: string; shareToken?: string };
       const nextShareUrl = payload.shareUrl ?? `${window.location.origin}/share/${payload.shareToken ?? 'unknown'}`;
       setShareUrl(nextShareUrl);
       window.alert(`Design share link: ${nextShareUrl}`);
@@ -124,16 +106,10 @@ export function App(): JSX.Element {
   };
 
   const { dispatchSpatialAction } = useSpatialActionDispatcher(walls, rooms, setWalls, setRooms);
-
-  const handleToggleArMode = (): void => {
-    setIsArMode((current) => !current);
-  };
+  const handleToggleArMode = (): void => setIsArMode((current) => !current);
 
   const handleSaveVersion = (): void => {
-    const nextVersion: Project = {
-      ...project,
-      name: `${projectName} (v${versions.length + 1})`,
-    };
+    const nextVersion: Project = { ...project, name: `${projectName} (v${versions.length + 1})` };
     setVersions((prev) => [...prev, nextVersion]);
     window.alert(`Saved version: ${nextVersion.name}`);
   };
@@ -146,9 +122,7 @@ export function App(): JSX.Element {
     setComparisonPair([versions[versions.length - 2], versions[versions.length - 1]]);
   };
 
-  if (sharedProject) {
-    return <ClientViewer project={sharedProject} />;
-  }
+  if (sharedProject) return <ClientViewer project={sharedProject} />;
 
   if (isArMode) {
     return (
@@ -157,7 +131,7 @@ export function App(): JSX.Element {
         <button
           type="button"
           onClick={handleToggleArMode}
-          className="absolute left-4 top-4 rounded bg-slate-900/90 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-slate-950/50 hover:bg-slate-800"
+          className="absolute left-4 top-4 z-[100] rounded bg-slate-900/90 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-slate-950/50 hover:bg-slate-800"
         >
           Exit AR
         </button>
@@ -166,7 +140,7 @@ export function App(): JSX.Element {
   }
 
   return (
-    <div className="flex h-screen w-screen bg-slate-950 text-slate-100">
+    <div className="flex h-screen w-screen overflow-hidden bg-slate-950 text-slate-100">
       {comparisonPair && (
         <VersionComparer
           versionA={comparisonPair[0]}
@@ -175,29 +149,29 @@ export function App(): JSX.Element {
         />
       )}
 
-      <aside className="w-[440px] shrink-0 border-r border-slate-800 bg-slate-900/80 backdrop-blur-sm">
+      <aside className="relative z-30 h-full w-[440px] shrink-0 overflow-y-auto border-r border-slate-800 bg-slate-900/80 backdrop-blur-sm">
         <FloorPlanOverlay
-            walls={walls}
-            rooms={rooms}
-            setWalls={setWalls}
-            setRooms={setRooms}
-            projectName={projectName}
-            onProjectNameChange={setProjectName}
-            onSave={handleSaveProject}
-            onLoad={handleLoadProject}
-            onShare={handleShareDesign}
-            onEnterAr={handleToggleArMode}
-            shareUrl={shareUrl}
-            onSaveVersion={handleSaveVersion}
-            onCompareVersions={handleCompareVersions}
-            savedVersionsCount={versions.length}
-          />
+          walls={walls}
+          rooms={rooms}
+          setWalls={setWalls}
+          setRooms={setRooms}
+          projectName={projectName}
+          onProjectNameChange={setProjectName}
+          onSave={handleSaveProject}
+          onLoad={handleLoadProject}
+          onShare={handleShareDesign}
+          onEnterAr={handleToggleArMode}
+          shareUrl={shareUrl}
+          onSaveVersion={handleSaveVersion}
+          onCompareVersions={handleCompareVersions}
+          savedVersionsCount={versions.length}
+        />
         <div className="border-t border-slate-800 p-4">
           <AiAssistantPanel walls={walls} onDispatchAction={dispatchSpatialAction} />
         </div>
       </aside>
 
-      <main className="flex-1 relative">
+      <main className="relative min-w-0 flex-1 overflow-hidden">
         <SpatialCanvas walls={walls} rooms={rooms} points={points} />
         <SpatialHeader
           projectName={projectName}

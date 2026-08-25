@@ -1,5 +1,5 @@
 import { Canvas, type ThreeEvent } from '@react-three/fiber';
-import { OrbitControls, PointerLockControls } from '@react-three/drei';
+import { OrbitControls } from '@react-three/drei';
 import { useMemo, useState } from 'react';
 import * as THREE from 'three';
 import { createSpatialComment, type SpatialComment } from '@spatial/collaboration';
@@ -35,7 +35,6 @@ function FloorGrid({ onSelectPoint }: { onSelectPoint?: (e: ThreeEvent<MouseEven
 
 function WallMesh({ wall, onSelectPoint }: { wall: WallSegment; onSelectPoint?: (e: ThreeEvent<MouseEvent>) => void }): JSX.Element {
   const extrusion = useMemo(() => extrudeWallSegments([wall])[0], [wall]);
-
   const start = extrusion.bottomCorners[0];
   const end = extrusion.bottomCorners[1];
   const dx = end.x - start.x;
@@ -107,25 +106,23 @@ export function SpatialCanvas({
     });
 
     setComments((prev) => [...prev, comment]);
-    if (onCommentAdd) {
-      onCommentAdd(comment);
-    }
+    onCommentAdd?.(comment);
   };
 
   return (
-    <div className="h-screen w-screen bg-slate-950">
+    <div className="h-full w-full bg-slate-950">
       <Canvas camera={{ position: [10, 8, 12], fov: 50 }} shadows>
         <color attach="background" args={['#020617']} />
         <ambientLight intensity={0.8} />
         <directionalLight position={[10, 12, 8]} intensity={1.2} castShadow />
-        <FloorGrid onSelectPoint={handlePointClick} />
+        <FloorGrid onSelectPoint={readOnly ? undefined : handlePointClick} />
 
         {rooms.map((room) => (
-          <RoomFloor key={room.id} room={room} onSelectPoint={handlePointClick} />
+          <RoomFloor key={room.id} room={room} onSelectPoint={readOnly ? undefined : handlePointClick} />
         ))}
 
         {walls.map((wall) => (
-          <WallMesh key={wall.id} wall={wall} onSelectPoint={handlePointClick} />
+          <WallMesh key={wall.id} wall={wall} onSelectPoint={readOnly ? undefined : handlePointClick} />
         ))}
 
         {points.map((point, index) => (
@@ -139,8 +136,12 @@ export function SpatialCanvas({
           <SpatialCommentPin key={comment.id} comment={comment} />
         ))}
 
-        <OrbitControls enablePan={readOnly ? false : true} enableZoom enableRotate />
-        {!readOnly ? <PointerLockControls /> : null}
+        <OrbitControls
+          enablePan={!readOnly}
+          enableZoom
+          enableRotate={!readOnly}
+          makeDefault
+        />
       </Canvas>
     </div>
   );
