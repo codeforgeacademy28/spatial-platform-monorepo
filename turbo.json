@@ -1,15 +1,10 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "globalEnv": ["VITE_API_BASE_URL"],
   "tasks": {
     "build": {
-      "dependsOn": [
-        "^build"
-      ],
-      "outputs": [
-        "dist/**",
-        ".next/**",
-        "build/**"
-      ]
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", ".next/**", "build/**"]
     },
     "clean": {
       "cache": false

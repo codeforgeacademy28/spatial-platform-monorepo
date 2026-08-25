@@ -14,8 +14,12 @@ interface AiCommandResponse {
   model: string;
 }
 
+function getApiBaseUrl(): string {
+  return import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') ?? '';
+}
+
 export function AiAssistantPanel({ walls, onDispatchAction }: AiAssistantPanelProps): JSX.Element {
-  const [prompt, setPrompt] = useState('Move wall-1 1.0 0.0');
+  const [prompt, setPrompt] = useState('Move starter-wall-1 1.0 0.0');
   const [provider, setProvider] = useState<'openai' | 'groq'>('openai');
   const [model, setModel] = useState('gpt-4o-mini');
   const [apiKey, setApiKey] = useState('');
@@ -39,7 +43,7 @@ export function AiAssistantPanel({ walls, onDispatchAction }: AiAssistantPanelPr
     setStatus('Sending instruction to AI...');
 
     try {
-      const response = await fetch('http://localhost:4000/api/ai/command', {
+      const response = await fetch(`${getApiBaseUrl()}/api/ai/command`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -87,7 +91,7 @@ export function AiAssistantPanel({ walls, onDispatchAction }: AiAssistantPanelPr
         <div className="grid gap-2 sm:grid-cols-2">
           <label className="block text-xs uppercase tracking-[0.2em] text-slate-400">
             API Key
-            <input value={apiKey} onChange={(event) => setApiKey(event.target.value)} className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-slate-100" placeholder="sk-..." />
+            <input value={apiKey} onChange={(event) => setApiKey(event.target.value)} className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-slate-100" placeholder="Provider API key" type="password" autoComplete="off" />
           </label>
           <label className="block text-xs uppercase tracking-[0.2em] text-slate-400">
             Model
@@ -105,7 +109,7 @@ export function AiAssistantPanel({ walls, onDispatchAction }: AiAssistantPanelPr
           </label>
           <label className="block text-xs uppercase tracking-[0.2em] text-slate-400">
             Temperature
-            <input type="number" min="0" max="1" step="0.05" value={temperature} onChange={(event) => setTemperature(Number(event.target.value))} className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-2 py-2 text-sm text-slate-100" />
+            <input type="number" min="0" max="1" step="0.05" value={temperature} onChange={(event) => setTemperature(Number(event.target.value))} className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-2 py-2 text-slate-100" />
           </label>
         </div>
 
