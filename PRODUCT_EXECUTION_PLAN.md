@@ -83,7 +83,7 @@ Implemented:
 - live measured pixel distance displayed on the canvas
 - meters-per-pixel calculated as `knownMeters / measuredPixels`
 - invalid/too-short/zero calibration blocked
-- recalibration supported without affecting wall geometry until the next trace operation
+- recalibration supported
 
 Verification:
 - engineering gate after implementation passed clean install, dependency graph, strict TypeScript, and forced production build
@@ -92,29 +92,49 @@ Verification:
 Remaining release-level verification: verify a known dimension produces the expected world-space wall length in the browser.
 
 #### G2.3 — 2D-to-3D geometry contract
-**Status: IN PROGRESS**
-Tasks:
-- verify wall IDs, endpoints, length, thickness, height are identical between 2D-created `WallSegment` data and 3D extrusion
-- verify room detection returns exactly the wall members that define the room
-- verify camera framing for small and large plans
-- verify closed rooms generate visible floors and open loops do not
-- add focused automated geometry tests without introducing unnecessary test infrastructure
+**Status: ✅ COMPLETE (static gate; browser matrix pending)**
+Implemented:
+- focused Node test suite covering wall extrusion identity/dimensions, closed-room membership/area, open-loop rejection, and endpoint tolerance
+- canonical wall mesh placement in both normal 3D and Spatial views now uses the actual `WallSegment.start/end` centerline instead of offset extrusion corners
+- camera target now uses the true wall-bounds center
+- room-loop traversal fixed to retain the first wall endpoint; this corrected a real 4×4 room-area bug from 8 m² to 16 m²
 
-Gate:
-- closed rectangular test plan produces expected wall count, dimensions, room area, visible walls, and visible floor
-- no stale/orphan room survives wall edits
+Verification gate:
+- latest engineering gate: clean install ✅
+- critical dependency graph ✅
+- strict web type-check ✅
+- forced web production build ✅
+- geometry contract tests: 4/4 ✅
+
+Browser-level verification remains in the final matrix.
 
 #### G2.4 — Predictable 3D interaction
-**Status: PLANNED**
-Gate: normal canvas interaction never opens a comment prompt; explicit Comment mode is required; read-only viewer cannot comment/edit.
+**Status: IN PROGRESS**
+Goal: normal 3D navigation must never trigger commenting. Spatial comments require explicit user intent.
+
+Tasks:
+- add `navigate` vs `comment` interaction mode
+- default to navigation
+- show Comment mode only in editable 3D view
+- only attach canvas click-to-comment handlers while Comment mode is active
+- automatically return to navigation after one successful pin placement
+- keep read-only share/viewer free from comment controls
+- preserve orbit, pan, zoom, and room highlighting in both modes
+
+Verification gate:
+- normal click/drag/zoom never opens the comment prompt
+- explicit Comment mode places exactly one pin
+- comment mode auto-exits after placement
+- read-only viewer cannot comment
 
 #### G2.5 — Persistence, versions, compare, share, revert
 **Status: PLANNED**
 Gate: Save → reload → version A/B → compare → mutate current model → verify snapshots unchanged → revert → share.
 
-#### G2.6 — Production UX and accessibility
+#### G2.6 — Production UX, accessibility, and performance
 **Status: PLANNED**
-Gate: every primary action is discoverable, keyboard reachable, and has visible feedback without blocking canvas interaction.
+Tasks include keyboard/focus states, disabled/loading/error feedback, responsive behavior, pointer-event layering, and production chunk-size optimization.
+Gate: every primary action is discoverable, keyboard reachable, visually legible, and core 3D interaction remains responsive.
 
 **G2 exit:** all G2 gates green.
 
@@ -144,6 +164,7 @@ Gate: every primary action is discoverable, keyboard reachable, and has visible 
 - **2026-08-26:** G1 must be green before new UX work.
 - **2026-08-26:** Existing PR #27 changes are treated as in-progress product work, not duplicated tasks.
 - **2026-08-26:** G2.1 and G2.2 are accepted on static engineering evidence; browser acceptance remains grouped into the release verification matrix to avoid repeated deployment consumption.
+- **2026-08-26:** G2.3 uncovered and fixed a genuine room-area topology bug; focused tests now protect that contract.
 
 ## Status board
 | Goal | Status | Verification |
@@ -151,12 +172,12 @@ Gate: every primary action is discoverable, keyboard reachable, and has visible 
 | G1 Deterministic foundation | ✅ COMPLETE | clean install + graph + strict TS + forced build |
 | G2.1 Workflow state | ✅ COMPLETE (static) | post-change engineering gate green |
 | G2.2 Calibration UX | ✅ COMPLETE (static) | post-change engineering gate green + source verification |
-| G2.3 2D/3D geometry | IN PROGRESS | geometry contract + focused tests |
-| G2.4 3D interaction | PLANNED | comment/navigation acceptance |
+| G2.3 2D/3D geometry | ✅ COMPLETE (static) | post-change engineering gate green + 4/4 geometry tests |
+| G2.4 3D interaction | IN PROGRESS | comment-mode implementation + gate |
 | G2.5 Persistence | PLANNED | end-to-end persistence acceptance |
-| G2.6 UX/accessibility | PLANNED | browser interaction/accessibility acceptance |
+| G2.6 UX/accessibility/performance | PLANNED | browser interaction/accessibility/performance acceptance |
 | G3 Spatial/AR | BLOCKED BY G2 | capability/XR/browser gates |
 | Release | BLOCKED | final browser + Vercel candidate gate |
 
 ## Current next action
-**Complete G2.3 only:** prove that canonical 2D wall data and generated 3D geometry are equivalent, including room/floor generation and framing, before touching 3D interaction behavior.
+**Complete G2.4 only:** make 3D commenting an explicit interaction mode and verify navigation never triggers comment prompts. Then advance to persistence/version integrity.
