@@ -33,6 +33,7 @@ export interface Project {
   id: string;
   name: string;
   description?: string;
+  walls: WallSegment[];
   rooms: Room[];
   createdAt: string;
   updatedAt: string;
@@ -78,10 +79,14 @@ export const ProjectSchema = z.object({
   id: z.string().trim().min(1),
   name: z.string().trim().min(1).max(200),
   description: z.string().max(2000).optional(),
+  walls: z.array(WallSegmentSchema).default([]),
   rooms: z.array(RoomSchema).default([]),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
-});
+}).transform((project) => ({
+  ...project,
+  walls: project.walls.length > 0 ? project.walls : project.rooms.flatMap((room) => room.wallSegments),
+}));
 
 export const UserRoleSchema = z.nativeEnum(UserRole);
 
