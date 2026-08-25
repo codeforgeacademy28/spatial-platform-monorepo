@@ -23,13 +23,14 @@ export function RoomHighlightList({ rooms, walls, selectedRoomId, onSelect }: Ro
           const roomWallIds = new Set(room.wallSegments.map((wall) => wall.id));
           const availableWalls = walls.filter((wall) => roomWallIds.has(wall.id));
           const selected = selectedRoomId === room.id;
+          const floorAreaLabel = typeof room.floorArea === 'number' ? `${room.floorArea.toFixed(2)} m²` : 'Area unavailable';
           return (
             <button key={room.id} type="button" onClick={() => onSelect(selected ? null : room.id)} className={`w-full rounded-lg border px-3 py-2 text-left transition ${selected ? 'border-violet-300 bg-violet-500/20' : 'border-slate-700 bg-slate-900 hover:border-violet-400/60'}`}>
               <div className="flex items-center justify-between gap-2">
                 <span className="text-sm font-medium text-white">{room.name}</span>
                 <span className="text-xs text-slate-400">{availableWalls.length} walls</span>
               </div>
-              <div className="mt-1 text-xs text-slate-400">{room.floorArea.toFixed(2)} m²</div>
+              <div className="mt-1 text-xs text-slate-400">{floorAreaLabel}</div>
               {selected ? <div className="mt-2 text-[11px] text-violet-200">Highlighted in 2D and 3D. Click again to clear.</div> : null}
             </button>
           );
