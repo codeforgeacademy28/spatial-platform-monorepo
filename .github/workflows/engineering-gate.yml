@@ -1,0 +1,67 @@
+name: Engineering Gate
+
+on:
+  push:
+    branches: ['fix/editor-workflow-persistence-and-spatial']
+  pull_request:
+    branches: ['main']
+
+permissions:
+  contents: write
+
+jobs:
+  web-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Regenerate lockfile from current manifests
+        run: npm install --package-lock-only --ignore-scripts
+
+      - name: Upload generated lockfile
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-package-lock
+          path: package-lock.json
+          if-no-files-found: error
+
+      - name: Commit canonical lockfile when manifests changed
+        run: |
+          if git diff --quiet -- package-lock.json; then
+            echo "Lockfile already matches manifests."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "chore: synchronize package lock"
+          git push origin HEAD:${GITHUB_REF_NAME}
+
+      - name: Check lockfile drift
+        run: git diff --exit-code -- package-lock.json
+
+      - name: Clean install
+        run: npm ci --ignore-scripts
+
+      - name: Verify critical runtime graph
+        run: npm ls @react-three/xr react react-dom three @react-three/fiber zustand
+
+      - name: Web type-check
+        run: npx tsc --noEmit -p apps/web/tsconfig.json
+
+      - name: Web production build
+        run: npx turbo build --filter=@spatial/web --force
+
+      - name: Core snapshot contract tests
+        run: npm run test --workspace=@spatial/core
+
+      - name: Geometry contract tests
+        run: npm run test --workspace=@spatial/geometry-engine

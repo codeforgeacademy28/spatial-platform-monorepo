@@ -17,7 +17,6 @@ export function VersionHistoryPanel({ versions, selectedVersionIds, onToggle, on
         </div>
         <span className="text-xs text-slate-400">{selectedVersionIds.length}/2 selected</span>
       </div>
-
       {!versions.length ? (
         <div className="mt-3 rounded-lg border border-slate-800 bg-slate-900 p-3 text-xs text-slate-500">Save a version after drawing walls to create a comparison snapshot.</div>
       ) : (
@@ -25,12 +24,7 @@ export function VersionHistoryPanel({ versions, selectedVersionIds, onToggle, on
           {versions.map((version, index) => {
             const selected = selectedVersionIds.includes(version.id);
             return (
-              <button
-                key={version.id}
-                type="button"
-                onClick={() => onToggle(version.id)}
-                className={`w-full rounded-lg border px-3 py-2 text-left ${selected ? 'border-indigo-300 bg-indigo-500/20' : 'border-slate-700 bg-slate-900 hover:border-indigo-400/60'}`}
-              >
+              <button key={version.id} type="button" onClick={() => onToggle(version.id)} className={`w-full rounded-lg border px-3 py-2 text-left ${selected ? 'border-indigo-300 bg-indigo-500/20' : 'border-slate-700 bg-slate-900 hover:border-indigo-400/60'}`}>
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-sm font-medium text-white">{version.name || `Version ${index + 1}`}</span>
                   <span className="text-xs text-slate-400">{version.walls.length} walls</span>
@@ -41,7 +35,6 @@ export function VersionHistoryPanel({ versions, selectedVersionIds, onToggle, on
           })}
         </div>
       )}
-
       <button type="button" onClick={onCompare} disabled={selectedVersionIds.length !== 2} className="mt-3 w-full rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-40">Compare Selected Versions</button>
     </section>
   );
