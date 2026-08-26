@@ -19,16 +19,5 @@ export default defineConfig({
   },
   build: {
     commonjsOptions: { include: [/node_modules/] },
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          if (!id.includes('node_modules')) return undefined;
-          if (id.includes('/react/') || id.includes('/react-dom/') || id.includes('scheduler')) return 'react-vendor';
-          if (id.includes('/three/') || id.includes('@react-three/') || id.includes('three-stdlib') || id.includes('maath')) return 'three-vendor';
-          if (id.includes('/zod/') || id.includes('/zustand/')) return 'state-vendor';
-          return 'vendor';
-        },
-      },
-    },
   },
 });
