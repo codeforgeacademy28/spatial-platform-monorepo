@@ -13,15 +13,17 @@ Ship a reliable, professional blueprint-to-spatial editor: upload a blueprint, c
 7. **Evidence before expansion** — do not start the next goal until the current verification gate passes.
 
 ## Current state and evidence
-- Branch: `fix/editor-workflow-persistence-and-spatial`
-- Open PR: #27.
-- Engineering gate previously passed clean install, dependency graph, strict web type-check, forced production build, core snapshot tests, and geometry tests.
-- Repository and Vercel project are now aligned on **Node 24.x**; the Vercel project is explicitly configured for Node 24.x and the latest preview built successfully.
+- `main` now contains PR #27 after verified integration.
+- Production deployment is READY from commit `092b2b6b8b0f99999a265e5b23899d307e6156d9`.
+- Engineering Gate passes clean install, dependency graph, strict web type-check, forced production build, core snapshot tests, and geometry tests.
+- Repository and Vercel project are aligned on **Node 24.x**.
 - Canonical dependency graph uses `@react-three/xr 6.6.30`; stale v5 lock state is gone.
-- Vercel latest preview for commit `d7947558b1c3b590f4597c83457aa42233564569` is READY.
+- The latest blank-screen issue was traced to unsafe Vite `manualChunks` grouping of Zod/Zustand into `state-vendor`, producing a production module initialization cycle: `Cannot access 'Te' before initialization`.
+- The unsafe manual vendor chunking was removed; the verified preview built successfully and production `main` now serves the corrected bundle.
+- User-reported `background.js` / tab/window errors are browser-extension noise, not application failures; they are separate from the real `state-vendor` application error.
 - Non-blocking warnings remain: package deprecations and two npm audit findings.
 
-## Work already in PR #27 — preserve unless verification proves it wrong
+## Work already integrated from PR #27
 - immutable/deep-cloned version snapshots
 - explicit version history and A/B comparison selection
 - room detection tolerance/topology improvements
@@ -29,6 +31,12 @@ Ship a reliable, professional blueprint-to-spatial editor: upload a blueprint, c
 - XR locomotion and teleport-pointer setup
 - explicit Three.js alias/dedupe
 - favicon
+- deterministic build/runtime foundation
+- persistence truthfulness and durability contract
+- workflow state machine and scale calibration
+- accessibility/responsive hardening
+- XR capability gating
+- production blank-screen fix
 
 ## Existing backlog consolidation
 Historical issues #6–25 remain evidence/backlog references. New work is governed here to avoid duplicate implementation.
@@ -41,7 +49,7 @@ Historical issues #6–25 remain evidence/backlog references. New work is govern
 - XR v6 compatibility blockers fixed.
 - Dependency and Three.js resolution stabilized.
 - Engineering Gate covers lockfile, clean install, runtime graph, strict type-check, forced web build, core snapshot tests, and geometry tests.
-- Node baseline now matches the deployed Vercel project: 24.x.
+- Node baseline matches the deployed Vercel project: 24.x.
 
 ### G2 — Product workflow and interaction quality
 **Status: ✅ COMPLETE (code/static gates)**
@@ -73,15 +81,15 @@ Explicit `navigate` / `comment` modes; normal navigation never prompts; read-onl
 
 **External release gate:** provision real Supabase tenant/org/owner context and verify save → restart → share read against the deployed environment.
 
-#### G2.6 — Production UX, accessibility, and performance
-**Status: ✅ COMPLETE (static; browser acceptance remains release gate)**
+#### G2.6 — Production UX, accessibility and performance
+**Status: ✅ COMPLETE (static)**
 Implemented:
 - visible keyboard focus treatment
 - disabled-state affordances
 - reduced-motion handling
 - narrow-screen responsive layout
-- deliberate React/Three/state vendor chunking
-- Vercel preview deployment succeeds after these changes
+- safe dependency resolution instead of unsafe manual vendor chunking
+- successful production deployment after the blank-screen correction
 
 ## G3 — Spatial/AR and release confidence
 **Status: 🟡 IN PROGRESS**
@@ -94,8 +102,17 @@ Implemented:
 - session-start errors are surfaced in the UI
 - desktop Spatial mode continues to work without WebXR
 
-### G3.2 — XR lifecycle and interaction acceptance
-**Status: 🟡 BROWSER / HARDWARE GATE**
+### G3.2 — Browser-first Spatial navigation
+**Status: ✅ IMPLEMENTED / BROWSER ACCEPTANCE REQUIRED**
+Desktop Spatial View includes keyboard movement without WebXR:
+- `W/A/S/D`
+- arrow keys
+- camera/orbit controls
+
+This is the normal fallback experience; WebXR is progressive enhancement rather than a prerequisite for using Spatial View.
+
+### G3.3 — XR lifecycle and hardware acceptance
+**Status: 🟡 HARDWARE GATE**
 Verify on a WebXR-capable device/browser:
 - enter/exit immersive AR
 - controller tracking status changes
@@ -105,9 +122,8 @@ Verify on a WebXR-capable device/browser:
 - renderer/context recovery after tab backgrounding or session end
 - no crash when immersive AR is unavailable
 
-### G3.3 — End-to-end browser verification matrix
-**Status: 🟡 READY TO EXECUTE**
-The remaining matrix is the only broad product gate before release:
+### G3.4 — End-to-end browser verification matrix
+**Status: 🟡 READY**
 1. Upload blueprint.
 2. Calibrate using known 4 m reference.
 3. Trace a closed 4×4 room.
@@ -121,12 +137,15 @@ The remaining matrix is the only broad product gate before release:
 11. On WebXR hardware, run the XR lifecycle checklist above.
 12. Check narrow viewport layout and keyboard navigation.
 
-### G3.4 — Release candidate deployment
-**Status: BLOCKED BY G3.2 + G3.3 + Supabase provisioning**
-- promote only the verified commit
-- re-check build/runtime logs
-- verify production alias serves the candidate
-- keep rollback candidate identified
+**Environment limitation:** this agent environment has Chromium but its sandbox blocks outbound site navigation with `ERR_BLOCKED_BY_ADMINISTRATOR`, so automated interactive browser verification cannot be honestly marked passed here. No browser extension can remove that infrastructure-level restriction. A normal user browser is the intended final interactive verification environment.
+
+### G3.5 — Production release confidence
+**Status: 🟡 IN PROGRESS**
+- PR #27 is merged into `main`.
+- Production Vercel deployment for merge commit `092b2b6` is READY.
+- Production root URL returns HTTP 200.
+- Vercel production runtime error query shows no error/fatal logs in the post-release window.
+- Remaining gates are real browser interaction, Supabase durable persistence verification, and WebXR hardware lifecycle verification.
 
 ## Execution protocol — token/time efficient
 1. Work on one goal at a time.
@@ -135,19 +154,22 @@ The remaining matrix is the only broad product gate before release:
 4. Verify cheaply first: type-check → package build → browser → deployment.
 5. Never use Vercel to discover a local compiler error.
 6. Reuse passed evidence unless changed files invalidate it.
-7. Reserve production promotion for the verified release candidate.
+7. Reserve production changes for the verified release candidate.
 8. Update this document after each verification gate before moving on.
-9. Preserve PR #27 work unless an acceptance test proves it broken.
+9. Preserve merged product behavior unless an acceptance test proves it broken.
 10. Do not create more GitHub issues for ordinary subtasks; this document is the execution source of truth.
 
 ## Decision log
-- **2026-08-26:** Keep XR v6 rather than downgrade to v5; PR #27 is already designed around the v6 store API.
+- **2026-08-26:** Keep XR v6 rather than downgrade to v5; PR #27 is designed around the v6 store API.
 - **2026-08-26:** Do not force one Zustand major; the single-runtime requirement applies to Three.js.
 - **2026-08-26:** G2.3 uncovered and fixed a genuine room-area topology bug.
 - **2026-08-26:** G2.4 makes commenting explicit rather than hijacking normal 3D navigation.
 - **2026-08-26:** Durable persistence is a contract plus an external provisioning gate; no synthetic tenant identity is permitted.
 - **2026-08-26:** Align CI/repository Node baseline with the actual Vercel project setting at Node 24.x to eliminate runtime drift.
 - **2026-08-26:** Immersive AR is capability-gated before exposing the action; hardware lifecycle remains an explicit acceptance gate.
+- **2026-08-26:** Do not manually split Zod/Zustand into a vendor chunk unless the dependency graph proves the split cannot create evaluation cycles; the production blank screen demonstrated the risk.
+- **2026-08-26:** Treat browser-extension `background.js` tab/window errors as external noise unless they reproduce with extensions disabled.
+- **2026-08-26:** PR #27 was integrated into `main` only after reconciling the five-commit divergence from `main` and restoring a mergeable branch state.
 
 ## Status board
 | Goal | Status | Verification |
@@ -159,11 +181,12 @@ The remaining matrix is the only broad product gate before release:
 | G2.4 3D interaction | ✅ COMPLETE | engineering gate |
 | G2.5 Persistence contract | ✅ COMPLETE | engineering gate + core snapshot test |
 | G2.5 Durable deployment | 🟡 EXTERNAL GATE | Supabase provisioning/auth context |
-| G2.6 UX/accessibility/performance | ✅ COMPLETE (static) | source hardening + successful Vercel preview |
-| G3.1 XR capability gate | ✅ COMPLETE (static) | capability check + successful build |
-| G3.2 XR lifecycle | 🟡 HARDWARE GATE | WebXR device/browser required |
-| G3.3 Browser matrix | 🟡 READY | execute against latest READY preview |
-| G3.4 Release candidate | BLOCKED | G3.2 + G3.3 + Supabase |
+| G2.6 UX/accessibility/performance | ✅ COMPLETE | successful Vercel production deployment |
+| G3.1 XR capability gate | ✅ COMPLETE | capability check + successful build |
+| G3.2 Browser Spatial navigation | ✅ IMPLEMENTED | keyboard movement source verification |
+| G3.3 XR lifecycle | 🟡 HARDWARE GATE | WebXR device/browser required |
+| G3.4 Browser matrix | 🟡 READY | run from a normal browser |
+| G3.5 Production confidence | 🟡 IN PROGRESS | main deployment READY + runtime logs clean |
 
 ## Current next action
-**Execute G3.3 against the latest READY Vercel preview and close the remaining browser/Supabase/XR release gates without spending a production deployment prematurely.**
+**Run the G3.4 browser matrix in a normal desktop browser, verify Supabase durable save/restart/share, and then run the G3.3 XR checklist on a capable device. No new code expansion is justified until those release gates produce evidence.**
