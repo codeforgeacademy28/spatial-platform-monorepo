@@ -15,6 +15,7 @@ type ArSupport = 'checking' | 'supported' | 'unsupported';
 
 const xrStore = createXRStore({
   offerSession: false,
+  originReferenceSpace: 'local-floor',
   hand: false,
   controller: { left: { teleportPointer: true }, right: { teleportPointer: true } },
   secondaryInputSources: true,
@@ -177,7 +178,7 @@ export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element {
       <color attach="background" args={['#020617']} />
       <ambientLight intensity={0.8} />
       <directionalLight position={[10, 12, 8]} intensity={1.2} castShadow />
-      <XR store={xrStore} referenceSpace="local-floor">
+      <XR store={xrStore}>
         <XRTrackingReporter onChange={handleTrackingChange} />
         <XRLocomotion originRef={originRef} />
         <ExternalControllerLocomotion originRef={originRef} onState={handleExternalState} />
