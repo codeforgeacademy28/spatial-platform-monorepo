@@ -15,7 +15,6 @@ type ArSupport = 'checking' | 'supported' | 'unsupported';
 
 const xrStore = createXRStore({
   offerSession: false,
-  originReferenceSpace: 'local-floor',
   hand: false,
   controller: { left: { teleportPointer: true }, right: { teleportPointer: true } },
   secondaryInputSources: true,
