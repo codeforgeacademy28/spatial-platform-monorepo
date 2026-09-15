@@ -8,10 +8,14 @@ export type ControllerConnectionState = 'disabled' | 'connecting' | 'connected' 
 type InputListener = (input: SpatialControllerInput) => void;
 type StateListener = (state: ControllerConnectionState) => void;
 const INPUT_TIMEOUT_MS = 250;
+const DEFAULT_CONTROLLER_WS_URL = 'wss://controller-game-13dk.onrender.com';
 function getUrl(): string {
   const configured = import.meta.env.VITE_CONTROLLER_WS_URL?.trim();
   if (configured) return configured;
-  return `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.hostname}:8080`;
+  if (typeof window !== 'undefined' && window.location.protocol === 'http:' && /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname)) {
+    return 'ws://localhost:8080';
+  }
+  return DEFAULT_CONTROLLER_WS_URL;
 }
 function clamp(value: unknown): number {
   const n = typeof value === 'number' && Number.isFinite(value) ? value : 0;
