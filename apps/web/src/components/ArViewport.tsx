@@ -1,4 +1,4 @@
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { Canvas, useFrame } from '@react-three/fiber';
 import { IfInSessionMode, XR, XROrigin, createXRStore, useXR, useXRControllerLocomotion, useXRInputSourceState } from '@react-three/xr';
 import { OrbitControls } from '@react-three/drei';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -34,66 +34,72 @@ function XRViewCorrection({
   command: ViewCorrectionCommand;
   onApplied: (correction: { pitch: number; roll: number }) => void;
 }): ReactNode {
-  const { camera } = useThree();
   const lastCommandId = useRef(0);
-  const currentQuaternion = useMemo(() => new THREE.Quaternion(), []);
-  const desiredQuaternion = useMemo(() => new THREE.Quaternion(), []);
-  const inverseQuaternion = useMemo(() => new THREE.Quaternion(), []);
-  const deltaQuaternion = useMemo(() => new THREE.Quaternion(), []);
-  const forward = useMemo(() => new THREE.Vector3(), []);
-  const flatForward = useMemo(() => new THREE.Vector3(), []);
-  const up = useMemo(() => new THREE.Vector3(0, 1, 0), []);
-  const eye = useMemo(() => new THREE.Vector3(), []);
-  const target = useMemo(() => new THREE.Vector3(), []);
-  const lookMatrix = useMemo(() => new THREE.Matrix4(), []);
-  const euler = useMemo(() => new THREE.Euler(), []);
+  const currentQuaternion = useRef(new THREE.Quaternion());
+  const desiredQuaternion = useRef(new THREE.Quaternion());
+  const inverseQuaternion = useRef(new THREE.Quaternion());
+  const deltaQuaternion = useRef(new THREE.Quaternion());
+  const forward = useRef(new THREE.Vector3());
+  const flatForward = useRef(new THREE.Vector3());
+  const up = useRef(new THREE.Vector3(0, 1, 0));
+  const eye = useRef(new THREE.Vector3());
+  const target = useRef(new THREE.Vector3());
+  const lookMatrix = useRef(new THREE.Matrix4());
+  const euler = useRef(new THREE.Euler());
 
-  useFrame(() => {
+  useFrame((state) => {
     if (!correctionRef.current || command.id === lastCommandId.current) return;
+
+    const camera = state.camera;
 
     if (command.action === 'reset') {
       correctionRef.current.rotation.set(0, 0, 0);
     } else if (command.action === 'level') {
-      camera.getWorldQuaternion(currentQuaternion);
+      camera.getWorldQuaternion(currentQuaternion.current);
+      camera.getWorldDirection(forward.current);
 
-      camera.getWorldDirection(forward);
-      flatForward.copy(forward);
-      flatForward.y = 0;
+      flatForward.current.copy(forward.current);
+      flatForward.current.y = 0;
 
-      if (flatForward.lengthSq() < 1e-6) return;
-      flatForward.normalize();
+      if (flatForward.current.lengthSq() < 1e-6) return;
+      flatForward.current.normalize();
 
-      camera.getWorldPosition(eye);
-      target.copy(eye).add(flatForward);
+      camera.getWorldPosition(eye.current);
+      target.current.copy(eye.current).add(flatForward.current);
 
-      // Build the level orientation with the current horizontal heading,
-      // but force the camera's up direction to match world gravity/up.
-      lookMatrix.lookAt(eye, target, up);
-      desiredQuaternion.setFromRotationMatrix(lookMatrix);
-      inverseQuaternion.copy(currentQuaternion).invert();
-      deltaQuaternion.multiplyQuaternions(desiredQuaternion, inverseQuaternion);
+      lookMatrix.current.lookAt(eye.current, target.current, up.current);
+      desiredQuaternion.current.setFromRotationMatrix(lookMatrix.current);
+      inverseQuaternion.current.copy(currentQuaternion.current).invert();
+      deltaQuaternion.current.multiplyQuaternions(
+        desiredQuaternion.current,
+        inverseQuaternion.current,
+      );
 
-      // Apply only the additional view correction. XROrigin remains responsible
-      // for controller locomotion and snap-turn yaw.
-      correctionRef.current.quaternion.premultiply(deltaQuaternion).normalize();
+      correctionRef.current.quaternion
+        .premultiply(deltaQuaternion.current)
+        .normalize();
     } else {
-      const axis = command.action === 'pitch'
-        ? new THREE.Vector3(1, 0, 0)
-        : new THREE.Vector3(0, 0, 1);
+      const axis =
+        command.action === 'pitch'
+          ? up.current.set(1, 0, 0)
+          : up.current.set(0, 0, 1);
 
-      deltaQuaternion.setFromAxisAngle(
+      deltaQuaternion.current.setFromAxisAngle(
         axis,
         THREE.MathUtils.degToRad(command.degrees),
       );
-      correctionRef.current.quaternion.premultiply(deltaQuaternion).normalize();
+
+      correctionRef.current.quaternion
+        .premultiply(deltaQuaternion.current)
+        .normalize();
     }
 
     lastCommandId.current = command.id;
 
-    euler.setFromQuaternion(correctionRef.current.quaternion, 'YXZ');
+    euler.current.setFromQuaternion(correctionRef.current.quaternion, 'YXZ');
     onApplied({
-      pitch: THREE.MathUtils.radToDeg(euler.x),
-      roll: THREE.MathUtils.radToDeg(euler.z),
+      pitch: THREE.MathUtils.radToDeg(euler.current.x),
+      roll: THREE.MathUtils.radToDeg(euler.current.z),
     });
   });
 
