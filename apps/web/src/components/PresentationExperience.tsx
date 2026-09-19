@@ -1,0 +1,21 @@
+import {Canvas,useFrame} from '@react-three/fiber';
+import {OrbitControls} from '@react-three/drei';
+import {useEffect,useMemo,useRef,useState} from 'react';
+import * as THREE from 'three';
+import type {PresentationConfig,Room,SceneAsset,WallOpening,WallSegment} from '@spatial/core';
+import {SceneWallMesh} from './scene/SceneWallMesh';
+import {SceneAssetsLayer} from './scene/SceneAssetsLayer';
+import {GalleryLighting,SceneCeiling,SceneFloor} from './scene/SceneEnvironment';
+
+export function PresentationExperience({walls,rooms,sceneAssets,wallOpenings,presentation,onExit}:{walls:WallSegment[];rooms:Room[];sceneAssets:SceneAsset[];wallOpenings:WallOpening[];presentation:PresentationConfig;onExit:()=>void}):JSX.Element{
+ const stops=useMemo(()=>rooms.slice(0,5).map((room,i)=>{const xs=room.polygon.map(p=>p.x),zs=room.polygon.map(p=>p.y),x=xs.reduce((a,b)=>a+b,0)/Math.max(1,xs.length),z=zs.reduce((a,b)=>a+b,0)/Math.max(1,zs.length);return {x,z,title:room.name,message:i===0?'Welcome to a little world I made for us.':'Another room. Another memory.'};}),[rooms]);
+ const fallback=useMemo(()=>{if(stops.length||!walls.length)return stops;const xs=walls.flatMap(w=>[w.start.x,w.end.x]),zs=walls.flatMap(w=>[w.start.y,w.end.y]);return [{x:(Math.min(...xs)+Math.max(...xs))/2,z:(Math.min(...zs)+Math.max(...zs))/2,title:'The Gallery',message:'A place made for memories.'}];},[stops,walls]);
+ const [index,setIndex]=useState(0),stop=fallback[Math.min(index,Math.max(0,fallback.length-1))],isFinal=index===fallback.length-1;
+ useEffect(()=>{const f=(e:KeyboardEvent)=>{if(e.key==='Escape')onExit();if(e.key==='ArrowRight'||e.key===' ')setIndex(v=>Math.min(fallback.length-1,v+1));if(e.key==='ArrowLeft')setIndex(v=>Math.max(0,v-1));};addEventListener('keydown',f);return()=>removeEventListener('keydown',f);},[fallback.length,onExit]);
+ return <div className="relative h-screen w-screen overflow-hidden bg-[#090604]"><Canvas camera={{position:[stop.x+2.8,1.65,stop.z+2.8],fov:58}} shadows><color attach="background" args={['#090604']}/><GalleryLighting warm/><SceneFloor rooms={rooms}/><SceneCeiling walls={walls} enabled={presentation.ceilingEnabled}/>{walls.map(w=><SceneWallMesh key={w.id} wall={w} openings={wallOpenings}/>)}<SceneAssetsLayer walls={walls} assets={sceneAssets}/><CameraRig target={[stop.x,1.45,stop.z]}/><OrbitControls enablePan={false} enableZoom={false} enableRotate={false}/></Canvas><div className="absolute inset-x-0 top-0 z-10 p-7"><div className="text-[10px] font-semibold uppercase tracking-[.3em] text-amber-200/80">Birthday Gallery</div><h1 className="mt-2 text-3xl font-semibold text-white md:text-5xl">{presentation.title}</h1><p className="mt-2 text-sm text-white/65">{presentation.subtitle}</p></div><div className="absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-black/85 to-transparent px-6 pb-8 pt-28 text-center"><div className="text-[10px] uppercase tracking-[.25em] text-amber-200/75">Stop {index+1} of {fallback.length}</div><p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-white/75 md:text-lg">{isFinal?presentation.finalMessage:stop.message}</p><div className="mt-5 flex justify-center gap-2"><button onClick={()=>setIndex(v=>Math.max(0,v-1))} disabled={!index} className="rounded-full border border-white/15 bg-black/35 px-4 py-2 text-xs text-white/80">Previous</button><button onClick={()=>setIndex(v=>Math.min(fallback.length-1,v+1))} disabled={isFinal} className="rounded-full bg-white px-5 py-2 text-xs font-semibold text-slate-900">{isFinal?'Final reveal':'Continue →'}</button></div></div><button onClick={onExit} className="absolute right-7 top-7 z-20 rounded-full border border-white/15 bg-black/30 px-4 py-2 text-xs text-white/80">Exit</button></div>;
+}
+function CameraRig({target}:{target:[number,number,number]}):null{
+ const targetVec=useMemo(()=>new THREE.Vector3(...target),[target]),from=useRef<THREE.Vector3|null>(null);
+ useFrame(({camera},delta)=>{if(!from.current)from.current=camera.position.clone();const desired=new THREE.Vector3(target[0]+2.8,1.65,target[2]+2.8);camera.position.lerp(desired,Math.min(1,delta*1.2));const q=new THREE.Quaternion();const d=new THREE.Object3D();d.position.copy(camera.position);d.lookAt(targetVec);q.copy(d.quaternion);camera.quaternion.slerp(q,Math.min(1,delta*2));});
+ return null;
+}
