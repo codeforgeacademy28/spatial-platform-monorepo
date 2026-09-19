@@ -1,6 +1,6 @@
 import {Canvas,useFrame} from '@react-three/fiber';
 import {OrbitControls} from '@react-three/drei';
-import {useEffect,useMemo,useRef,useState} from 'react';
+import {useEffect,useMemo,useState} from 'react';
 import * as THREE from 'three';
 import type {PresentationConfig,Room,SceneAsset,WallOpening,WallSegment} from '@spatial/core';
 import {SceneWallMesh} from './scene/SceneWallMesh';
