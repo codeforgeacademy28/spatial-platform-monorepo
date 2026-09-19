@@ -25,88 +25,6 @@ type ViewCorrectionCommand =
   | { id: number; action: 'level' | 'reset' }
   | { id: number; action: 'pitch' | 'roll'; degrees: number };
 
-function XRViewCorrection({
-  correctionRef,
-  command,
-  onApplied,
-}: {
-  correctionRef: MutableRefObject<Group | null>;
-  command: ViewCorrectionCommand;
-  onApplied: (correction: { pitch: number; roll: number }) => void;
-}): ReactNode {
-  const lastCommandId = useRef(0);
-  const currentQuaternion = useRef(new THREE.Quaternion());
-  const desiredQuaternion = useRef(new THREE.Quaternion());
-  const inverseQuaternion = useRef(new THREE.Quaternion());
-  const deltaQuaternion = useRef(new THREE.Quaternion());
-  const forward = useRef(new THREE.Vector3());
-  const flatForward = useRef(new THREE.Vector3());
-  const worldUp = useRef(new THREE.Vector3(0, 1, 0));
-  const axis = useRef(new THREE.Vector3());
-  const eye = useRef(new THREE.Vector3());
-  const target = useRef(new THREE.Vector3());
-  const lookMatrix = useRef(new THREE.Matrix4());
-  const euler = useRef(new THREE.Euler());
-
-  useFrame((state) => {
-    if (!correctionRef.current || command.id === lastCommandId.current) return;
-
-    const camera = state.camera;
-
-    if (command.action === 'reset') {
-      correctionRef.current.rotation.set(0, 0, 0);
-    } else if (command.action === 'level') {
-      camera.getWorldQuaternion(currentQuaternion.current);
-      camera.getWorldDirection(forward.current);
-
-      flatForward.current.copy(forward.current);
-      flatForward.current.y = 0;
-
-      if (flatForward.current.lengthSq() < 1e-6) return;
-      flatForward.current.normalize();
-
-      camera.getWorldPosition(eye.current);
-      target.current.copy(eye.current).add(flatForward.current);
-
-      lookMatrix.current.lookAt(eye.current, target.current, worldUp.current);
-      desiredQuaternion.current.setFromRotationMatrix(lookMatrix.current);
-      inverseQuaternion.current.copy(currentQuaternion.current).invert();
-      deltaQuaternion.current.multiplyQuaternions(
-        desiredQuaternion.current,
-        inverseQuaternion.current,
-      );
-
-      correctionRef.current.quaternion
-        .premultiply(deltaQuaternion.current)
-        .normalize();
-    } else {
-      axis.current.set(
-        command.action === 'pitch' ? 1 : 0,
-        0,
-        command.action === 'roll' ? 1 : 0,
-      );
-
-      deltaQuaternion.current.setFromAxisAngle(
-        axis.current,
-        THREE.MathUtils.degToRad(command.degrees),
-      );
-
-      correctionRef.current.quaternion
-        .premultiply(deltaQuaternion.current)
-        .normalize();
-    }
-
-    lastCommandId.current = command.id;
-
-    euler.current.setFromQuaternion(correctionRef.current.quaternion, 'YXZ');
-    onApplied({
-      pitch: THREE.MathUtils.radToDeg(euler.current.x),
-      roll: THREE.MathUtils.radToDeg(euler.current.z),
-    });
-  });
-
-  return null;
-}
 const MODEL_YAW_RADIANS = Math.PI / 2;
 const WALKTHROUGH_EYE_HEIGHT = 1.65;
 const XR_PLAYER_RADIUS = 0.28;
@@ -254,14 +172,21 @@ function XRLocomotion({
   walls,
   modelTransform,
   collisionEnabled,
+  viewCorrectionCommand,
+  onViewCorrectionApplied,
 }: {
   originRef: MutableRefObject<Group | null>;
   walls: WallSegment[];
   modelTransform: [number, number, number];
   collisionEnabled: boolean;
+  viewCorrectionCommand: ViewCorrectionCommand;
+  onViewCorrectionApplied: (correction: { pitch: number; roll: number }) => void;
 }): ReactNode {
   const previousPosition = useRef(new THREE.Vector3());
   const hasPreviousPosition = useRef(false);
+  const lastCorrectionCommandId = useRef(0);
+  const currentQuaternion = useRef(new THREE.Quaternion());
+  const currentEuler = useRef(new THREE.Euler());
 
   useXRControllerLocomotion(
     originRef,
@@ -270,17 +195,40 @@ function XRLocomotion({
     'left',
   );
 
-  useFrame(() => {
+  useFrame((state) => {
     if (!originRef.current) return;
+
+    // Keep the latest view correction on X/Z only. Snap turning continues to own Y.
+    if (viewCorrectionCommand.id !== lastCorrectionCommandId.current) {
+      if (viewCorrectionCommand.action === 'reset') {
+        originRef.current.rotation.x = 0;
+        originRef.current.rotation.z = 0;
+      } else if (viewCorrectionCommand.action === 'level') {
+        state.camera.getWorldQuaternion(currentQuaternion.current);
+        currentEuler.current.setFromQuaternion(currentQuaternion.current, 'YXZ');
+
+        // Cancel the current pitch/roll while leaving horizontal yaw untouched.
+        originRef.current.rotation.x = -currentEuler.current.x;
+        originRef.current.rotation.z = -currentEuler.current.z;
+      } else if (viewCorrectionCommand.action === 'pitch') {
+        originRef.current.rotation.x += THREE.MathUtils.degToRad(viewCorrectionCommand.degrees);
+      } else {
+        originRef.current.rotation.z += THREE.MathUtils.degToRad(viewCorrectionCommand.degrees);
+      }
+
+      lastCorrectionCommandId.current = viewCorrectionCommand.id;
+      currentEuler.current.setFromQuaternion(originRef.current.quaternion, 'YXZ');
+      onViewCorrectionApplied({
+        pitch: THREE.MathUtils.radToDeg(currentEuler.current.x),
+        roll: THREE.MathUtils.radToDeg(currentEuler.current.z),
+      });
+    }
 
     const current = originRef.current.position;
     if (!hasPreviousPosition.current) {
       previousPosition.current.copy(current);
       hasPreviousPosition.current = true;
-      return;
-    }
-
-    if (!previousPosition.current.equals(current)) {
+    } else if (!previousPosition.current.equals(current)) {
       const blocked = collisionEnabled && movementBlockedByWalls(
         previousPosition.current.x,
         previousPosition.current.z,
@@ -357,10 +305,9 @@ function KeyboardSpatialMovement({
   return null;
 }
 export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element { const [tracking, setTracking] = useState<ControllerTracking>({ sessionActive: false, leftTracked: false, rightTracked: false }); const [collisionEnabled, setCollisionEnabled] = useState(true); const [arSupport, setArSupport] = useState<ArSupport>('checking'); const [arError, setArError] = useState('');
-  const [viewCorrectionCommand, setViewCorrectionCommand] = useState<ViewCorrectionCommand>({ id: 0, action: 'level' });
+  const [viewCorrectionCommand, setViewCorrectionCommand] = useState<ViewCorrectionCommand>({ id: 0, action: 'reset' });
   const [viewCorrection, setViewCorrection] = useState({ pitch: 0, roll: 0 });
   const originRef = useRef<Group | null>(null);
-  const viewCorrectionRef = useRef<Group | null>(null);
   const commandId = useRef(0); const handleTrackingChange = useCallback((status: ControllerTracking) => setTracking(status), []);
   useEffect(() => {
     let cancelled = false;
@@ -436,4 +383,4 @@ export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element { con
     }
   };
   const arButtonLabel = arSupport === 'checking' ? 'Checking AR support…' : arSupport === 'supported' ? (tracking.sessionActive ? 'AR Session Active' : 'Start Immersive AR') : 'Immersive AR Unavailable';
-  return <div className="relative h-full w-full bg-black"><Canvas camera={{ position: fallbackCamera, fov: 50 }} shadows resize={{ scroll: false, debounce: 50 }}><color attach="background" args={['#020617']} /><ambientLight intensity={0.8} /><directionalLight position={[10, 12, 8]} intensity={1.2} castShadow /><XR store={xrStore}><XRTrackingReporter onChange={handleTrackingChange} /><XRViewCorrection correctionRef={viewCorrectionRef} command={viewCorrectionCommand} onApplied={setViewCorrection} /><group ref={viewCorrectionRef}><XRLocomotion originRef={originRef} walls={walls} modelTransform={modelTransform} collisionEnabled={collisionEnabled} /></group><group position={modelTransform} rotation={[0, MODEL_YAW_RADIANS, 0]}><IfInSessionMode deny={['immersive-ar', 'immersive-vr']}><FloorGrid /></IfInSessionMode>{rooms.map((room) => <RoomFloor key={room.id} room={room} />)}{walls.map((wall) => <WallMesh key={wall.id} wall={wall} />)}</group><IfInSessionMode deny={['immersive-ar', 'immersive-vr']}><KeyboardSpatialMovement originRef={originRef} walls={walls} modelTransform={modelTransform} collisionEnabled={collisionEnabled} /><OrbitControls target={fallbackTarget} enablePan enableZoom enableRotate minPolarAngle={Math.PI / 2 - 0.7} maxPolarAngle={Math.PI / 2 + 0.7} /></IfInSessionMode></XR></Canvas><div className="pointer-events-none absolute right-4 top-4 z-20 rounded-xl border border-slate-700 bg-slate-900/90 px-4 py-3 text-xs text-slate-200 shadow-xl backdrop-blur"><div className="font-semibold uppercase tracking-[0.18em] text-teal-300">XR status</div><div className="mt-1">Session: <span className={tracking.sessionActive ? 'text-emerald-300' : 'text-slate-400'}>{tracking.sessionActive ? 'active' : 'inactive'}</span></div><div>Immersive AR: <span className={arSupport === 'supported' ? 'text-emerald-300' : 'text-slate-400'}>{arSupport === 'checking' ? 'checking' : arSupport === 'supported' ? 'supported' : 'unsupported'}</span></div><div>Left controller: <span className={tracking.leftTracked ? 'text-emerald-300' : 'text-slate-400'}>{tracking.leftTracked ? 'tracked' : 'not detected'}</span></div><div>Right controller: <span className={tracking.rightTracked ? 'text-emerald-300' : 'text-slate-400'}>{tracking.rightTracked ? 'tracked' : 'not detected'}</span></div></div><div className="pointer-events-none absolute left-4 top-4 z-20 rounded-xl border border-slate-700 bg-slate-900/85 px-4 py-3 text-xs text-slate-200 shadow-xl backdrop-blur"><div className="font-semibold uppercase tracking-[0.18em] text-teal-300">Spatial View</div><div className="mt-1 text-sm font-medium text-white">{walls.length} walls · {rooms.length} rooms</div><div className="mt-1 text-slate-400">AR: left thumbstick moves · snap turn controls · teleport pointer can move you. Desktop: WASD / arrows.</div><div className="mt-1 text-slate-400">Wall collision: <span className={collisionEnabled ? 'text-emerald-300' : 'text-amber-300'}>{collisionEnabled ? 'ON' : 'OFF'}</span></div><div className="mt-1 text-slate-400">View correction: <span className="text-white">P {viewCorrection.pitch.toFixed(1)}° · R {viewCorrection.roll.toFixed(1)}°</span></div></div><div className="absolute bottom-4 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/90 p-2 shadow-xl backdrop-blur"><button type="button" onClick={() => requestViewCorrection('level')} className="rounded-lg bg-cyan-600 px-3 py-2 text-sm font-semibold text-white hover:bg-cyan-500">Level view</button><button type="button" onClick={() => requestViewCorrection('roll', -1)} className="rounded-lg bg-slate-700 px-2 py-2 text-sm font-semibold text-white hover:bg-slate-600" aria-label="Roll view left 1 degree">↶R</button><button type="button" onClick={() => requestViewCorrection('roll', 1)} className="rounded-lg bg-slate-700 px-2 py-2 text-sm font-semibold text-white hover:bg-slate-600" aria-label="Roll view right 1 degree">↷R</button><button type="button" onClick={() => requestViewCorrection('pitch', -1)} className="rounded-lg bg-slate-700 px-2 py-2 text-sm font-semibold text-white hover:bg-slate-600" aria-label="Pitch view up 1 degree">↑P</button><button type="button" onClick={() => requestViewCorrection('pitch', 1)} className="rounded-lg bg-slate-700 px-2 py-2 text-sm font-semibold text-white hover:bg-slate-600" aria-label="Pitch view down 1 degree">↓P</button><button type="button" onClick={() => requestViewCorrection('reset')} className="rounded-lg bg-slate-700 px-2 py-2 text-sm font-semibold text-white hover:bg-slate-600">Reset view</button><button type="button" onClick={() => setCollisionEnabled((enabled) => !enabled)} aria-pressed={collisionEnabled} className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${collisionEnabled ? 'bg-emerald-600 text-white hover:bg-emerald-500' : 'bg-amber-500 text-slate-950 hover:bg-amber-400'}`}>Wall collision: {collisionEnabled ? 'ON' : 'OFF'}</button><button type="button" onClick={startAr} disabled={arSupport !== 'supported' || tracking.sessionActive} aria-disabled={arSupport !== 'supported' || tracking.sessionActive} className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white enabled:hover:bg-teal-500 disabled:cursor-not-allowed disabled:opacity-50">{arButtonLabel}</button><span className="px-2 text-xs text-slate-400">{arError || (arSupport === 'unsupported' ? 'Use a WebXR-capable mobile headset/browser for immersive AR.' : 'Physical controller movement requires a WebXR-capable device.')}</span></div></div>; }
+  return <div className="relative h-full w-full bg-black"><Canvas camera={{ position: fallbackCamera, fov: 50 }} shadows resize={{ scroll: false, debounce: 50 }}><color attach="background" args={['#020617']} /><ambientLight intensity={0.8} /><directionalLight position={[10, 12, 8]} intensity={1.2} castShadow /><XR store={xrStore}><XRTrackingReporter onChange={handleTrackingChange} /><XRLocomotion originRef={originRef} walls={walls} modelTransform={modelTransform} collisionEnabled={collisionEnabled} viewCorrectionCommand={viewCorrectionCommand} onViewCorrectionApplied={setViewCorrection} /><group position={modelTransform} rotation={[0, MODEL_YAW_RADIANS, 0]}><IfInSessionMode deny={['immersive-ar', 'immersive-vr']}><FloorGrid /></IfInSessionMode>{rooms.map((room) => <RoomFloor key={room.id} room={room} />)}{walls.map((wall) => <WallMesh key={wall.id} wall={wall} />)}</group><IfInSessionMode deny={['immersive-ar', 'immersive-vr']}><KeyboardSpatialMovement originRef={originRef} walls={walls} modelTransform={modelTransform} collisionEnabled={collisionEnabled} /><OrbitControls target={fallbackTarget} enablePan enableZoom enableRotate minPolarAngle={Math.PI / 2 - 0.7} maxPolarAngle={Math.PI / 2 + 0.7} /></IfInSessionMode></XR></Canvas><div className="pointer-events-none absolute right-4 top-4 z-20 rounded-xl border border-slate-700 bg-slate-900/90 px-4 py-3 text-xs text-slate-200 shadow-xl backdrop-blur"><div className="font-semibold uppercase tracking-[0.18em] text-teal-300">XR status</div><div className="mt-1">Session: <span className={tracking.sessionActive ? 'text-emerald-300' : 'text-slate-400'}>{tracking.sessionActive ? 'active' : 'inactive'}</span></div><div>Immersive AR: <span className={arSupport === 'supported' ? 'text-emerald-300' : 'text-slate-400'}>{arSupport === 'checking' ? 'checking' : arSupport === 'supported' ? 'supported' : 'unsupported'}</span></div><div>Left controller: <span className={tracking.leftTracked ? 'text-emerald-300' : 'text-slate-400'}>{tracking.leftTracked ? 'tracked' : 'not detected'}</span></div><div>Right controller: <span className={tracking.rightTracked ? 'text-emerald-300' : 'text-slate-400'}>{tracking.rightTracked ? 'tracked' : 'not detected'}</span></div></div><div className="pointer-events-none absolute left-4 top-4 z-20 rounded-xl border border-slate-700 bg-slate-900/85 px-4 py-3 text-xs text-slate-200 shadow-xl backdrop-blur"><div className="font-semibold uppercase tracking-[0.18em] text-teal-300">Spatial View</div><div className="mt-1 text-sm font-medium text-white">{walls.length} walls · {rooms.length} rooms</div><div className="mt-1 text-slate-400">AR: left thumbstick moves · snap turn controls · teleport pointer can move you. Desktop: WASD / arrows.</div><div className="mt-1 text-slate-400">Wall collision: <span className={collisionEnabled ? 'text-emerald-300' : 'text-amber-300'}>{collisionEnabled ? 'ON' : 'OFF'}</span></div><div className="mt-1 text-slate-400">View correction: <span className="text-white">P {viewCorrection.pitch.toFixed(1)}° · R {viewCorrection.roll.toFixed(1)}°</span></div></div><div className="absolute bottom-4 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/90 p-2 shadow-xl backdrop-blur"><button type="button" onClick={() => requestViewCorrection('level')} className="rounded-lg bg-cyan-600 px-3 py-2 text-sm font-semibold text-white hover:bg-cyan-500">Level view</button><button type="button" onClick={() => requestViewCorrection('roll', -1)} className="rounded-lg bg-slate-700 px-2 py-2 text-sm font-semibold text-white hover:bg-slate-600" aria-label="Roll view left 1 degree">↶R</button><button type="button" onClick={() => requestViewCorrection('roll', 1)} className="rounded-lg bg-slate-700 px-2 py-2 text-sm font-semibold text-white hover:bg-slate-600" aria-label="Roll view right 1 degree">↷R</button><button type="button" onClick={() => requestViewCorrection('pitch', -1)} className="rounded-lg bg-slate-700 px-2 py-2 text-sm font-semibold text-white hover:bg-slate-600" aria-label="Pitch view up 1 degree">↑P</button><button type="button" onClick={() => requestViewCorrection('pitch', 1)} className="rounded-lg bg-slate-700 px-2 py-2 text-sm font-semibold text-white hover:bg-slate-600" aria-label="Pitch view down 1 degree">↓P</button><button type="button" onClick={() => requestViewCorrection('reset')} className="rounded-lg bg-slate-700 px-2 py-2 text-sm font-semibold text-white hover:bg-slate-600">Reset view</button><button type="button" onClick={() => setCollisionEnabled((enabled) => !enabled)} aria-pressed={collisionEnabled} className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${collisionEnabled ? 'bg-emerald-600 text-white hover:bg-emerald-500' : 'bg-amber-500 text-slate-950 hover:bg-amber-400'}`}>Wall collision: {collisionEnabled ? 'ON' : 'OFF'}</button><button type="button" onClick={startAr} disabled={arSupport !== 'supported' || tracking.sessionActive} aria-disabled={arSupport !== 'supported' || tracking.sessionActive} className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white enabled:hover:bg-teal-500 disabled:cursor-not-allowed disabled:opacity-50">{arButtonLabel}</button><span className="px-2 text-xs text-slate-400">{arError || (arSupport === 'unsupported' ? 'Use a WebXR-capable mobile headset/browser for immersive AR.' : 'Physical controller movement requires a WebXR-capable device.')}</span></div></div>; }
