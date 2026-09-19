@@ -41,7 +41,8 @@ function XRViewCorrection({
   const deltaQuaternion = useRef(new THREE.Quaternion());
   const forward = useRef(new THREE.Vector3());
   const flatForward = useRef(new THREE.Vector3());
-  const up = useRef(new THREE.Vector3(0, 1, 0));
+  const worldUp = useRef(new THREE.Vector3(0, 1, 0));
+  const axis = useRef(new THREE.Vector3());
   const eye = useRef(new THREE.Vector3());
   const target = useRef(new THREE.Vector3());
   const lookMatrix = useRef(new THREE.Matrix4());
@@ -67,7 +68,7 @@ function XRViewCorrection({
       camera.getWorldPosition(eye.current);
       target.current.copy(eye.current).add(flatForward.current);
 
-      lookMatrix.current.lookAt(eye.current, target.current, up.current);
+      lookMatrix.current.lookAt(eye.current, target.current, worldUp.current);
       desiredQuaternion.current.setFromRotationMatrix(lookMatrix.current);
       inverseQuaternion.current.copy(currentQuaternion.current).invert();
       deltaQuaternion.current.multiplyQuaternions(
@@ -79,13 +80,14 @@ function XRViewCorrection({
         .premultiply(deltaQuaternion.current)
         .normalize();
     } else {
-      const axis =
-        command.action === 'pitch'
-          ? up.current.set(1, 0, 0)
-          : up.current.set(0, 0, 1);
+      axis.current.set(
+        command.action === 'pitch' ? 1 : 0,
+        0,
+        command.action === 'roll' ? 1 : 0,
+      );
 
       deltaQuaternion.current.setFromAxisAngle(
-        axis,
+        axis.current,
         THREE.MathUtils.degToRad(command.degrees),
       );
 
