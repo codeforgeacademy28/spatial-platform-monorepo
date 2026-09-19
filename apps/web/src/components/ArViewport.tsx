@@ -12,7 +12,9 @@ interface ArViewportProps { walls: WallSegment[]; rooms: Room[]; points: Array<{
 interface ControllerTracking { sessionActive: boolean; leftTracked: boolean; rightTracked: boolean }
 type ArSupport = 'checking' | 'supported' | 'unsupported';
 
-const xrStore = createXRStore({ offerSession: 'immersive-ar', hand: false, controller: { left: { teleportPointer: true }, right: { teleportPointer: true } }, secondaryInputSources: true, originReferenceSpace: 'local-floor' });
+const xrStore = createXRStore({ offerSession: 'immersive-ar', hand: false, controller: { left: { teleportPointer: true }, right: { teleportPointer: true } }, secondaryInputSources: true });
+
+// @react-three/xr v6 uses a floor-aligned XR origin/reference space for immersive sessions.
 function FloorGrid(): JSX.Element { return <mesh rotation-x={-Math.PI / 2} position={[0, -0.01, 0]} receiveShadow><planeGeometry args={[30, 30]} /><meshStandardMaterial color="#0f172a" /></mesh>; }
 function WallMesh({ wall }: { wall: WallSegment }): JSX.Element { const length = Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y) || 0.001; const angle = Math.atan2(wall.end.y - wall.start.y, wall.end.x - wall.start.x); return <mesh position={[(wall.start.x + wall.end.x) / 2, wall.height / 2, (wall.start.y + wall.end.y) / 2]} rotation={[0, -angle, 0]} castShadow receiveShadow><boxGeometry args={[length, wall.height, wall.thickness]} /><meshStandardMaterial color="#38bdf8" metalness={0.25} roughness={0.4} /></mesh>; }
 function RoomFloor({ room }: { room: Room }): JSX.Element { const geometry = useMemo(() => { const floorMesh = generateRoomFloorMesh(room); const bufferGeometry = new THREE.BufferGeometry(); if (floorMesh.vertices.length) { bufferGeometry.setAttribute('position', new THREE.Float32BufferAttribute(floorMesh.vertices, 3)); bufferGeometry.setIndex(floorMesh.indices); bufferGeometry.computeVertexNormals(); } return bufferGeometry; }, [room]); return <mesh geometry={geometry} position={[0, 0.01, 0]} receiveShadow><meshStandardMaterial color="#2563eb" transparent opacity={0.35} /></mesh>; }
