@@ -22,8 +22,10 @@ function RoomFloor({ room }: { room: Room }): JSX.Element { const geometry = use
 function XRTrackingReporter({ onChange }: { onChange: (status: ControllerTracking) => void }): ReactNode { const session = useXR((state) => state.session); const left = useXRInputSourceState('controller', 'left'); const right = useXRInputSourceState('controller', 'right'); useEffect(() => { onChange({ sessionActive: Boolean(session), leftTracked: Boolean(left), rightTracked: Boolean(right) }); }, [left, right, session, onChange]); return null; }
 
 type ViewCorrectionCommand =
-  | { id: number; action: 'level' | 'reset' }
-  | { id: number; action: 'pitch' | 'roll'; degrees: number };
+  | { id: number; action: 'level' }
+  | { id: number; action: 'reset' }
+  | { id: number; action: 'pitch'; degrees: number }
+  | { id: number; action: 'roll'; degrees: number };
 
 const MODEL_YAW_RADIANS = Math.PI / 2;
 const WALKTHROUGH_EYE_HEIGHT = 1.65;
