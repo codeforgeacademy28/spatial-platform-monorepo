@@ -98,9 +98,11 @@ function sceneToLayoutPosition(
   const cos = Math.cos(MODEL_YAW_RADIANS);
   const sin = Math.sin(MODEL_YAW_RADIANS);
 
+  // Convert world coordinates back into the model's local floor-plan coordinates.
+  // The model is rendered with +90° yaw, so use the inverse (-90°) rotation.
   return {
-    x: cos * dx - sin * dz,
-    z: sin * dx + cos * dz,
+    x: cos * dx + sin * dz,
+    z: -sin * dx + cos * dz,
   };
 }
 
@@ -274,7 +276,7 @@ export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element {
     void checkSupport();
     return () => { cancelled = true; };
   }, []);
-  const modelTransform = useMemo<[number, number, number]>(() => { if (!walls.length) return [0, 0, -4]; const xs = walls.flatMap((wall) => [wall.start.x, wall.end.x]); const ys = walls.flatMap((wall) => [wall.start.y, wall.end.y]); const centerX = (Math.min(...xs) + Math.max(...xs)) / 2; const centerY = (Math.min(...ys) + Math.max(...ys)) / 2; return [centerY, 0, -centerX - 4]; }, [walls]);
+  const modelTransform = useMemo<[number, number, number]>(() => { if (!walls.length) return [0, 0, -4]; const xs = walls.flatMap((wall) => [wall.start.x, wall.end.x]); const ys = walls.flatMap((wall) => [wall.start.y, wall.end.y]); const centerX = (Math.min(...xs) + Math.max(...xs)) / 2; const centerY = (Math.min(...ys) + Math.max(...ys)) / 2; return [-centerY, 0, centerX - 4]; }, [walls]);
   const fallbackCamera = useMemo<[number, number, number]>(() => {
     if (!walls.length) return [0, 1.7, 4];
 
@@ -285,7 +287,7 @@ export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element {
 
     // The model is centered at world Z=-4. Start at human eye height,
     // facing into the home instead of looking down from above it.
-    return [distance * 0.45, 1.7, -4 + distance];
+    return [0, 1.7, -4 + distance];
   }, [walls]);
   const startAr = async (): Promise<void> => {
     if (arSupport !== 'supported') return;
