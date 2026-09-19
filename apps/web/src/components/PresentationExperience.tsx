@@ -16,6 +16,6 @@ export function PresentationExperience({walls,rooms,sceneAssets,wallOpenings,pre
 }
 function CameraRig({target}:{target:[number,number,number]}):null{
  const targetVec=useMemo(()=>new THREE.Vector3(...target),[target]);
- useFrame(({camera},delta)=>{if(!from.current)from.current=camera.position.clone();const desired=new THREE.Vector3(target[0]+2.8,1.65,target[2]+2.8);camera.position.lerp(desired,Math.min(1,delta*1.2));const q=new THREE.Quaternion();const d=new THREE.Object3D();d.position.copy(camera.position);d.lookAt(targetVec);q.copy(d.quaternion);camera.quaternion.slerp(q,Math.min(1,delta*2));});
+ useFrame(({camera},delta)=>{const desired=new THREE.Vector3(target[0]+2.8,1.65,target[2]+2.8);camera.position.lerp(desired,Math.min(1,delta*1.2));const q=new THREE.Quaternion();const d=new THREE.Object3D();d.position.copy(camera.position);d.lookAt(targetVec);q.copy(d.quaternion);camera.quaternion.slerp(q,Math.min(1,delta*2));});
  return null;
 }
