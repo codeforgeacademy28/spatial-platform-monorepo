@@ -24,7 +24,7 @@ interface FloorPlanOverlayProps {
   onEnterSpatial?: () => void;
   onRevert?: () => void;
   hasSavedBaseline?: boolean;
-  saveState?: 'idle' | 'saving' | 'saved' | 'error';
+  saveState?: 'idle' | 'saving' | 'saved' | 'local-only' | 'error';
   blueprintUploaded?: boolean;
   scaleCalibrated?: boolean;
   scaleMetersPerPixel: number;
