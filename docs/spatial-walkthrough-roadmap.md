@@ -1,5 +1,19 @@
 # Spatial Platform: Walkthrough, Import & AR Roadmap
 
+## Current branch implementation (pending validation)
+
+The current draft PR includes the first foundation changes below. These do not mark the broader roadmap tasks complete until CI and the applicable runtime checks pass.
+
+- Shared floor-plan/world transform helpers and deterministic tests for quarter-turn rotations and the centered model transform.
+- Wall collision now uses the inverse of the rendered group yaw, and movement away from an existing wall-clearance overlap is allowed.
+- A desktop first-person mode with pointer-lock mouse look, normalized WASD movement, sprint, jump/gravity, and axis-separated wall collision. This is an initial controller, not yet a complete physics solution.
+- Upload extension/content validation for common image, PDF, GLB/GLTF, IFC, DXF, OBJ, STL, and DWG source files, with API regression tests. Upload acceptance is not the same as conversion into an editable scene.
+- Root/Turbo test command wiring and the explicit task backlog below.
+
+Validation is still pending: the latest draft changes have not yet been confirmed by a completed CI run, and AR placement requires testing on supported physical hardware.
+
+---
+
 ## Product outcome
 
 Turn Spatial Platform into a persistent building-design sandbox with a game-quality first-person walkthrough and dependable full-scale AR preview. Keep the existing React, Three.js, React Three Fiber, WebXR, BIM engine, and monorepo architecture unless an ADR documents why a change is needed.
