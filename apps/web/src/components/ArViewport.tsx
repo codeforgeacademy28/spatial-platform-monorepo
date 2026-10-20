@@ -9,6 +9,7 @@ import {
   useXRInputSourceState,
 } from '@react-three/xr';
 import { OrbitControls } from '@react-three/drei';
+import { EditableGltfAsset } from './EditableGltfAsset';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { MutableRefObject, ReactNode } from 'react';
 import * as THREE from 'three';
@@ -413,6 +414,14 @@ export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element {
   });
   const [collisionEnabled, setCollisionEnabled] = useState(true);
   const [walkthroughMode, setWalkthroughMode] = useState(false);
+  const [importedModel, setImportedModel] = useState<{ url: string; name: string } | null>(null);
+  const [assetTransformMode, setAssetTransformMode] = useState<'translate' | 'rotate' | 'scale'>('translate');
+  const [importError, setImportError] = useState('');
+  const modelFileInputRef = useRef<HTMLInputElement | null>(null);
+  useEffect(() => {
+    if (!importedModel) return;
+    return () => URL.revokeObjectURL(importedModel.url);
+  }, [importedModel]);
   const [controllerState, setControllerState] = useState<ControllerConnectionState>('connecting');
   const [viewCorrectionCommand, setViewCorrectionCommand] = useState<ViewCorrectionCommand>({
     id: 0,
@@ -564,6 +573,14 @@ export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element {
             {walls.map((wall) => (
               <WallMesh key={wall.id} wall={wall} />
             ))}
+            {importedModel && (
+              <EditableGltfAsset
+                key={importedModel.url}
+                url={importedModel.url}
+                mode={assetTransformMode}
+                onError={setImportError}
+              />
+            )}
           </group>
           <IfInSessionMode deny={['immersive-ar', 'immersive-vr']}>
             <DesktopFirstPersonController
@@ -632,6 +649,8 @@ export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element {
         <div className="mt-1 text-slate-400">
           AR: controller locomotion · Desktop: First-Person Walk for mouse look, WASD, Shift sprint, Space jump.
         </div>
+        {importedModel && <div className="mt-1 text-emerald-300">3D asset: {importedModel.name}</div>}
+        {importError && <div role="status" className="mt-1 max-w-72 text-rose-300">Import: {importError}</div>}
         <div className="mt-1 text-slate-400">
           Wall collision:{' '}
           <span className={collisionEnabled ? 'text-emerald-300' : 'text-amber-300'}>
@@ -645,6 +664,48 @@ export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element {
           </span>
         </div>
       </div>
+      <input
+        ref={modelFileInputRef}
+        type="file"
+        accept=".glb,.gltf,model/gltf-binary,model/gltf+json"
+        className="hidden"
+        aria-label="Import a GLB or self-contained glTF model"
+        onChange={async (event) => {
+          const file = event.currentTarget.files?.[0];
+          event.currentTarget.value = '';
+          if (!file) return;
+          setImportError('');
+          if (file.size > 25 * 1024 * 1024) {
+            setImportError('Model exceeds the 25 MB limit.');
+            return;
+          }
+          const extension = file.name.split('.').pop()?.toLowerCase();
+          if (extension !== 'glb' && extension !== 'gltf') {
+            setImportError('Choose a .glb or .gltf model. CAD/BIM files need a conversion adapter first.');
+            return;
+          }
+          if (extension === 'glb') {
+            const signature = new Uint8Array(await file.slice(0, 4).arrayBuffer());
+            if (signature.length !== 4 || signature[0] !== 0x67 || signature[1] !== 0x6c || signature[2] !== 0x54 || signature[3] !== 0x46) {
+              setImportError('The GLB header is invalid.');
+              return;
+            }
+          } else {
+            try {
+              const document = JSON.parse(await file.text()) as { buffers?: Array<{ uri?: string }>; images?: Array<{ uri?: string }> };
+              const resources = [...(document.buffers ?? []), ...(document.images ?? [])];
+              if (resources.some((resource) => resource.uri && !resource.uri.startsWith('data:'))) {
+                setImportError('This glTF references external files. Package its resources or use a single-file GLB.');
+                return;
+              }
+            } catch {
+              setImportError('The glTF file is not valid JSON.');
+              return;
+            }
+          }
+          setImportedModel({ url: URL.createObjectURL(file), name: file.name });
+        }}
+      />
       <div className="absolute bottom-4 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/90 p-2 shadow-xl backdrop-blur">
         <button
           type="button"
@@ -692,6 +753,24 @@ export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element {
         >
           Reset view
         </button>
+        <button
+          type="button"
+          onClick={() => modelFileInputRef.current?.click()}
+          className="rounded-lg bg-sky-700 px-3 py-2 text-sm font-semibold text-white hover:bg-sky-600"
+        >
+          Import 3D model
+        </button>
+        {importedModel && (['translate', 'rotate', 'scale'] as const).map((mode) => (
+          <button
+            key={mode}
+            type="button"
+            onClick={() => setAssetTransformMode(mode)}
+            aria-pressed={assetTransformMode === mode}
+            className={`rounded-lg px-2 py-2 text-xs font-semibold capitalize ${assetTransformMode === mode ? 'bg-violet-600 text-white' : 'bg-slate-700 text-slate-200 hover:bg-slate-600'}`}
+          >
+            {mode}
+          </button>
+        ))}
         <button
           type="button"
           onClick={() => setWalkthroughMode((enabled) => !enabled)}
