@@ -525,7 +525,8 @@ export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element {
     leftTracked: false,
     rightTracked: false,
   });
-  const [collisionEnabled, setCollisionEnabled] = useState(true);\n  const [walkthroughMode, setWalkthroughMode] = useState(false);
+  const [collisionEnabled, setCollisionEnabled] = useState(true);
+  const [walkthroughMode, setWalkthroughMode] = useState(false);
   const [controllerState, setControllerState] = useState<ControllerConnectionState>('connecting');
   const [viewCorrectionCommand, setViewCorrectionCommand] = useState<ViewCorrectionCommand>({
     id: 0,
