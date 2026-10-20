@@ -61,16 +61,25 @@ export function hasValidContentSignature(extension: SupportedExtension, buffer: 
       return buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
     case '.pdf':
       return buffer.subarray(0, 5).toString('ascii') === '%PDF-';
-    case '.glb':
-      return buffer.subarray(0, 4).toString('ascii') === 'glTF' && buffer.length >= 12;
+    case '.glb': {
+      if (buffer.subarray(0, 4).toString('ascii') !== 'glTF' || buffer.length < 12) return false;
+      const declaredLength = buffer.readUInt32LE(8);
+      return declaredLength >= 12 && declaredLength <= buffer.length;
+    }
     case '.dwg':
       return /^AC10\d{2}$/.test(buffer.subarray(0, 6).toString('ascii'));
     case '.gltf':
     case '.ifc':
     case '.dxf':
     case '.obj':
-    case '.stl':
       return isTextModel(extension, buffer);
+    case '.stl': {
+      if (isTextModel(extension, buffer)) return true;
+      // Binary STL: 80-byte header, 4-byte triangle count, then 50 bytes per triangle.
+      if (buffer.length < 84) return false;
+      const triangleCount = buffer.readUInt32LE(80);
+      return 84 + triangleCount * 50 <= buffer.length && triangleCount > 0;
+    }
     default:
       return false;
   }
