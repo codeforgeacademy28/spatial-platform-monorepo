@@ -209,6 +209,14 @@ function movementBlockedByWalls(
     const wallHalfThickness = Math.max(0.01, wall.thickness / 2);
     const clearance = XR_PLAYER_RADIUS + wallHalfThickness;
 
+    const previousDistance = distancePointToSegment2D(
+      previous.x,
+      previous.z,
+      wall.start.x,
+      wall.start.y,
+      wall.end.x,
+      wall.end.y,
+    );
     const nextDistance = distancePointToSegment2D(
       next.x,
       next.z,
@@ -218,7 +226,9 @@ function movementBlockedByWalls(
       wall.end.y,
     );
 
-    if (nextDistance < clearance) return true;
+    // Reject movement into a wall, but allow a player who starts inside the
+    // clearance radius to back away instead of becoming permanently trapped.
+    if (nextDistance < clearance && nextDistance < previousDistance) return true;
 
     const movementDistance = distanceSegmentToSegment2D(
       previous.x,
@@ -509,8 +519,10 @@ export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element {
     const centerX = (Math.min(...xs) + Math.max(...xs)) / 2;
     const centerY = (Math.min(...ys) + Math.max(...ys)) / 2;
 
-    // Floor-plan (x,y) becomes Three.js (x,z), then the whole layout gets a +90° yaw.
-    return [-centerY, 0, centerX - 4];
+    // The group is rotated +90° around Y. Its translation must cancel the
+    // rotated bounds center, otherwise the layout is offset twice and appears
+    // displaced from the player/collision coordinate system.
+    return [centerY, 0, -centerX - 4];
   }, [walls]);
   const fallbackCamera = useMemo<[number, number, number]>(() => {
     const localDistance = walls.length
