@@ -438,7 +438,7 @@ function DesktopFirstPersonController({
       }
       pressed.current.add(key);
     };
-    const onKeyUp = (event: KeyboardEvent): void => pressed.current.delete(event.key.toLowerCase());
+    const onKeyUp = (event: KeyboardEvent): void => { pressed.current.delete(event.key.toLowerCase()); };
     const onMouseMove = (event: MouseEvent): void => {
       if (document.pointerLockElement !== gl.domElement) return;
       yaw.current -= event.movementX * 0.002;
