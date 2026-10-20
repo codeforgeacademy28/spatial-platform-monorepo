@@ -186,11 +186,11 @@ function sceneToLayoutPosition(
   const cos = Math.cos(MODEL_YAW_RADIANS);
   const sin = Math.sin(MODEL_YAW_RADIANS);
 
-  // The model is rendered with +90° yaw, so collision checks use the inverse yaw
-  // to get back to the floor-plan's local X/Y coordinates.
+  // Invert the model group's +90° yaw to return to floor-plan coordinates.
+  // Three.js Y rotation maps local (x, z) to world (cos*x + sin*z, -sin*x + cos*z).
   return {
-    x: cos * dx + sin * dz,
-    z: -sin * dx + cos * dz,
+    x: cos * dx - sin * dz,
+    z: sin * dx + cos * dz,
   };
 }
 
@@ -519,10 +519,9 @@ export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element {
     const centerX = (Math.min(...xs) + Math.max(...xs)) / 2;
     const centerY = (Math.min(...ys) + Math.max(...ys)) / 2;
 
-    // The group is rotated +90° around Y. Its translation must cancel the
-    // rotated bounds center, otherwise the layout is offset twice and appears
-    // displaced from the player/collision coordinate system.
-    return [centerY, 0, -centerX - 4];
+    // A +90° yaw maps local (x, z) to world (z, -x). Translate by
+    // (-centerY, centerX) so the layout bounds center lands at world z = -4.
+    return [-centerY, 0, centerX - 4];
   }, [walls]);
   const fallbackCamera = useMemo<[number, number, number]>(() => {
     const localDistance = walls.length
