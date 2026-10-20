@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { detectClosedRooms } from '@spatial/geometry-engine';
 import { PointSchema, ProjectSchema, loadProjectFromLocalStorage, saveProjectToLocalStorage } from '@spatial/core';
-import type { Point, Project, Room, WallSegment } from '@spatial/core';
+import type { Point, Project, Room, SceneAsset, PresentationConfig, WallOpening, WallSegment } from '@spatial/core';
 import type { Dispatch, SetStateAction } from 'react';
 import { ClientViewer } from './components/ClientViewer';
 import { FloorPlanOverlay } from './components/FloorPlanOverlay';
 import { SpatialCanvas } from './components/SpatialCanvas';
+import { SceneStudioPanel } from './components/SceneStudioPanel';
+import { PresentationExperience } from './components/PresentationExperience';
 import { VersionComparer } from './components/VersionComparer';
 import { VersionHistoryPanel } from './components/VersionHistoryPanel';
 import { RoomHighlightList } from './components/RoomHighlightList';
@@ -31,7 +33,7 @@ function cloneProject(project: Project): Project {
 }
 
 function buildProject(projectName: string, walls: WallSegment[], rooms: Room[], scaleMetersPerPixel: number, id = 'project-1'): Project {
-  return { id, name: projectName, walls: cloneWalls(walls), rooms: rooms.map((room) => ({ ...room, polygon: room.polygon.map((point) => ({ ...point })), wallSegments: cloneWalls(room.wallSegments) })), scaleMetersPerPixel, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+  return { id, name: projectName, walls: cloneWalls(walls), sceneAssets: [], wallOpenings: [], presentation: { title: 'A Walk Through Us', subtitle: 'A birthday gallery made just for you', finalMessage: 'I would choose you in every room, every version, every lifetime. ❤️', theme: 'romantic', ceilingEnabled: true }, rooms: rooms.map((room) => ({ ...room, polygon: room.polygon.map((point) => ({ ...point })), wallSegments: cloneWalls(room.wallSegments) })), scaleMetersPerPixel, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
 }
 
 function readLocalVersions(): Project[] {
@@ -64,6 +66,11 @@ export function App(): JSX.Element {
   const [refLength, setRefLength] = useState(4);
   const [lastSavedProject, setLastSavedProject] = useState<Project | null>(null);
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
+  const [selectedWallId, setSelectedWallId] = useState<string | null>(null);
+  const [sceneAssets, setSceneAssets] = useState<SceneAsset[]>([]);
+  const [wallOpenings, setWallOpenings] = useState<WallOpening[]>([]);
+  const [presentation, setPresentation] = useState<PresentationConfig>({ title: 'A Walk Through Us', subtitle: 'A birthday gallery made just for you', finalMessage: 'I would choose you in every room, every version, every lifetime. ❤️', theme: 'romantic', ceilingEnabled: true });
+  const [presentationMode, setPresentationMode] = useState(false);
 
   useEffect(() => { setPoints(walls.flatMap((wall) => [wall.start, wall.end]).map((point) => PointSchema.parse(point))); }, [walls]);
   useEffect(() => { const localVersions = readLocalVersions(); setVersions(localVersions); if (localVersions.length === 2) setSelectedVersionIds(localVersions.map((version) => version.id)); }, []);
@@ -75,12 +82,12 @@ export function App(): JSX.Element {
     fetchSharedProject(token).then((loaded) => {
       if (!mounted) return;
       const normalized = ProjectSchema.parse(loaded);
-      setProjectName(normalized.name); setWalls(cloneWalls(normalized.walls)); setRooms(normalized.rooms.filter((room) => room.wallSegments.length > 0)); setRoomsValidated(normalized.rooms.length > 0); setBlueprintUploaded(true); setScaleMetersPerPixel(normalized.scaleMetersPerPixel ?? DEFAULT_SCALE_METERS_PER_PIXEL); setScaleCalibrated(Boolean(normalized.scaleMetersPerPixel)); setLastSavedProject(cloneProject(normalized)); setViewMode('3d'); setSharedProject(normalized); setSaveState('saved'); setSaveMessage(`Loaded shared project · ${normalized.walls.length} walls`);
+      setProjectName(normalized.name); setWalls(cloneWalls(normalized.walls)); setSceneAssets(normalized.sceneAssets ?? []); setWallOpenings(normalized.wallOpenings ?? []); setPresentation(normalized.presentation ?? presentation); setRooms(normalized.rooms.filter((room) => room.wallSegments.length > 0)); setRoomsValidated(normalized.rooms.length > 0); setBlueprintUploaded(true); setScaleMetersPerPixel(normalized.scaleMetersPerPixel ?? DEFAULT_SCALE_METERS_PER_PIXEL); setScaleCalibrated(Boolean(normalized.scaleMetersPerPixel)); setLastSavedProject(cloneProject(normalized)); setViewMode('3d'); setSharedProject(normalized); setSaveState('saved'); setSaveMessage(`Loaded shared project · ${normalized.walls.length} walls`);
     }).catch((error) => { console.error(error); setSaveState('error'); setSaveMessage(error instanceof Error ? error.message : 'Unable to load shared project.'); });
     return () => { mounted = false; };
   }, []);
 
-  const project = useMemo(() => buildProject(projectName, walls, rooms, scaleMetersPerPixel), [projectName, walls, rooms, scaleMetersPerPixel]);
+  const project = useMemo(() => ({ ...buildProject(projectName, walls, rooms, scaleMetersPerPixel), sceneAssets, wallOpenings, presentation }), [projectName, walls, rooms, scaleMetersPerPixel, sceneAssets, wallOpenings, presentation]);
   const updateWalls: Dispatch<SetStateAction<WallSegment[]>> = useCallback((next) => { setRoomsValidated(false); setSelectedRoomId(null); setRooms([]); setWalls(next); }, []);
   const { dispatchSpatialAction } = useSpatialActionDispatcher(walls, rooms, updateWalls, setRooms);
 
@@ -173,6 +180,7 @@ export function App(): JSX.Element {
     { number: 6, title: 'Spatial / AR', detail: 'Final presentation stage' },
   ];
 
+  if (presentationMode) return <PresentationExperience walls={walls} rooms={rooms} sceneAssets={sceneAssets} wallOpenings={wallOpenings} presentation={presentation} onExit={() => setPresentationMode(false)} />;
   if (sharedProject) return <ClientViewer project={sharedProject} />;
   if (comparisonPair) return <VersionComparer versionA={comparisonPair[0]} versionB={comparisonPair[1]} onClose={() => setComparisonPair(null)} />;
   if (viewMode === 'spatial') return <div className="relative h-screen w-screen bg-slate-950"><ArViewport walls={walls} rooms={rooms} points={points} /><div className="absolute left-4 top-4 z-50 flex gap-2"><button type="button" onClick={() => setViewMode('3d')} className="rounded-lg bg-slate-900/90 px-4 py-2 text-sm font-medium text-white shadow-lg">Back to 3D</button><button type="button" onClick={() => setViewMode('editor')} className="rounded-lg bg-slate-900/90 px-4 py-2 text-sm font-medium text-white shadow-lg">Back to Editor</button></div></div>;
@@ -182,10 +190,10 @@ export function App(): JSX.Element {
       <aside className="spatial-sidebar relative z-30 h-full w-[440px] shrink-0 overflow-y-auto border-r border-slate-800/80 p-3">
         <div className="spatial-panel mb-3 p-3"><div className="mb-2 flex items-center justify-between"><div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-300">Workflow</p><h1 className="mt-1 text-lg font-semibold text-white">Blueprint → Spatial 3D</h1></div><span className="spatial-badge">Step {Math.min(currentStep, 6)}/6</span></div><p className="mb-3 text-xs leading-5 text-slate-400">Complete each stage in order. Drawn walls are the canonical geometry used by 3D, versions, comparison and spatial view.</p><div className="spatial-stepper">{steps.map((step) => { const complete = currentStep > step.number; const active = currentStep === step.number; return <div key={step.number} className={`spatial-step ${active ? 'is-active' : ''} ${complete ? 'is-complete' : ''}`}><span className="spatial-step-number">{complete ? '✓' : step.number}</span><div className="min-w-0"><div className="text-sm font-medium text-slate-100">{step.title}</div><div className="text-xs text-slate-500">{step.detail}</div></div></div>; })}</div>{saveMessage ? <div className={`mt-3 rounded-lg border px-3 py-2 text-xs ${saveState === 'error' ? 'border-rose-500/40 bg-rose-500/10 text-rose-200' : saveState === 'local-only' ? 'border-amber-500/40 bg-amber-500/10 text-amber-100' : 'border-slate-700 bg-slate-900/70 text-slate-300'}`}>{saveMessage}</div> : null}</div>
         <FloorPlanOverlay walls={walls} rooms={rooms} setWalls={updateWalls} setRooms={setRooms} projectName={projectName} onProjectNameChange={setProjectName} onSave={handleSaveProject} onLoad={handleLoadProject} onShare={handleShareDesign} onEnterAr={handleEnterSpatial} shareUrl={shareUrl} onSaveVersion={handleSaveVersion} onCompareVersions={handleCompareVersions} savedVersionsCount={versions.length} onBlueprintUploaded={handleBlueprintUpload} onDetectRooms={handleDetectRooms} roomsValidated={roomsValidated} onReview3D={handleReview3D} onEnterSpatial={handleEnterSpatial} onRevert={handleRevertProject} hasSavedBaseline={Boolean(lastSavedProject)} saveState={saveState} blueprintUploaded={blueprintUploaded} scaleCalibrated={scaleCalibrated} scaleMetersPerPixel={scaleMetersPerPixel} onScaleCalibrated={handleScaleCalibrated} />
-        <div className="mt-3 space-y-3"><RoomHighlightList rooms={rooms} walls={walls} selectedRoomId={selectedRoomId} onSelect={setSelectedRoomId} /><VersionHistoryPanel versions={versions} selectedVersionIds={selectedVersionIds} onToggle={toggleVersionSelection} onCompare={handleCompareVersions} /></div>
+        <SceneStudioPanel walls={walls} selectedWallId={selectedWallId} setSelectedWallId={setSelectedWallId} setWalls={setWalls} setSceneAssets={setSceneAssets} setWallOpenings={setWallOpenings} presentation={presentation} setPresentation={setPresentation} /><div className="mt-3 space-y-3"><RoomHighlightList rooms={rooms} walls={walls} selectedRoomId={selectedRoomId} onSelect={setSelectedRoomId} /><VersionHistoryPanel versions={versions} selectedVersionIds={selectedVersionIds} onToggle={toggleVersionSelection} onCompare={handleCompareVersions} /></div>
         <div className="border-t border-slate-800 p-3 mt-3"><AiAssistantPanel walls={walls} onDispatchAction={dispatchSpatialAction} /></div>
       </aside>
-      <main className="relative min-w-0 flex-1 overflow-hidden"><SpatialCanvas walls={walls} rooms={rooms} points={points} selectedRoomId={selectedRoomId} /><div className="spatial-viewport-card"><div className="spatial-viewport-label">{viewMode === '3d' ? '3D REVIEW' : 'LIVE 3D PREVIEW'}</div><div className="mt-1 text-sm font-medium text-white">{walls.length} wall segments · {rooms.length} rooms</div><div className="spatial-grid-hint">Drag to orbit · scroll to zoom · right-drag to pan</div></div><SpatialHeader projectName={projectName} onProjectNameChange={setProjectName} onSave={handleSaveProject} onLoad={handleLoadProject} onShare={handleShareDesign} onSaveVersion={handleSaveVersion} onEnterAr={handleEnterSpatial} refLength={refLength} onScaleChange={setRefLength} onUploadBlueprint={handleBlueprintUpload} /><CanvasOverlay scaleMetric={refLength} unit="meters" /></main>
+      <main className="relative min-w-0 flex-1 overflow-hidden"><SpatialCanvas walls={walls} rooms={rooms} points={points} selectedRoomId={selectedRoomId} /><button type="button" onClick={() => setPresentationMode(true)} disabled={!walls.length} className="absolute right-5 bottom-5 z-40 rounded-full bg-gradient-to-r from-fuchsia-600 via-rose-500 to-amber-500 px-5 py-3 text-xs font-bold text-white shadow-2xl disabled:opacity-40">✨ Preview Birthday Gallery</button><div className="spatial-viewport-card"><div className="spatial-viewport-label">{viewMode === '3d' ? '3D REVIEW' : 'LIVE 3D PREVIEW'}</div><div className="mt-1 text-sm font-medium text-white">{walls.length} wall segments · {rooms.length} rooms</div><div className="spatial-grid-hint">Drag to orbit · scroll to zoom · right-drag to pan</div></div><SpatialHeader projectName={projectName} onProjectNameChange={setProjectName} onSave={handleSaveProject} onLoad={handleLoadProject} onShare={handleShareDesign} onSaveVersion={handleSaveVersion} onEnterAr={handleEnterSpatial} refLength={refLength} onScaleChange={setRefLength} onUploadBlueprint={handleBlueprintUpload} /><CanvasOverlay scaleMetric={refLength} unit="meters" /></main>
     </div>
   );
 }

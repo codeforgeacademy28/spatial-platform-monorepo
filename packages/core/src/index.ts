@@ -14,8 +14,64 @@ export interface WallSegment {
   thickness: number;
   height: number;
   length: number;
+  materialHex?: string;
+  textureUrl?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export type WallOpeningType = 'door' | 'window';
+
+export interface WallOpening {
+  id: string;
+  wallId: string;
+  type: WallOpeningType;
+  offset: number;
+  width: number;
+  height: number;
+  bottom: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type SceneAssetType = 'image' | 'light';
+
+export interface SceneAsset {
+  id: string;
+  assetType: SceneAssetType;
+  name: string;
+  assetUrl: string;
+  frameStyle?: 'wood' | 'gold' | 'black';
+  anchor:
+    | {
+        type: 'wall';
+        wallId: string;
+        offset: number;
+        elevation: number;
+        width: number;
+        height: number;
+      }
+    | {
+        type: 'world';
+        position: [number, number, number];
+      };
+  light?: {
+    color?: string;
+    intensity?: number;
+    distance?: number;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type PresentationTheme = 'romantic' | 'museum' | 'sunset';
+
+export interface PresentationConfig {
+  title: string;
+  subtitle: string;
+  finalMessage: string;
+  theme: PresentationTheme;
+  ceilingEnabled: boolean;
 }
 
 export interface Room {
@@ -36,6 +92,9 @@ export interface Project {
   walls: WallSegment[];
   rooms: Room[];
   scaleMetersPerPixel?: number;
+  sceneAssets?: SceneAsset[];
+  wallOpenings?: WallOpening[];
+  presentation?: PresentationConfig;
   createdAt: string;
   updatedAt: string;
 }
@@ -61,8 +120,59 @@ export const WallSegmentSchema = z.object({
   thickness: z.number().positive(),
   height: z.number().positive(),
   length: z.number().nonnegative(),
+  materialHex: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+  textureUrl: z.string().trim().url().optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
+});
+
+export const WallOpeningSchema = z.object({
+  id: z.string().trim().min(1),
+  wallId: z.string().trim().min(1),
+  type: z.enum(['door', 'window']),
+  offset: z.number().finite().nonnegative(),
+  width: z.number().positive(),
+  height: z.number().positive(),
+  bottom: z.number().finite().nonnegative(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+
+export const SceneAssetSchema = z.object({
+  id: z.string().trim().min(1),
+  assetType: z.enum(['image', 'light']),
+  name: z.string().trim().min(1).max(200),
+  assetUrl: z.string(),
+  frameStyle: z.enum(['wood', 'gold', 'black']).optional(),
+  anchor: z.union([
+    z.object({
+      type: z.literal('wall'),
+      wallId: z.string().trim().min(1),
+      offset: z.number().finite().nonnegative(),
+      elevation: z.number().finite().nonnegative(),
+      width: z.number().positive(),
+      height: z.number().positive(),
+    }),
+    z.object({
+      type: z.literal('world'),
+      position: z.tuple([z.number(), z.number(), z.number()]),
+    }),
+  ]),
+  light: z.object({
+    color: z.string().optional(),
+    intensity: z.number().positive().optional(),
+    distance: z.number().positive().optional(),
+  }).optional(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+
+export const PresentationConfigSchema = z.object({
+  title: z.string().trim().min(1).max(200),
+  subtitle: z.string().trim().max(300),
+  finalMessage: z.string().trim().max(2000),
+  theme: z.enum(['romantic', 'museum', 'sunset']),
+  ceilingEnabled: z.boolean(),
 });
 
 export const RoomSchema = z.object({
@@ -83,6 +193,9 @@ export const ProjectSchema = z.object({
   walls: z.array(WallSegmentSchema).default([]),
   rooms: z.array(RoomSchema).default([]),
   scaleMetersPerPixel: z.number().finite().positive().optional(),
+  sceneAssets: z.array(SceneAssetSchema).default([]),
+  wallOpenings: z.array(WallOpeningSchema).default([]),
+  presentation: PresentationConfigSchema.optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 }).transform((project) => ({
@@ -98,6 +211,9 @@ export * from './project-snapshot.js';
 
 export type PointInput = z.infer<typeof PointSchema>;
 export type WallSegmentInput = z.infer<typeof WallSegmentSchema>;
+export type WallOpeningInput = z.infer<typeof WallOpeningSchema>;
+export type SceneAssetInput = z.infer<typeof SceneAssetSchema>;
+export type PresentationConfigInput = z.infer<typeof PresentationConfigSchema>;
 export type RoomInput = z.infer<typeof RoomSchema>;
 export type ProjectInput = z.infer<typeof ProjectSchema>;
 export type UserRoleInput = z.infer<typeof UserRoleSchema>;
