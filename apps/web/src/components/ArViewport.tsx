@@ -108,74 +108,6 @@ const MODEL_YAW_RADIANS = Math.PI / 2;
 const WALKTHROUGH_EYE_HEIGHT = 1.65;
 const XR_PLAYER_RADIUS = 0.28;
 
-function cross2D(ax: number, az: number, bx: number, bz: number): number {
-  return ax * bz - az * bx;
-}
-
-function distancePointToSegment2D(
-  px: number,
-  pz: number,
-  ax: number,
-  az: number,
-  bx: number,
-  bz: number,
-): number {
-  const dx = bx - ax;
-  const dz = bz - az;
-  const lengthSq = dx * dx + dz * dz;
-  if (lengthSq === 0) return Math.hypot(px - ax, pz - az);
-
-  const t = Math.max(0, Math.min(1, ((px - ax) * dx + (pz - az) * dz) / lengthSq));
-  const closestX = ax + t * dx;
-  const closestZ = az + t * dz;
-  return Math.hypot(px - closestX, pz - closestZ);
-}
-
-function segmentsIntersect2D(
-  aX: number,
-  aZ: number,
-  bX: number,
-  bZ: number,
-  cX: number,
-  cZ: number,
-  dX: number,
-  dZ: number,
-): boolean {
-  const rX = bX - aX;
-  const rZ = bZ - aZ;
-  const sX = dX - cX;
-  const sZ = dZ - cZ;
-  const denominator = cross2D(rX, rZ, sX, sZ);
-  const cMinusAX = cX - aX;
-  const cMinusAZ = cZ - aZ;
-
-  if (Math.abs(denominator) < 1e-8) return false;
-
-  const t = cross2D(cMinusAX, cMinusAZ, sX, sZ) / denominator;
-  const u = cross2D(cMinusAX, cMinusAZ, rX, rZ) / denominator;
-  return t >= 0 && t <= 1 && u >= 0 && u <= 1;
-}
-
-function distanceSegmentToSegment2D(
-  aX: number,
-  aZ: number,
-  bX: number,
-  bZ: number,
-  cX: number,
-  cZ: number,
-  dX: number,
-  dZ: number,
-): number {
-  if (segmentsIntersect2D(aX, aZ, bX, bZ, cX, cZ, dX, dZ)) return 0;
-
-  return Math.min(
-    distancePointToSegment2D(aX, aZ, cX, cZ, dX, dZ),
-    distancePointToSegment2D(bX, bZ, cX, cZ, dX, dZ),
-    distancePointToSegment2D(cX, cZ, aX, aZ, bX, bZ),
-    distancePointToSegment2D(dX, dZ, aX, aZ, bX, bZ),
-  );
-}
-
 function sceneToLayoutPosition(
   sceneX: number,
   sceneZ: number,
@@ -195,58 +127,12 @@ function movementBlockedByWalls(
 ): boolean {
   const previous = sceneToLayoutPosition(previousSceneX, previousSceneZ, modelTransform);
   const next = sceneToLayoutPosition(nextSceneX, nextSceneZ, modelTransform);
-
-  for (const wall of walls) {
-    const wallHalfThickness = Math.max(0.01, wall.thickness / 2);
-    const clearance = XR_PLAYER_RADIUS + wallHalfThickness;
-
-    const previousDistance = distancePointToSegment2D(
-      previous.x,
-      previous.z,
-      wall.start.x,
-      wall.start.y,
-      wall.end.x,
-      wall.end.y,
-    );
-    const nextDistance = distancePointToSegment2D(
-      next.x,
-      next.z,
-      wall.start.x,
-      wall.start.y,
-      wall.end.x,
-      wall.end.y,
-    );
-
-    // Reject movement into a wall, but allow a player who starts inside the
-    // clearance radius to back away instead of becoming permanently trapped.
-    if (nextDistance < clearance && nextDistance < previousDistance) return true;
-
-    const movementDistance = distanceSegmentToSegment2D(
-      previous.x,
-      previous.z,
-      next.x,
-      next.z,
-      wall.start.x,
-      wall.start.y,
-      wall.end.x,
-      wall.end.y,
-    );
-
-    if (movementDistance >= clearance) continue;
-
-    const wallDX = wall.end.x - wall.start.x;
-    const wallDZ = wall.end.y - wall.start.y;
-    const previousDX = previous.x - wall.start.x;
-    const previousDZ = previous.z - wall.start.y;
-    const nextDX = next.x - wall.start.x;
-    const nextDZ = next.z - wall.start.y;
-    const previousSide = cross2D(wallDX, wallDZ, previousDX, previousDZ);
-    const nextSide = cross2D(wallDX, wallDZ, nextDX, nextDZ);
-
-    if (previousSide * nextSide <= 0) return true;
-  }
-
-  return false;
+  return walls.some((wall) => isCircleMovementBlockedByWall(
+    { x: previous.x, y: previous.z },
+    { x: next.x, y: next.z },
+    wall,
+    XR_PLAYER_RADIUS,
+  ));
 }
 
 function XRLocomotion({
