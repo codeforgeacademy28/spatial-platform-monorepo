@@ -743,8 +743,7 @@ export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element {
           {walls.length} walls · {rooms.length} rooms
         </div>
         <div className="mt-1 text-slate-400">
-          AR: left thumbstick moves · snap turn controls · teleport pointer can move you. Desktop:
-          WASD / arrows.
+          AR: controller locomotion · Desktop: First-Person Walk for mouse look, WASD, Shift sprint, Space jump.
         </div>
         <div className="mt-1 text-slate-400">
           Wall collision:{' '}
