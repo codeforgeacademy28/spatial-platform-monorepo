@@ -4,7 +4,7 @@ import {
   getExtension,
   hasValidContentSignature,
   isAllowedForAssetType,
-} from '../src/routes/uploads.ts';
+} from '../src/services/upload-validation.ts';
 
 test('extension detection is case-insensitive and rejects unknown extensions', () => {
   assert.equal(getExtension('HOUSE.GLB'), '.glb');
