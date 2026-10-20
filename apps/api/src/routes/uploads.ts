@@ -19,7 +19,7 @@ const assetTypeSchema = z.object({
   assetType: z.enum(['model', 'image', 'blueprint']),
 });
 
-function getExtension(filename: string): SupportedExtension | null {
+export function getExtension(filename: string): SupportedExtension | null {
   const extension = filename.toLowerCase().match(/\.[a-z0-9]+$/)?.[0];
   return extension && supportedExtensions.includes(extension as SupportedExtension)
     ? (extension as SupportedExtension)
@@ -51,7 +51,7 @@ function isTextModel(extension: SupportedExtension, buffer: Buffer): boolean {
   }
 }
 
-function hasValidContentSignature(extension: SupportedExtension, buffer: Buffer): boolean {
+export function hasValidContentSignature(extension: SupportedExtension, buffer: Buffer): boolean {
   if (buffer.length < 4) return false;
   switch (extension) {
     case '.png':
@@ -76,7 +76,7 @@ function hasValidContentSignature(extension: SupportedExtension, buffer: Buffer)
   }
 }
 
-function isAllowedForAssetType(assetType: 'model' | 'image' | 'blueprint', extension: SupportedExtension): boolean {
+export function isAllowedForAssetType(assetType: 'model' | 'image' | 'blueprint', extension: SupportedExtension): boolean {
   if (assetType === 'image') return ['.png', '.jpg', '.jpeg'].includes(extension);
   if (assetType === 'blueprint') return ['.png', '.jpg', '.jpeg', '.pdf'].includes(extension);
   return ['.glb', '.gltf', '.ifc', '.dxf', '.obj', '.stl', '.dwg'].includes(extension);
