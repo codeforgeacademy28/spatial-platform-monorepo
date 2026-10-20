@@ -14,6 +14,10 @@ interface SaveProjectResponse {
   persistence?: 'durable' | 'local-only';
 }
 
+export type SaveResult =
+  | { status: 'durable'; project: Project }
+  | { status: 'local-only'; project: Project; message: string };
+
 function getApiBaseUrl(): string { return import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') ?? ''; }
 
 async function parseError(response: Response, fallback: string): Promise<Error> {
@@ -23,12 +27,13 @@ async function parseError(response: Response, fallback: string): Promise<Error> 
   } catch { return new Error(fallback); }
 }
 
-export async function saveProject(project: Project): Promise<Project> {
+export async function saveProject(project: Project): Promise<SaveResult> {
   const response = await fetch(`${getApiBaseUrl()}/api/projects`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(project) });
   if (!response.ok) throw await parseError(response, 'Unable to save the project to the server.');
   const payload = (await response.json()) as SaveProjectResponse;
-  if (payload.persistence !== 'durable') throw new Error(payload.message ?? 'Durable server persistence is not configured; the local recovery copy remains available.');
-  return ProjectSchema.parse(payload.project);
+  const savedProject = ProjectSchema.parse(payload.project);
+  if (payload.persistence === 'durable') return { status: 'durable', project: savedProject };
+  return { status: 'local-only', project: savedProject, message: payload.message ?? 'Server storage is temporary.' };
 }
 
 export async function fetchSharedProject(token: string): Promise<Project> {
