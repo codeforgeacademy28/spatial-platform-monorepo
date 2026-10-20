@@ -1,4 +1,4 @@
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import {
   IfInSessionMode,
   XR,
@@ -405,56 +405,125 @@ function ExternalControllerLocomotion({
 
   return null;
 }
-function KeyboardSpatialMovement({
-  originRef,
+function DesktopFirstPersonController({
+  active,
   walls,
   modelTransform,
   collisionEnabled,
+  spawnPosition,
+  targetPosition,
 }: {
-  originRef: MutableRefObject<Group | null>;
+  active: boolean;
   walls: WallSegment[];
   modelTransform: [number, number, number];
   collisionEnabled: boolean;
-}): ReactNode {
+  spawnPosition: [number, number, number];
+  targetPosition: [number, number, number];
+}): null {
+  const { camera, gl } = useThree();
   const pressed = useRef(new Set<string>());
+  const yaw = useRef(0);
+  const pitch = useRef(0);
+  const verticalVelocity = useRef(0);
 
   useEffect(() => {
-    const down = (event: KeyboardEvent) => pressed.current.add(event.key.toLowerCase());
-    const up = (event: KeyboardEvent) => pressed.current.delete(event.key.toLowerCase());
+    if (!active) {
+      if (document.pointerLockElement === gl.domElement) document.exitPointerLock();
+      pressed.current.clear();
+      return;
+    }
 
-    window.addEventListener('keydown', down);
-    window.addEventListener('keyup', up);
+    camera.position.set(...spawnPosition);
+    camera.rotation.order = 'YXZ';
+    camera.lookAt(...targetPosition);
+    yaw.current = camera.rotation.y;
+    pitch.current = camera.rotation.x;
+    verticalVelocity.current = 0;
+
+    const onKeyDown = (event: KeyboardEvent): void => {
+      const key = event.key.toLowerCase();
+      if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' ', 'shift', 'control'].includes(key)) {
+        event.preventDefault();
+      }
+      pressed.current.add(key);
+    };
+    const onKeyUp = (event: KeyboardEvent): void => pressed.current.delete(event.key.toLowerCase());
+    const onMouseMove = (event: MouseEvent): void => {
+      if (document.pointerLockElement !== gl.domElement) return;
+      yaw.current -= event.movementX * 0.002;
+      pitch.current = THREE.MathUtils.clamp(pitch.current - event.movementY * 0.002, -1.45, 1.45);
+    };
+    const onBlur = (): void => pressed.current.clear();
+
+    gl.domElement.addEventListener('click', requestPointerLock);
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    window.addEventListener('blur', onBlur);
+    document.addEventListener('mousemove', onMouseMove);
+
+    function requestPointerLock(): void {
+      if (document.pointerLockElement !== gl.domElement) {
+        void gl.domElement.requestPointerLock();
+      }
+    }
 
     return () => {
-      window.removeEventListener('keydown', down);
-      window.removeEventListener('keyup', up);
+      gl.domElement.removeEventListener('click', requestPointerLock);
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+      window.removeEventListener('blur', onBlur);
+      document.removeEventListener('mousemove', onMouseMove);
+      if (document.pointerLockElement === gl.domElement) document.exitPointerLock();
+      pressed.current.clear();
     };
-  }, []);
+  }, [active, camera, gl, spawnPosition, targetPosition]);
 
-  useFrame((_, delta) => {
-    if (!originRef.current) return;
+  useFrame((_, rawDelta) => {
+    if (!active) return;
 
-    const forward =
-      Number(pressed.current.has('w') || pressed.current.has('arrowup')) -
-      Number(pressed.current.has('s') || pressed.current.has('arrowdown'));
-    const strafe =
-      Number(pressed.current.has('d') || pressed.current.has('arrowright')) -
-      Number(pressed.current.has('a') || pressed.current.has('arrowleft'));
+    const delta = Math.min(rawDelta, 0.05);
+    camera.rotation.order = 'YXZ';
+    camera.rotation.set(pitch.current, yaw.current, 0, 'YXZ');
 
-    if (!forward && !strafe) return;
+    const keys = pressed.current;
+    const forward = Number(keys.has('w') || keys.has('arrowup')) - Number(keys.has('s') || keys.has('arrowdown'));
+    const strafe = Number(keys.has('d') || keys.has('arrowright')) - Number(keys.has('a') || keys.has('arrowleft'));
+    const length = Math.hypot(forward, strafe) || 1;
+    const sprint = keys.has('shift');
+    const speed = (sprint ? 5.5 : 3.0) * delta;
+    const normalizedForward = forward / length;
+    const normalizedStrafe = strafe / length;
 
-    const speed = 2.5 * delta;
-    const previous = originRef.current.position.clone();
-    const next = previous.clone();
+    if (forward || strafe) {
+      const moveX = -Math.sin(yaw.current) * normalizedForward + Math.cos(yaw.current) * normalizedStrafe;
+      const moveZ = -Math.cos(yaw.current) * normalizedForward - Math.sin(yaw.current) * normalizedStrafe;
+      let nextX = camera.position.x + moveX * speed;
+      let nextZ = camera.position.z + moveZ * speed;
 
-    next.x += strafe * speed;
-    next.z -= forward * speed;
+      if (collisionEnabled) {
+        if (movementBlockedByWalls(camera.position.x, camera.position.z, nextX, camera.position.z, walls, modelTransform)) {
+          nextX = camera.position.x;
+        }
+        if (movementBlockedByWalls(nextX, camera.position.z, nextX, nextZ, walls, modelTransform)) {
+          nextZ = camera.position.z;
+        }
+      }
 
-    const blocked =
-      collisionEnabled &&
-      movementBlockedByWalls(previous.x, previous.z, next.x, next.z, walls, modelTransform);
+      camera.position.x = nextX;
+      camera.position.z = nextZ;
+    }
 
-    if (!blocked) originRef.current.position.copy(next);
+    const grounded = camera.position.y <= WALKTHROUGH_EYE_HEIGHT;
+    if (keys.has(' ') && grounded) {
+      verticalVelocity.current = 4.5;
+      keys.delete(' ');
+    }
+    verticalVelocity.current -= 9.81 * delta;
+    camera.position.y += verticalVelocity.current * delta;
+    if (camera.position.y <= WALKTHROUGH_EYE_HEIGHT) {
+      camera.position.y = WALKTHROUGH_EYE_HEIGHT;
+      verticalVelocity.current = 0;
+    }
   });
 
   return null;
@@ -465,7 +534,7 @@ export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element {
     leftTracked: false,
     rightTracked: false,
   });
-  const [collisionEnabled, setCollisionEnabled] = useState(true);
+  const [collisionEnabled, setCollisionEnabled] = useState(true);\n  const [walkthroughMode, setWalkthroughMode] = useState(false);
   const [controllerState, setControllerState] = useState<ControllerConnectionState>('connecting');
   const [viewCorrectionCommand, setViewCorrectionCommand] = useState<ViewCorrectionCommand>({
     id: 0,
@@ -620,20 +689,24 @@ export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element {
             ))}
           </group>
           <IfInSessionMode deny={['immersive-ar', 'immersive-vr']}>
-            <KeyboardSpatialMovement
-              originRef={originRef}
+            <DesktopFirstPersonController
+              active={walkthroughMode}
               walls={walls}
               modelTransform={modelTransform}
               collisionEnabled={collisionEnabled}
+              spawnPosition={fallbackCamera}
+              targetPosition={fallbackTarget}
             />
-            <OrbitControls
-              target={fallbackTarget}
-              enablePan
-              enableZoom
-              enableRotate
-              minPolarAngle={0.45}
-              maxPolarAngle={1.5}
-            />
+            {!walkthroughMode && (
+              <OrbitControls
+                target={fallbackTarget}
+                enablePan
+                enableZoom
+                enableRotate
+                minPolarAngle={0.45}
+                maxPolarAngle={1.5}
+              />
+            )}
           </IfInSessionMode>
         </XR>
       </Canvas>
@@ -742,6 +815,14 @@ export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element {
           className="rounded-lg bg-slate-700 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-600"
         >
           Reset view
+        </button>
+        <button
+          type="button"
+          onClick={() => setWalkthroughMode((enabled) => !enabled)}
+          aria-pressed={walkthroughMode}
+          className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${walkthroughMode ? 'bg-indigo-600 text-white hover:bg-indigo-500' : 'bg-slate-700 text-white hover:bg-slate-600'}`}
+        >
+          {walkthroughMode ? 'Exit Walkthrough' : 'First-Person Walk'}
         </button>
         <button
           type="button"
