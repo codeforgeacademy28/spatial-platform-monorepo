@@ -83,6 +83,8 @@ function isAllowedForAssetType(assetType: 'model' | 'image' | 'blueprint', exten
 }
 
 const router = Router();
+
+router.post('/api/uploads', upload.single('file') as any, async (req: Request, res) => {
   const parsed = assetTypeSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: 'invalid asset type', details: parsed.error.flatten() });
