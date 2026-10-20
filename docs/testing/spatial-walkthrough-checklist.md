@@ -14,6 +14,15 @@ Run this checklist on the latest deployed build after the engineering gate passe
 - [ ] Toggle collision off/on and confirm the HUD reflects the actual state.
 - [ ] Exit first-person mode and confirm orbit controls work again.
 
+## Editable 3D model import
+
+- [ ] Import a valid GLB into Spatial View; verify it appears in the viewport and is centered horizontally with its base on the floor.
+- [ ] Use Translate, Rotate, and Scale gizmos; verify the imported model can be transformed independently of walls.
+- [ ] Import a self-contained glTF with embedded/data-URI resources.
+- [ ] Import a glTF with external texture/buffer paths; verify the UI explains that a single-file GLB or packaged resources are required.
+- [ ] Import a malformed model; verify a readable error is shown and the existing building remains usable.
+- [ ] Confirm the current implementation does not claim imported assets persist after reload; persistence is still pending.
+
 ## Upload validation
 
 - [ ] Upload a valid GLB and confirm it is accepted as a source asset.
