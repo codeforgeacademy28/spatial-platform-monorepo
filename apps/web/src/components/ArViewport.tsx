@@ -13,7 +13,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { MutableRefObject, ReactNode } from 'react';
 import * as THREE from 'three';
 import type { Group } from 'three';
-import { generateRoomFloorMesh } from '@spatial/geometry-engine';
+import { generateRoomFloorMesh, worldToFloorPlan } from '@spatial/geometry-engine';
 import type { Room, WallSegment } from '@spatial/core';
 import {
   ControllerLocomotionClient,
@@ -181,17 +181,8 @@ function sceneToLayoutPosition(
   sceneZ: number,
   modelTransform: [number, number, number],
 ): { x: number; z: number } {
-  const dx = sceneX - modelTransform[0];
-  const dz = sceneZ - modelTransform[2];
-  const cos = Math.cos(MODEL_YAW_RADIANS);
-  const sin = Math.sin(MODEL_YAW_RADIANS);
-
-  // Invert the model group's +90° yaw to return to floor-plan coordinates.
-  // Three.js Y rotation maps local (x, z) to world (cos*x + sin*z, -sin*x + cos*z).
-  return {
-    x: cos * dx - sin * dz,
-    z: sin * dx + cos * dz,
-  };
+  const layoutPoint = worldToFloorPlan(sceneX, sceneZ, modelTransform, MODEL_YAW_RADIANS);
+  return { x: layoutPoint.x, z: layoutPoint.y };
 }
 
 function movementBlockedByWalls(
