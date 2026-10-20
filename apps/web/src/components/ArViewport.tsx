@@ -13,7 +13,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { MutableRefObject, ReactNode } from 'react';
 import * as THREE from 'three';
 import type { Group } from 'three';
-import { generateRoomFloorMesh, worldToFloorPlan } from '@spatial/geometry-engine';
+import { generateRoomFloorMesh, isCircleMovementBlockedByWall, worldToFloorPlan } from '@spatial/geometry-engine';
 import type { Room, WallSegment } from '@spatial/core';
 import {
   ControllerLocomotionClient,
