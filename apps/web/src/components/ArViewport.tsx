@@ -568,9 +568,8 @@ export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element {
     },
     [],
   );
-  useEffect(() => {
-    if (tracking.sessionActive) requestViewCorrection('level');
-  }, [requestViewCorrection, tracking.sessionActive]);
+  // Do not auto-level an immersive AR camera: its pose is device-tracked.
+  // Manual correction remains available for explicit user calibration only.
   const modelTransform = useMemo<[number, number, number]>(() => {
     if (!walls.length) return [0, 0, -4];
 
