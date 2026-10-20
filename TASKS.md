@@ -327,3 +327,23 @@
      - Zero hardcoded relative path aliases exist (`fileURLToPath('../../node_modules/...')`).
   4. Test monorepo build pipeline by running `npx turbo build` from the repository root.
 - **Acceptance Criteria**: `npx turbo build` builds `@spatial/core`, `@spatial/geometry-engine`, `@spatial/collaboration`, `@spatial/api`, and `@spatial/web` with exit code 0 and outputs production bundles to `dist/`.
+
+---
+
+## Phase 7–11: First-Person Walkthrough, Universal Import & AR Placement
+
+The detailed task plan, priorities, file targets, test requirements, and acceptance criteria are maintained in [docs/spatial-walkthrough-roadmap.md](docs/spatial-walkthrough-roadmap.md).
+
+### Immediate P0 tasks
+- [ ] **TASK-701**: Canonical world coordinate contract and transform tests.
+- [ ] **TASK-702**: Deterministic wall collision, swept movement, wall sliding, and openings.
+- [ ] **TASK-703**: Game-style first-person desktop controls.
+- [ ] **TASK-801**: Honest upload validation for real supported formats.
+- [ ] **TASK-802**: GLB/GLTF import into an editable scene.
+- [ ] **TASK-901**: AR surface placement preview and explicit confirmation.
+- [ ] **TASK-902**: Real-world scale and floor alignment.
+- [ ] **TASK-1003**: Persist scene assets and source references with backward-compatible schema migration.
+- [ ] **TASK-1101**: Automated coordinate, collision, import, and migration regression tests.
+- [ ] **TASK-1102**: Browser and physical-device AR validation checklist.
+
+**Completion rule:** a task stays unchecked until its acceptance criteria and applicable tests pass. See the roadmap for P1/P2 tasks and full substeps.
