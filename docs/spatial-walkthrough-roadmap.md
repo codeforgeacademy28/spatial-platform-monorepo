@@ -1,16 +1,16 @@
 # Spatial Platform: Walkthrough, Import & AR Roadmap
 
-## Current branch implementation (pending validation)
+## Current branch implementation status
 
-The current draft PR includes the first foundation changes below. These do not mark the broader roadmap tasks complete until CI and the applicable runtime checks pass.
+This is a live engineering roadmap. A checkbox is only marked complete when its acceptance criteria and relevant automated tests pass; physical-device checks remain explicitly manual.
 
-- Shared floor-plan/world transform helpers and deterministic tests for quarter-turn rotations and the centered model transform.
-- Wall collision now uses the inverse of the rendered group yaw, and movement away from an existing wall-clearance overlap is allowed.
-- A desktop first-person mode with pointer-lock mouse look, normalized WASD movement, sprint, jump/gravity, and axis-separated wall collision. This is an initial controller, not yet a complete physics solution.
-- Upload extension/content validation for common image, PDF, GLB/GLTF, IFC, DXF, OBJ, STL, and DWG source files, with API regression tests. Upload acceptance is not the same as conversion into an editable scene.
-- Root/Turbo test command wiring and the explicit task backlog below.
+- **Implemented and previously CI-verified:** canonical floor-plan/world transform helpers and quarter-turn/centered-layout regression tests (Engineering Gate run 159).
+- **Implemented in this follow-up; CI validation pending:** extracted swept-circle wall collision queries with tests for fast wall crossing, parallel movement, recovery away from a wall, movement deeper into overlap, and non-finite inputs. The viewport now calls the shared geometry-engine collision helper.
+- **Implemented foundation:** desktop first-person mode with pointer-lock mouse look, normalized WASD movement, sprint, jump/gravity, and axis-separated collision. This is not yet a full game physics controller; corner sliding, step/crouch rules, and opening-aware collision remain open.
+- **Implemented and previously CI-verified:** upload extension/content validation and API tests for common image, PDF, GLB/GLTF, IFC, DXF, OBJ, STL, and DWG source files. Upload acceptance is not conversion into an editable scene.
+- **Documentation in place:** prioritized task plan, proposed coordinate/import ADR, and manual smoke checklist.
 
-Validation is still pending: the latest draft changes have not yet been confirmed by a completed CI run, and AR placement requires testing on supported physical hardware.
+**Still not complete:** editable GLB/GLTF scene import, IFC/CAD conversion, 2D plan tracing into reviewed geometry, reusable editable building components, multi-floor/stair traversal, persistent scene-asset schema, door/window-aware collision geometry, confirmed AR hit-test placement/anchors/scale, and physical-device AR validation. Do not represent source-file upload as model conversion.
 
 ---
 
