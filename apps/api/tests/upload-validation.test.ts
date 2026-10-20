@@ -19,6 +19,8 @@ test('GLB and GLTF are validated by their actual content, not just MIME type', (
   glb.writeUInt32LE(2, 4);
   glb.writeUInt32LE(12, 8);
   assert.equal(hasValidContentSignature('.glb', glb), true);
+  glb.writeUInt32LE(100, 8);
+  assert.equal(hasValidContentSignature('.glb', glb), false);
   assert.equal(hasValidContentSignature('.glb', Buffer.from('not a model')), false);
   assert.equal(
     hasValidContentSignature('.gltf', Buffer.from(JSON.stringify({ asset: { version: '2.0' } }))),
