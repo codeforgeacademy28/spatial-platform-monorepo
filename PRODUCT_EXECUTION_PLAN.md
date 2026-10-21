@@ -96,6 +96,8 @@ Treat chat history as transient. Every meaningful change must leave code/commit 
 | Geometry | ✅ COMPLETE | geometry tests |
 | Persistence contract | ✅ COMPLETE | snapshot + source contract |
 | PR #27 | ✅ MERGED | main deployment READY |
+| PR #65 walkthrough foundation | ✅ MERGED | merge commit `aebd83e` |
+| PR #57 XR lifecycle/navigation | ✅ MERGED | merge commit `6c09a07`; Vercel success; browser/XR acceptance pending |
 | R2.1 Desktop locomotion | 🟡 BUILD GREEN | browser acceptance |
 | R2.2 Wall collision | 🟢 BUILD GREEN | browser acceptance |
 | R2.3 XR floor/framing/test mode | 🟢 BUILD GREEN | browser/XR acceptance |
@@ -104,4 +106,4 @@ Treat chat history as transient. Every meaningful change must leave code/commit 
 | Release confidence | ⏸️ WAITING | R2.4 + Supabase + browser/XR gates |
 
 ## Current next action
-Engineering Gate #99 and preview reachability are green, but interactive browser/file-picker/canvas and native WebXR acceptance are unavailable in this agent surface. Obtain external real-browser/device evidence for the full R2.2/R2.3 matrix; do not start P1, advance to R2.4, or merge PR #57 until those gates are evidenced.
+PR #65 and PR #57 are merged. Vercel reports success for the PR #57 merge commit, while interactive browser/file-picker/canvas and native WebXR acceptance remain unverified in this agent surface. Obtain external real-browser/device evidence for the full R2.2/R2.3 matrix before marking those gates complete or advancing release confidence. P1 remains behind functional acceptance.
