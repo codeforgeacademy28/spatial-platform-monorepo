@@ -57,3 +57,58 @@ export function isCircleMovementBlockedByWall(
   const nextSide = cross(wx, wy, next.x - wall.start.x, next.y - wall.start.y);
   return previousSide * nextSide <= 0;
 }
+
+
+/**
+ * Resolves a requested player-circle movement against solid wall segments.
+ * When direct movement collides, it advances to the last safe point and
+ * projects the remaining motion onto the colliding wall tangent. Repeating a
+ * small bounded number of times allows sliding around wall ends/corners while
+ * never accepting a segment that the swept-circle query marks as blocked.
+ * Coordinates and wall dimensions must use the same units (normally meters).
+ */
+export function resolveCircleMovementWithWallSliding(
+  previous: CollisionPoint2D,
+  requested: CollisionPoint2D,
+  walls: CollisionWall2D[],
+  playerRadius: number,
+): CollisionPoint2D {
+  if (![previous.x, previous.y, requested.x, requested.y, playerRadius].every(Number.isFinite) || playerRadius < 0) {
+    return { ...previous };
+  }
+  if (walls.some((wall) => isCircleMovementBlockedByWall(previous, requested, wall, playerRadius))) {
+    let current = { ...previous };
+    let target = { ...requested };
+    for (let iteration = 0; iteration < 4; iteration += 1) {
+      const dx = target.x - current.x;
+      const dy = target.y - current.y;
+      if (Math.hypot(dx, dy) < 1e-7) break;
+      const blockingWall = walls.find((wall) => isCircleMovementBlockedByWall(current, target, wall, playerRadius));
+      if (!blockingWall) return target;
+
+      let low = 0;
+      let high = 1;
+      for (let step = 0; step < 24; step += 1) {
+        const middle = (low + high) / 2;
+        const candidate = { x: current.x + dx * middle, y: current.y + dy * middle };
+        if (walls.some((wall) => isCircleMovementBlockedByWall(current, candidate, wall, playerRadius))) high = middle;
+        else low = middle;
+      }
+      current = { x: current.x + dx * low, y: current.y + dy * low };
+
+      const wallX = blockingWall.end.x - blockingWall.start.x;
+      const wallY = blockingWall.end.y - blockingWall.start.y;
+      const wallLength = Math.hypot(wallX, wallY);
+      if (wallLength < 1e-8) break;
+      const tangentX = wallX / wallLength;
+      const tangentY = wallY / wallLength;
+      const remainingX = requested.x - current.x;
+      const remainingY = requested.y - current.y;
+      const alongWall = remainingX * tangentX + remainingY * tangentY;
+      target = { x: current.x + tangentX * alongWall, y: current.y + tangentY * alongWall };
+      if (walls.every((wall) => !isCircleMovementBlockedByWall(current, target, wall, playerRadius))) return target;
+    }
+    return current;
+  }
+  return { ...requested };
+}
