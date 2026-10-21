@@ -1,5 +1,11 @@
 # Next Release Task Ledger
 
+## Current delivery state — 2026-10-21
+- PR #65 merged to `main` at `aebd83e698af024cf98490f8cb386f62399faa1e`: canonical coordinate transforms, swept collision, initial first-person controls, wall-sliding resolver, editable local GLB/glTF import, browser-local IndexedDB persistence, and upload signature validation.
+- PR #57 merged to `main` at `6c09a07bbb0411dfa11feb2396e814f402b0cf2d`: explicit XR session entry (`offerSession: false`), XR re-entry disabled, opt-in `?xrTest=1` emulation, and geometry-engine browser navigation collision.
+- Vercel reports success for the PR #57 merge commit. No PRs remain open.
+- Real-browser interaction and physical WebXR acceptance are still pending; merge/build evidence does not mark those checks passed.
+
 ## R2.2 — Wall collision integrity
 **Goal:** Make browser wall collision physically trustworthy and testable.
 **Tasks:**
