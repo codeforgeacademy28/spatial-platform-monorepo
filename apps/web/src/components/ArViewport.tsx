@@ -39,8 +39,12 @@ type ViewCorrectionCommand =
   | { id: number; action: 'level' | 'reset' }
   | { id: number; action: 'pitch' | 'roll'; degrees: number };
 
+const xrTestMode = new URLSearchParams(window.location.search).get('xrTest') === '1';
+
 const xrStore = createXRStore({
-  offerSession: 'immersive-ar',
+  offerSession: false,
+  enterGrantedSession: false,
+  emulate: xrTestMode,
   hand: false,
   controller: { left: { teleportPointer: true }, right: { teleportPointer: true } },
   secondaryInputSources: true,
