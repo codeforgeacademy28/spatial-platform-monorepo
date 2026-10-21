@@ -102,8 +102,8 @@ export function resolveCircleMovementWithWallSliding(
       if (wallLength < 1e-8) break;
       const tangentX = wallX / wallLength;
       const tangentY = wallY / wallLength;
-      const remainingX = requested.x - current.x;
-      const remainingY = requested.y - current.y;
+      const remainingX = target.x - current.x;
+      const remainingY = target.y - current.y;
       const alongWall = remainingX * tangentX + remainingY * tangentY;
       target = { x: current.x + tangentX * alongWall, y: current.y + tangentY * alongWall };
       if (walls.every((wall) => !isCircleMovementBlockedByWall(current, target, wall, playerRadius))) return target;
