@@ -336,14 +336,14 @@ The detailed task plan, priorities, file targets, test requirements, and accepta
 
 ### Immediate P0 tasks
 - [x] **TASK-701**: Canonical world coordinate contract and transform tests (Engineering Gate run 159 passed).
-- [ ] **TASK-702**: Deterministic wall collision, swept movement, wall sliding, and openings. Swept collision helper and regression tests are implemented; current gate must pass, and wall sliding/opening-aware collision still need implementation.
+- [ ] **TASK-702**: Deterministic wall collision, swept movement, wall sliding, and openings. Swept-circle collision and a bounded tangent-projection resolver are implemented; desktop first-person movement uses the resolver, with regression tests added. Keep open until the new CI gate passes and corner/door-window opening behavior is completed.
 - [ ] **TASK-703**: Game-style first-person desktop controls. Initial mouse-look/WASD/sprint/jump foundation is implemented; full acceptance still requires pause/reset/crouch/step rules and runtime verification.
 - [ ] **TASK-801**: Honest upload validation for real supported formats. Initial signature/extension checks and tests are implemented; format conversion remains separate.
 - [ ] **TASK-802**: GLB/GLTF import into an editable scene. Local GLB/self-contained glTF loading, floor alignment, translate/rotate/scale gizmos, browser IndexedDB save/reload, and explicit removal are implemented; Engineering Gate run 169 passed for the implementation commit. Project/server/share/version synchronization, progress/preview, external-resource packaging, and end-to-end browser testing remain.
 - [ ] **TASK-901**: AR surface placement preview and explicit confirmation.
 - [ ] **TASK-902**: Real-world scale and floor alignment.
 - [ ] **TASK-1003**: Persist scene assets and source references with backward-compatible schema migration.
-- [ ] **TASK-1101**: Automated coordinate, collision, import, and migration regression tests. Coordinate/upload tests passed previously; collision tests are awaiting the current gate, and import/migration coverage remains.
+- [ ] **TASK-1101**: Automated coordinate, collision, import, and migration regression tests. Coordinate/upload tests passed previously; collision tests now include wall sliding and are awaiting the current CI gate; import/migration coverage remains.
 - [ ] **TASK-1102**: Browser and physical-device AR validation checklist. Checklist is written; device verification is not yet performed.
 
 **Completion rule:** a task stays unchecked until its acceptance criteria and applicable tests pass. See the roadmap for P1/P2 tasks and full substeps.
