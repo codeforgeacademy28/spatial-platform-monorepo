@@ -6,7 +6,7 @@ This is a live engineering roadmap. A checkbox is only marked complete when its 
 
 - **Implemented and previously CI-verified:** canonical floor-plan/world transform helpers and quarter-turn/centered-layout regression tests (Engineering Gate run 159).
 - **CI-verified in Engineering Gate run 163:** extracted swept-circle wall collision queries with tests for fast wall crossing, parallel movement, recovery away from a wall, movement deeper into overlap, and non-finite inputs. The viewport calls the shared geometry-engine collision helper.
-- **Implemented foundation:** desktop first-person mode with pointer-lock mouse look, normalized WASD movement, sprint, jump/gravity, and axis-separated collision. This is not yet a full game physics controller; corner sliding, step/crouch rules, and opening-aware collision remain open.
+- **Implemented foundation:** desktop first-person mode with pointer-lock mouse look, normalized WASD movement, sprint, jump/gravity, swept-circle collision, and a tested-in-code wall-sliding resolver that advances to a safe point and projects remaining movement along the blocking wall. Regression tests cover diagonal sliding, unobstructed motion, and invalid input; current CI validation is pending. This is not yet a full game physics controller; corner robustness, step/crouch rules, and door/window-aware collision remain open.
 - **CI-verified in Engineering Gate run 159:** upload extension/content validation and API tests for common image, PDF, GLB/GLTF, IFC, DXF, OBJ, STL, and DWG source files. Upload acceptance is not conversion into an editable scene.
 - **Implemented; current Engineering Gate run 169 pending:** local GLB and self-contained glTF import in Spatial View, bounds centered horizontally with the base on the floor, translate/rotate/scale gizmos, and browser-local IndexedDB persistence of the original file and transform. The saved model is restored after reload and can be explicitly removed. This storage is browser/device-local, not synchronized with project/server/share/version data. External-resource glTF, IFC/CAD conversion, and arbitrary-format conversion are not implemented.
 - **Documentation in place:** prioritized task plan, proposed coordinate/import ADR, and manual smoke checklist.
@@ -46,6 +46,8 @@ Turn Spatial Platform into a persistent building-design sandbox with a game-qual
 - **Acceptance:** Player cannot cross solid walls at normal or sprint speed; can slide along walls; can move away after spawn/teleport near a wall; doors remain traversable only through defined openings.
 - [ ] Implement
 - [ ] Test
+
+Recent progress: desktop controller now uses the shared `resolveCircleMovementWithWallSliding` geometry helper. New automated tests are added, but TASK-702 remains open until the CI run confirms them and door/window opening behavior is implemented.
 
 ### TASK-703 — First-person desktop controls
 - **Priority:** P0
