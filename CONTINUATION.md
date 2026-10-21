@@ -12,13 +12,13 @@ Ship a reliable blueprint-to-spatial product where a user can upload a blueprint
 - Detailed architecture/status: `docs/PROJECT_STATE.md`
 - Execution method: `docs/AI_WORK_PROTOCOL.md`
 - Product-owner mode: `.github/SPATIAL_PRODUCT_OWNER_MODE.md`
-- Active PR: **#57** (`fix/xr-browser-spatial-navigation`)
+- Active PR: **none**. PR #65 (walkthrough foundation) and PR #57 (XR lifecycle/navigation) are both merged into `main`.
 - Target branch: `main`
 
 ## Current branch state
-Current branch: `fix/xr-browser-spatial-navigation`
-Current PR head before this state commit: `3a5af4cbedc7cc8f85327052699cf96ee9efff2d`.
-PR #57 remains open and mergeable; **do not merge until R2.2/R2.3 browser/XR acceptance passes.**
+Current branch: `main`.
+Latest relevant merge commit: `6c09a07bbb0411dfa11feb2396e814f402b0cf2d` (PR #57); PR #65 merge commit: `aebd83e698af024cf98490f8cb386f62399faa1e`.
+Both PRs are merged and no PRs are currently open. Vercel reports success for the PR #57 merge commit. This does not replace the remaining interactive browser and physical WebXR acceptance gates.
 
 ## Last verified build state
 - PR #27 is merged into `main`.
@@ -70,7 +70,7 @@ PR #57 remains open and mergeable; **do not merge until R2.2/R2.3 browser/XR acc
 - Result: no R2.2/R2.3 interactive acceptance item is marked PASS from this attempt. Native XR remains a hardware gate.
 
 ## Immediate next action
-Obtain external real-browser/device evidence for the remaining R2.2/R2.3 matrix. The current agent surface can verify preview reachability but cannot complete native file-picker/canvas interaction or WebXR hardware acceptance. Do not merge, advance to R2.4, or start P1 until the remaining browser/XR evidence exists.
+Run the remaining R2.2/R2.3 acceptance matrix in a real browser and supported WebXR device. The current agent surface verified the merge deployment status but could not complete interactive file-picker/canvas interaction or native WebXR hardware acceptance. Keep those acceptance items open; do not claim them complete from build/deployment evidence alone.
 
 ## After this gate
 - R2.4 combined Spatial regression gate.
@@ -86,7 +86,7 @@ Obtain external real-browser/device evidence for the remaining R2.2/R2.3 matrix.
 - Do not manually split Zod/Zustand into a single vendor chunk.
 - Do not hand-edit lockfiles when npm can regenerate them.
 - Do not invent XR options from a newer package version than installed 6.6.30.
-- Do not merge PR #57 while its active browser/XR gate is red or unverified.
+- Merging code does not mark browser/XR acceptance complete; retain external acceptance gates until actually exercised.
 - Do not mark browser/hardware acceptance passed from source/build evidence alone.
 - Do not trigger unnecessary Vercel deployments while the free-tier daily deployment limit is exhausted.
 
