@@ -339,7 +339,7 @@ The detailed task plan, priorities, file targets, test requirements, and accepta
 - [ ] **TASK-702**: Deterministic wall collision, swept movement, wall sliding, and openings. Swept collision helper and regression tests are implemented; current gate must pass, and wall sliding/opening-aware collision still need implementation.
 - [ ] **TASK-703**: Game-style first-person desktop controls. Initial mouse-look/WASD/sprint/jump foundation is implemented; full acceptance still requires pause/reset/crouch/step rules and runtime verification.
 - [ ] **TASK-801**: Honest upload validation for real supported formats. Initial signature/extension checks and tests are implemented; format conversion remains separate.
-- [ ] **TASK-802**: GLB/GLTF import into an editable scene. Initial local GLB and self-contained glTF loading with floor alignment and translate/rotate/scale gizmos is implemented and CI-verified; project persistence, reload, explicit remove, and import-resource lifecycle still need completion.
+- [ ] **TASK-802**: GLB/GLTF import into an editable scene. Local GLB/self-contained glTF loading, floor alignment, translate/rotate/scale gizmos, browser IndexedDB save/reload, and explicit removal are implemented; current Engineering Gate run 169 is pending. Project/server/share/version synchronization, progress/preview, external-resource packaging, and end-to-end browser testing remain.
 - [ ] **TASK-901**: AR surface placement preview and explicit confirmation.
 - [ ] **TASK-902**: Real-world scale and floor alignment.
 - [ ] **TASK-1003**: Persist scene assets and source references with backward-compatible schema migration.
