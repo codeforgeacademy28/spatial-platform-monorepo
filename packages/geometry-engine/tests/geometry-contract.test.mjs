@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { detectClosedRooms, extrudeWallSegment, generateRoomFloorMesh } from '../dist/index.js';
+import { detectClosedRooms, extrudeWallSegment, generateRoomFloorMesh, collidesWithWallPosition, movementBlockedByWalls, resolveMovementWithWalls } from '../dist/index.js';
 
 function wall(id, start, end) {
   return {
@@ -68,4 +68,23 @@ test('near-matching endpoints within tolerance still form one room', () => {
   const rooms = detectClosedRooms(slightlyClosed);
   assert.equal(rooms.length, 1);
   assert.equal(rooms[0].wallSegments.length, 4);
+});
+
+test('wall collision blocks a position that enters the wall clearance', () => {
+  const boundary = wall('boundary', { x: 0, y: -2 }, { x: 0, y: 2 });
+  assert.equal(collidesWithWallPosition(0.1, 0, [boundary]), true);
+  assert.equal(collidesWithWallPosition(1, 0, [boundary]), false);
+});
+
+test('swept wall collision blocks a movement that would cross a wall in one frame', () => {
+  const boundary = wall('boundary', { x: 0, y: -2 }, { x: 0, y: 2 });
+  assert.equal(movementBlockedByWalls(-0.5, 0, 1, 0, [boundary]), true);
+  assert.equal(movementBlockedByWalls(-1, 3, 1, 0, [boundary]), false);
+});
+
+test('diagonal movement into an angled wall is blocked or reduced to a safe slide', () => {
+  const diagonalWall = wall('diagonal', { x: 0, y: 0 }, { x: 2, y: 2 });
+  const resolved = resolveMovementWithWalls(0.5, -0.1, { x: 0.2, y: 0.5 }, [diagonalWall]);
+  assert.ok(Math.hypot(resolved.x, resolved.y) < Math.hypot(0.2, 0.5));
+  assert.equal(movementBlockedByWalls(0.5, -0.1, resolved.x, resolved.y, [diagonalWall]), false);
 });
