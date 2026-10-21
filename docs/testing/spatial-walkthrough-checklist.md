@@ -21,7 +21,10 @@ Run this checklist on the latest deployed build after the engineering gate passe
 - [ ] Import a self-contained glTF with embedded/data-URI resources.
 - [ ] Import a glTF with external texture/buffer paths; verify the UI explains that a single-file GLB or packaged resources are required.
 - [ ] Import a malformed model; verify a readable error is shown and the existing building remains usable.
-- [ ] Confirm the current implementation does not claim imported assets persist after reload; persistence is still pending.
+- [ ] Reload the page and verify the saved model file and translate/rotate/scale transform are restored from browser IndexedDB.
+- [ ] Use Remove model and reload; verify the previously saved model does not return.
+- [ ] Simulate IndexedDB unavailable/quota failure; verify the UI reports that local persistence failed rather than claiming it was saved.
+- [ ] Confirm the UI/documentation explains that this storage is local to the browser/device and is not synced to project save/load, server, sharing, or versions.
 
 ## Upload validation
 
