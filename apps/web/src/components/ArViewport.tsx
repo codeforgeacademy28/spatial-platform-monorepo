@@ -16,7 +16,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { MutableRefObject, ReactNode } from 'react';
 import * as THREE from 'three';
 import type { Group } from 'three';
-import { generateRoomFloorMesh, isCircleMovementBlockedByWall, worldToFloorPlan } from '@spatial/geometry-engine';
+import { floorPlanToWorld, generateRoomFloorMesh, isCircleMovementBlockedByWall, resolveCircleMovementWithWallSliding, worldToFloorPlan } from '@spatial/geometry-engine';
 import type { Room, WallSegment } from '@spatial/core';
 import {
   ControllerLocomotionClient,
@@ -136,6 +136,26 @@ function movementBlockedByWalls(
     wall,
     XR_PLAYER_RADIUS,
   ));
+}
+
+function resolveMovementWithWallSliding(
+  previousSceneX: number,
+  previousSceneZ: number,
+  requestedSceneX: number,
+  requestedSceneZ: number,
+  walls: WallSegment[],
+  modelTransform: [number, number, number],
+): { x: number; z: number } {
+  const previous = sceneToLayoutPosition(previousSceneX, previousSceneZ, modelTransform);
+  const requested = sceneToLayoutPosition(requestedSceneX, requestedSceneZ, modelTransform);
+  const resolved = resolveCircleMovementWithWallSliding(
+    { x: previous.x, y: previous.z },
+    { x: requested.x, y: requested.z },
+    walls,
+    XR_PLAYER_RADIUS,
+  );
+  const world = floorPlanToWorld(resolved, modelTransform, MODEL_YAW_RADIANS);
+  return { x: world.x, z: world.z };
 }
 
 function XRLocomotion({
@@ -381,12 +401,16 @@ function DesktopFirstPersonController({
       let nextZ = camera.position.z + moveZ * speed;
 
       if (collisionEnabled) {
-        if (movementBlockedByWalls(camera.position.x, camera.position.z, nextX, camera.position.z, walls, modelTransform)) {
-          nextX = camera.position.x;
-        }
-        if (movementBlockedByWalls(nextX, camera.position.z, nextX, nextZ, walls, modelTransform)) {
-          nextZ = camera.position.z;
-        }
+        const resolved = resolveMovementWithWallSliding(
+          camera.position.x,
+          camera.position.z,
+          nextX,
+          nextZ,
+          walls,
+          modelTransform,
+        );
+        nextX = resolved.x;
+        nextZ = resolved.z;
       }
 
       camera.position.x = nextX;
