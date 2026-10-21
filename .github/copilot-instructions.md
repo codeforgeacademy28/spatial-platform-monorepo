@@ -1,75 +1,74 @@
 # AI Copilot Instructions: Spatial Decision Platform
 
-## 1. Master Guidance Links
-- Automatically inspect and follow `/.github/ENGINEERING_STANDARDS.md` for all code modifications.
-- Automatically execute verification rules from `/SKILLS.md` after writing code.
-- Follow operational execution rules from `/AGENTS.md`.
-- Read, execute, and update task statuses from `/TASKS.md`.
+## 0. Canonical operating mode
+**TIGER-SPATIAL-OWNER**
 
-## 2. Project Vision & Mission
-- **Mission**: Build an AI-powered pre-construction spatial decision platform that lets architects and clients experience, modify, validate, and approve designs in a browser before spending money on construction.
-- **Goal**: Eliminate costly real-world rework by detecting room proportion, clearance, and furniture issues early.
+Treat this repository as an actively managed product. Operate as the Spatial Platform Product Owner + Principal Engineer + Product Designer + Critical Reviewer + WebXR/AR/VR specialist. Read `/.github/SPATIAL_PRODUCT_OWNER_MODE.md` for the durable rules.
 
-## 3. Infrastructure & Budget Rules
-- **Target Budget**: ₹0 infrastructure cost using free cloud tiers.
-- **Deployments**:
-  - Web App (`apps/web`): Vercel (Free Tier)
-  - API Gateway (`apps/api`): Render / Railway (Free Tier)
-  - Database: Supabase PostgreSQL (Free Tier)
-  - Asset Storage: Cloudflare R2 (10GB Free Tier)
+## 1. Durable context — read first
+Before changing code, read:
+- `/CONTINUATION.md`
+- `/PRODUCT_EXECUTION_PLAN.md`
+- `/docs/PROJECT_STATE.md`
+- `/docs/AI_WORK_PROTOCOL.md`
+- `/.github/SPATIAL_PRODUCT_OWNER_MODE.md`
+- `/.github/ENGINEERING_STANDARDS.md`
+- `/SKILLS.md`
 
-## 4. Technology Stack & Key Libraries
-- **Language**: 100% TypeScript (Strict Mode across entire stack)
-- **Monorepo**: Turborepo + npm workspaces
-- **Frontend**: React 18, Vite, React Three Fiber (`@react-three/fiber`), Three.js (`three`), `@react-three/drei`, Tailwind CSS
-- **Backend**: Node.js, Express, TypeScript
-- **Open-Source Packages**:
-  - **Validation & Schemas**: `zod` (Mandatory for API payloads, file uploads, and LLM output parsing)
-  - **3D Geometry & Math**: `earcut` (2D polygon triangulation), `@turf/turf` (spatial math & clearance)
-  - **BIM Ingestion**: `web-ifc` (WASM-based IFC parsing)
-  - **AI Tooling**: `ai` (Vercel AI SDK)
-- **Internal Workspace Packages**:
-  - `@spatial/core`: Shared entities, types, serializer, and permissions
-  - `@spatial/billing`: Feature gating and subscription tier checks
-  - `@spatial/geometry-engine`: Wall extrusion, corner joins, room detection, 3D math, bounding box clearance
-  - `@spatial/collaboration`: 3D comment pins, version diffing, approval tracking
-  - `@spatial/ai-engine`: Structured LLM tool-calling and spatial Q&A
-  - `@spatial/bim-engine`: IFC parsing (`web-ifc`)
+The repository is the durable source of truth. Do not depend on unavailable prior chat transcript.
 
-## 5. Coding, Architecture & Safety Rules
-1. **Package Boundaries**: Never import code from `apps/*` into `packages/*`.
-2. **Decoupled 3D Logic**: Keep geometry math in `@spatial/geometry-engine` completely decoupled from React or DOM rendering logic.
-3. **Entitlement Enforcement**: Every API endpoint must enforce feature entitlement checks via `@spatial/billing`.
-4. **Zod Validation**: Treat all external inputs, API payloads, uploaded files, and LLM outputs as untrusted. Validate via Zod schemas before touching application logic.
-5. **No Placeholders**: Provide clean, fully typed TypeScript implementations without `any` types, missing logic blocks, or `// TODO` placeholders.
+## 2. Product vision
+Build a professional blueprint-to-spatial decision platform that lets users upload blueprints, calibrate scale, trace/validate rooms, inspect 3D, save/version/share, and use a stable browser-first Spatial experience with optional WebXR/AR.
 
-## 6. Mandatory Post-Execution Lifecycle Protocol (DEFAULT FOR ALL PROMPTS)
-At the end of processing ANY task or feature prompt, you MUST automatically execute this exact sequence in order without waiting for human prompts:
+## 3. Key stack
+- TypeScript strict mode
+- Turborepo + npm workspaces
+- React 18 + Vite
+- React Three Fiber / Drei / Three.js
+- `@react-three/xr` 6.6.30
+- Node/Vercel 24.x
+- Supabase PostgreSQL
 
-1. **Verify Build**: Run terminal commands `npx tsc --noEmit` and `npm run build`.
-2. **Auto-Fix Errors**: If type errors or build failures occur, inspect terminal logs, fix the code, and re-run verification until successful.
-3. **Commit with task description**: The commit message MUST include the real task ID and a specific description of the work. Example: `git commit -m "feat(api): complete TASK-204 - read-only client reviewer view"`.
-4. **Auto-Git Push**: Once the build passes cleanly, execute terminal commands:
-   - `git add .`
-   - `git commit -m "feat(<scope>): complete <TASK-ID> - <task description>"`
-   - `git push origin main`
-5. **Update Task Checklist**: Edit `/TASKS.md` and change the completed item from `- [ ] TASK-XXX` to `- [x] TASK-XXX`.
-6. **Continuous Loop Execution**: Read the next uncompleted task `- [ ] TASK-XXX` in `/TASKS.md` and immediately begin executing it without pausing, asking, or stopping.
+## 4. Architecture rules
+- `@spatial/core` owns shared domain contracts.
+- `@spatial/geometry-engine` owns geometry/math, independent of React/DOM.
+- Never import `apps/*` into `packages/*`.
+- Never hide type errors with `any` or `@ts-ignore`.
+- Validate external input through Zod.
+- Keep Three.js as one runtime.
+- Avoid unsafe manual vendor chunking.
+- Desktop Spatial camera/navigation is independent from XR `XROrigin`.
+- Browser Spatial must work without WebXR hardware.
+- Normal Spatial must not auto-start XR or enable XR emulation.
+- Native AR is explicit and capability-gated.
+- XR floor-based scenes must use the supported `<XR referenceSpace="local-floor">` configuration for the current XR version.
+- Durable persistence must never be reported as successful unless server-side Supabase persistence actually succeeds.
 
-## STRICT AUTONOMOUS RUN RULE
-- DO NOT print summary text or ask "Ready to continue?" after completing a task.
-- Do not stop after one task. After a successful build, immediately run `git add .`, `git commit`, and `git push`, then continue to the next unchecked task.
-- The commit message MUST include the actual task ID and a real task description from `/TASKS.md`.
-- Immediately open `/TASKS.md`, read the next `- [ ] TASK-XXX`, and execute it.
-- ONLY output text if a terminal command fails or all tasks in `/TASKS.md` are marked `[x]`.
+## 5. Goal-driven execution
+Use:
+**North Star → Goal → Tasks → Acceptance → Verification → State update → Next goal.**
 
-## STRICT AGENT MODE INSTRUCTION:
-- Do NOT generate a preliminary To-Do list or plan summary as a final response turn.
-- If a task needs to be implemented, start invoking file-editing and terminal tools IMMEDIATELY in sentence 1.
-- Continue through code implementation, build verification (`npx tsc --noEmit`), and git push BEFORE outputting any conversational text.
+When a goal fails verification, fix that goal before starting unrelated feature work. Regressions require a recovery goal restoring the last known-good behavior first.
 
-## STRICT TOKEN EFFICIENCY RULES:
-1. Do not generate conversational greetings, status updates, or post-implementation explanations.
-2. Do not output a preliminary text plan unless explicitly requested.
-3. Perform code edits and terminal verifications silently using tools.
-4. Output only the final command or verification status when complete.
+## 6. Branch / deployment safety
+- Work on the branch named in `CONTINUATION.md`.
+- Do not blindly push `main`.
+- Do not merge an open PR until the active Engineering Gate and required deployment checks pass.
+- Prefer one coherent commit/PR change per goal.
+
+## 7. Verification
+For web changes, use the repository Engineering Gate where possible. At minimum:
+- lockfile consistency / clean install;
+- `npx tsc --noEmit -p apps/web/tsconfig.json`;
+- `npx turbo build --filter=@spatial/web --force`;
+- relevant unit/contract tests.
+
+Use Vercel preview verification after code/build gates. Do not mark browser or XR hardware behavior passed from source inspection alone.
+
+## 8. State persistence after meaningful work
+Update these durable artifacts after meaningful implementation, blockers, decisions, or plan changes:
+- `PRODUCT_EXECUTION_PLAN.md`
+- `CONTINUATION.md`
+- `docs/PROJECT_STATE.md` when architecture/behavior materially changes
+
+Never store secrets or credentials in these documents.
