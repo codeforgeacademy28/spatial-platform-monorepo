@@ -1,13 +1,16 @@
 import { TransformControls } from '@react-three/drei';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import type { ModelTransform } from '../services/local-model-store';
 
 type TransformMode = 'translate' | 'rotate' | 'scale';
 
 interface EditableGltfAssetProps {
   url: string;
   mode: TransformMode;
+  initialTransform: ModelTransform;
+  onTransformChange: (transform: ModelTransform) => void;
   onError: (message: string) => void;
 }
 
@@ -25,14 +28,16 @@ function disposeScene(root: THREE.Object3D): void {
   });
 }
 
-/** Loads a user-selected GLB or self-contained glTF and exposes transform gizmos. */
-export function EditableGltfAsset({ url, mode, onError }: EditableGltfAssetProps): JSX.Element | null {
-  const [scene, setScene] = useState<THREE.Group | null>(null);
+/** Loads a local GLB or self-contained glTF and exposes persistent transform gizmos. */
+export function EditableGltfAsset({ url, mode, initialTransform, onTransformChange, onError }: EditableGltfAssetProps): JSX.Element | null {
+  const [assetRoot, setAssetRoot] = useState<THREE.Group | null>(null);
+  const initialTransformRef = useRef(initialTransform);
+  initialTransformRef.current = initialTransform;
 
   useEffect(() => {
     let cancelled = false;
-    let loadedScene: THREE.Group | null = null;
-    setScene(null);
+    let loadedRoot: THREE.Group | null = null;
+    setAssetRoot(null);
     const loader = new GLTFLoader();
     loader.load(
       url,
@@ -41,15 +46,22 @@ export function EditableGltfAsset({ url, mode, onError }: EditableGltfAssetProps
           disposeScene(gltf.scene);
           return;
         }
-        loadedScene = gltf.scene.clone(true);
-        const bounds = new THREE.Box3().setFromObject(loadedScene);
+        const root = new THREE.Group();
+        const model = gltf.scene.clone(true);
+        const bounds = new THREE.Box3().setFromObject(model);
         if (!bounds.isEmpty()) {
           const center = bounds.getCenter(new THREE.Vector3());
-          loadedScene.position.x -= center.x;
-          loadedScene.position.y -= bounds.min.y;
-          loadedScene.position.z -= center.z;
+          model.position.x -= center.x;
+          model.position.y -= bounds.min.y;
+          model.position.z -= center.z;
         }
-        setScene(loadedScene);
+        root.add(model);
+        const saved = initialTransformRef.current;
+        root.position.set(...saved.position);
+        root.rotation.set(...saved.rotation);
+        root.scale.set(...saved.scale);
+        loadedRoot = root;
+        setAssetRoot(root);
       },
       undefined,
       (error: unknown) => {
@@ -58,14 +70,21 @@ export function EditableGltfAsset({ url, mode, onError }: EditableGltfAssetProps
     );
     return () => {
       cancelled = true;
-      if (loadedScene) disposeScene(loadedScene);
+      if (loadedRoot) disposeScene(loadedRoot);
     };
   }, [url, onError]);
 
-  if (!scene) return null;
+  if (!assetRoot) return null;
+  const reportTransform = (): void => {
+    onTransformChange({
+      position: [assetRoot.position.x, assetRoot.position.y, assetRoot.position.z],
+      rotation: [assetRoot.rotation.x, assetRoot.rotation.y, assetRoot.rotation.z],
+      scale: [assetRoot.scale.x, assetRoot.scale.y, assetRoot.scale.z],
+    });
+  };
   return (
-    <TransformControls mode={mode}>
-      <primitive object={scene} />
+    <TransformControls mode={mode} onObjectChange={reportTransform}>
+      <primitive object={assetRoot} />
     </TransformControls>
   );
 }
