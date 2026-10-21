@@ -10,6 +10,8 @@ import {
 } from '@react-three/xr';
 import { OrbitControls } from '@react-three/drei';
 import { EditableGltfAsset } from './EditableGltfAsset';
+import { IDENTITY_MODEL_TRANSFORM, loadStoredModelAsset, removeStoredModelAsset, saveStoredModelAsset } from '../services/local-model-store';
+import type { ModelTransform } from '../services/local-model-store';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { MutableRefObject, ReactNode } from 'react';
 import * as THREE from 'three';
@@ -414,14 +416,41 @@ export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element {
   });
   const [collisionEnabled, setCollisionEnabled] = useState(true);
   const [walkthroughMode, setWalkthroughMode] = useState(false);
-  const [importedModel, setImportedModel] = useState<{ url: string; name: string } | null>(null);
+  const [importedModel, setImportedModel] = useState<{ url: string; name: string; file: Blob; transform: ModelTransform } | null>(null);
   const [assetTransformMode, setAssetTransformMode] = useState<'translate' | 'rotate' | 'scale'>('translate');
   const [importError, setImportError] = useState('');
   const modelFileInputRef = useRef<HTMLInputElement | null>(null);
+  const persistenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    if (!importedModel) return;
-    return () => URL.revokeObjectURL(importedModel.url);
-  }, [importedModel]);
+    let cancelled = false;
+    void loadStoredModelAsset().then((record) => {
+      if (cancelled || !record) return;
+      setImportedModel({ url: URL.createObjectURL(record.file), name: record.name, file: record.file, transform: record.transform });
+    }).catch((error: unknown) => {
+      if (!cancelled) setImportError(error instanceof Error ? `Local model restore unavailable: ${error.message}` : 'Local model restore unavailable.');
+    });
+    return () => {
+      cancelled = true;
+      if (persistenceTimerRef.current) clearTimeout(persistenceTimerRef.current);
+    };
+  }, []);
+  useEffect(() => {
+    const url = importedModel?.url;
+    if (!url) return;
+    return () => URL.revokeObjectURL(url);
+  }, [importedModel?.url]);
+  const handleModelTransformChange = useCallback((transform: ModelTransform) => {
+    setImportedModel((current) => {
+      if (!current) return current;
+      const updated = { ...current, transform };
+      if (persistenceTimerRef.current) clearTimeout(persistenceTimerRef.current);
+      persistenceTimerRef.current = setTimeout(() => {
+        void saveStoredModelAsset({ name: updated.name, file: updated.file, mimeType: updated.file.type, transform })
+          .catch((error: unknown) => setImportError(error instanceof Error ? `Transform changed but could not be saved locally: ${error.message}` : 'Transform changed but could not be saved locally.'));
+      }, 350);
+      return updated;
+    });
+  }, []);
   const [controllerState, setControllerState] = useState<ControllerConnectionState>('connecting');
   const [viewCorrectionCommand, setViewCorrectionCommand] = useState<ViewCorrectionCommand>({
     id: 0,
@@ -578,6 +607,8 @@ export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element {
                 key={importedModel.url}
                 url={importedModel.url}
                 mode={assetTransformMode}
+                initialTransform={importedModel.transform}
+                onTransformChange={handleModelTransformChange}
                 onError={setImportError}
               />
             )}
@@ -703,7 +734,14 @@ export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element {
               return;
             }
           }
-          setImportedModel({ url: URL.createObjectURL(file), name: file.name });
+          const nextModel = { url: URL.createObjectURL(file), name: file.name, file, transform: IDENTITY_MODEL_TRANSFORM };
+          try {
+            await saveStoredModelAsset({ name: file.name, file, mimeType: file.type, transform: IDENTITY_MODEL_TRANSFORM });
+            setImportError('');
+          } catch (error) {
+            setImportError(error instanceof Error ? `Model loaded for this session, but local persistence failed: ${error.message}` : 'Model loaded for this session, but local persistence failed.');
+          }
+          setImportedModel(nextModel);
         }}
       />
       <div className="absolute bottom-4 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/90 p-2 shadow-xl backdrop-blur">
@@ -760,6 +798,24 @@ export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element {
         >
           Import 3D model
         </button>
+        {importedModel && (
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                await removeStoredModelAsset();
+                if (persistenceTimerRef.current) clearTimeout(persistenceTimerRef.current);
+                setImportedModel(null);
+                setImportError('');
+              } catch (error) {
+                setImportError(error instanceof Error ? `Could not remove saved model: ${error.message}` : 'Could not remove saved model.');
+              }
+            }}
+            className="rounded-lg bg-rose-700 px-3 py-2 text-sm font-semibold text-white hover:bg-rose-600"
+          >
+            Remove model
+          </button>
+        )}
         {importedModel && (['translate', 'rotate', 'scale'] as const).map((mode) => (
           <button
             key={mode}
