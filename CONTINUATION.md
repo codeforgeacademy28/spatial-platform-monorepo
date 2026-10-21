@@ -1,0 +1,97 @@
+# Spatial Platform — Continuation Packet
+
+> **Read this file first when resuming work.** It is the durable, low-token handoff for future chats/agents.
+
+## Mission
+Ship a reliable blueprint-to-spatial product where a user can upload a blueprint, calibrate scale, draw canonical walls, validate rooms, review 3D, save/version/share, and use a stable browser-first Spatial view with optional WebXR/AR.
+
+## Source of truth
+- Product plan: `PRODUCT_EXECUTION_PLAN.md`
+- Current task ledger: `apps/web/RELEASE_TASKS_NEXT.md`
+- Resume packet: `CONTINUATION.md`
+- Detailed architecture/status: `docs/PROJECT_STATE.md`
+- Execution method: `docs/AI_WORK_PROTOCOL.md`
+- Product-owner mode: `.github/SPATIAL_PRODUCT_OWNER_MODE.md`
+- Active PR: **#57** (`fix/xr-browser-spatial-navigation`)
+- Target branch: `main`
+
+## Current branch state
+Current branch: `fix/xr-browser-spatial-navigation`
+Current PR head before this state commit: `3a5af4cbedc7cc8f85327052699cf96ee9efff2d`.
+PR #57 remains open and mergeable; **do not merge until R2.2/R2.3 browser/XR acceptance passes.**
+
+## Last verified build state
+- PR #27 is merged into `main`.
+- Engineering Gate run **#99** for commit `3a5af4cbedc7cc8f85327052699cf96ee9efff2d` is **SUCCESS**.
+- Gate #99 covers the established lockfile/install/runtime/type-check/build/core-snapshot/geometry contract gate.
+- Latest branch Vercel deployment for this code line is `dpl_BB2kj3rRjWQvwywws1h8g3Q3pNoe`, READY, with preview `spatial-platform-monorepo-ndszkl70i-snm5.vercel.app`.
+- Vercel integration fetched the preview root at **2026-09-02 22:31 IST** and received HTTP 200 with the Spatial Platform HTML shell. This is reachability evidence only, not browser interaction evidence.
+- Real `agent-browser` was not available as an executable in this agent container. An `npx --yes agent-browser --version` attempt timed out after 30 seconds; no browser session was established.
+- Direct container DNS/HTTP access to the Vercel hostname also failed (`curl: (6) Could not resolve host`), while the Vercel integration could fetch it. This is an environment/network split, not an application defect.
+- Because no real interactive browser session was established, the upload/file-picker bridge, canvas actions, keyboard/mouse navigation, collision behavior, browser console inspection, and `?xrTest=1` interaction could not be re-exercised in this run.
+- Native WebXR remains unavailable in this agent environment, so native AR entry, horizontal AR floor, XR controller framing/reset, XR locomotion, snap turn, teleport, session lifecycle, and XR resize/context-loss behavior remain hardware/browser gates.
+
+## Current product fixes
+### Browser navigation
+- WASD + arrow keys.
+- Mouse orbit + wheel zoom.
+- Browser camera owns navigation independently from XR `XROrigin`.
+
+### Wall collision
+- Visible ON/OFF control; ON by default.
+- Collision math is in `@spatial/geometry-engine`.
+- Swept substep movement prevents one-frame tunneling through thin walls.
+- Full diagonal movement is collision-tested first; if blocked, only a safe axis slide is allowed.
+- Geometry contract tests cover direct clearance, movement crossing a wall, and angled-wall diagonal resolution.
+- Browser acceptance is still required to prove user-visible behavior.
+
+### XR / AR
+- Native `Start Immersive AR` is explicit and capability-gated.
+- `offerSession: false`.
+- `enterGrantedSession: false`.
+- `?xrTest=1` enables browser XR emulation only when explicitly chosen.
+- XR v6.6.30 requests `local-floor` by default through session initialization.
+- `XROrigin` is dedicated to XR; desktop movement does not modify it.
+
+## User-reported issues currently being verified
+1. AR floor previously appeared vertical/edge-on. Source contracts confirm horizontal floor geometry and v6 `local-floor` session initialization; actual XR device/browser acceptance is still required.
+2. Wall collision previously allowed walking through walls. Collision is now geometry-owned, swept, and diagonal-path aware; actual browser acceptance is still required.
+
+## Active goal
+### R2.2 + R2.3 — Spatial collision + XR acceptance
+**Status: BUILD GREEN / BROWSER-XR GATE REQUIRED**
+
+## 2026-09-02 browser/XR gate attempt
+- Attempt timestamp: **2026-09-02 22:31 IST**.
+- Candidate preview: `dpl_BB2kj3rRjWQvwywws1h8g3Q3pNoe` / `spatial-platform-monorepo-ndszkl70i-snm5.vercel.app`.
+- Preview root returned HTTP 200 through the Vercel integration; no interactive browser session was established.
+- `agent-browser` CLI was absent; `npx --yes agent-browser --version` timed out after 30 seconds.
+- Container DNS could not resolve the preview hostname. The Vercel integration could resolve/fetch it, confirming this is an automation/environment limitation rather than proof of an application failure.
+- Result: no R2.2/R2.3 interactive acceptance item is marked PASS from this attempt. Native XR remains a hardware gate.
+
+## Immediate next action
+Obtain external real-browser/device evidence for the remaining R2.2/R2.3 matrix. The current agent surface can verify preview reachability but cannot complete native file-picker/canvas interaction or WebXR hardware acceptance. Do not merge, advance to R2.4, or start P1 until the remaining browser/XR evidence exists.
+
+## After this gate
+- R2.4 combined Spatial regression gate.
+- Supabase durable save → API restart → share read.
+- Final browser matrix.
+- WebXR hardware lifecycle.
+- P1 bundle/performance optimization only after functional release gates.
+
+## Do not regress
+- Do not re-enable `offerSession: 'immersive-ar'` globally.
+- Do not re-enable XR emulation in normal Spatial mode.
+- Do not drive desktop movement through `XROrigin`.
+- Do not manually split Zod/Zustand into a single vendor chunk.
+- Do not hand-edit lockfiles when npm can regenerate them.
+- Do not invent XR options from a newer package version than installed 6.6.30.
+- Do not merge PR #57 while its active browser/XR gate is red or unverified.
+- Do not mark browser/hardware acceptance passed from source/build evidence alone.
+- Do not trigger unnecessary Vercel deployments while the free-tier daily deployment limit is exhausted.
+
+## Efficient resumption recipe
+**Read `CONTINUATION.md` → `PRODUCT_EXECUTION_PLAN.md` → `docs/PROJECT_STATE.md` → `.github/SPATIAL_PRODUCT_OWNER_MODE.md` → active PR diff → run the current gate → fix only the active goal → verify → update state → advance one goal.**
+
+## Conversation-limit rule
+The chat transcript is not the durable project state. Every meaningful implementation or decision must leave code/commit plus durable plan/state updates. When a chat is near its limit, update this packet before doing anything else. A new chat should then resume from the repository packet without requiring the historical transcript.
