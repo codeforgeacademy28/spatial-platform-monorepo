@@ -1,4 +1,4 @@
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import {
   IfInSessionMode,
   XR,
@@ -9,11 +9,14 @@ import {
   useXRInputSourceState,
 } from '@react-three/xr';
 import { OrbitControls } from '@react-three/drei';
+import { EditableGltfAsset } from './EditableGltfAsset';
+import { IDENTITY_MODEL_TRANSFORM, loadStoredModelAsset, removeStoredModelAsset, saveStoredModelAsset } from '../services/local-model-store';
+import type { ModelTransform } from '../services/local-model-store';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { MutableRefObject, ReactNode } from 'react';
 import * as THREE from 'three';
 import type { Group } from 'three';
-import { generateRoomFloorMesh } from '@spatial/geometry-engine';
+import { floorPlanToWorld, generateRoomFloorMesh, isCircleMovementBlockedByWall, resolveCircleMovementWithWallSliding, worldToFloorPlan } from '@spatial/geometry-engine';
 import type { Room, WallSegment } from '@spatial/core';
 import {
   ControllerLocomotionClient,
@@ -108,90 +111,13 @@ const MODEL_YAW_RADIANS = Math.PI / 2;
 const WALKTHROUGH_EYE_HEIGHT = 1.65;
 const XR_PLAYER_RADIUS = 0.28;
 
-function cross2D(ax: number, az: number, bx: number, bz: number): number {
-  return ax * bz - az * bx;
-}
-
-function distancePointToSegment2D(
-  px: number,
-  pz: number,
-  ax: number,
-  az: number,
-  bx: number,
-  bz: number,
-): number {
-  const dx = bx - ax;
-  const dz = bz - az;
-  const lengthSq = dx * dx + dz * dz;
-  if (lengthSq === 0) return Math.hypot(px - ax, pz - az);
-
-  const t = Math.max(0, Math.min(1, ((px - ax) * dx + (pz - az) * dz) / lengthSq));
-  const closestX = ax + t * dx;
-  const closestZ = az + t * dz;
-  return Math.hypot(px - closestX, pz - closestZ);
-}
-
-function segmentsIntersect2D(
-  aX: number,
-  aZ: number,
-  bX: number,
-  bZ: number,
-  cX: number,
-  cZ: number,
-  dX: number,
-  dZ: number,
-): boolean {
-  const rX = bX - aX;
-  const rZ = bZ - aZ;
-  const sX = dX - cX;
-  const sZ = dZ - cZ;
-  const denominator = cross2D(rX, rZ, sX, sZ);
-  const cMinusAX = cX - aX;
-  const cMinusAZ = cZ - aZ;
-
-  if (Math.abs(denominator) < 1e-8) return false;
-
-  const t = cross2D(cMinusAX, cMinusAZ, sX, sZ) / denominator;
-  const u = cross2D(cMinusAX, cMinusAZ, rX, rZ) / denominator;
-  return t >= 0 && t <= 1 && u >= 0 && u <= 1;
-}
-
-function distanceSegmentToSegment2D(
-  aX: number,
-  aZ: number,
-  bX: number,
-  bZ: number,
-  cX: number,
-  cZ: number,
-  dX: number,
-  dZ: number,
-): number {
-  if (segmentsIntersect2D(aX, aZ, bX, bZ, cX, cZ, dX, dZ)) return 0;
-
-  return Math.min(
-    distancePointToSegment2D(aX, aZ, cX, cZ, dX, dZ),
-    distancePointToSegment2D(bX, bZ, cX, cZ, dX, dZ),
-    distancePointToSegment2D(cX, cZ, aX, aZ, bX, bZ),
-    distancePointToSegment2D(dX, dZ, aX, aZ, bX, bZ),
-  );
-}
-
 function sceneToLayoutPosition(
   sceneX: number,
   sceneZ: number,
   modelTransform: [number, number, number],
 ): { x: number; z: number } {
-  const dx = sceneX - modelTransform[0];
-  const dz = sceneZ - modelTransform[2];
-  const cos = Math.cos(MODEL_YAW_RADIANS);
-  const sin = Math.sin(MODEL_YAW_RADIANS);
-
-  // The model is rendered with +90° yaw, so collision checks use the inverse yaw
-  // to get back to the floor-plan's local X/Y coordinates.
-  return {
-    x: cos * dx + sin * dz,
-    z: -sin * dx + cos * dz,
-  };
+  const layoutPoint = worldToFloorPlan(sceneX, sceneZ, modelTransform, MODEL_YAW_RADIANS);
+  return { x: layoutPoint.x, z: layoutPoint.y };
 }
 
 function movementBlockedByWalls(
@@ -204,48 +130,32 @@ function movementBlockedByWalls(
 ): boolean {
   const previous = sceneToLayoutPosition(previousSceneX, previousSceneZ, modelTransform);
   const next = sceneToLayoutPosition(nextSceneX, nextSceneZ, modelTransform);
+  return walls.some((wall) => isCircleMovementBlockedByWall(
+    { x: previous.x, y: previous.z },
+    { x: next.x, y: next.z },
+    wall,
+    XR_PLAYER_RADIUS,
+  ));
+}
 
-  for (const wall of walls) {
-    const wallHalfThickness = Math.max(0.01, wall.thickness / 2);
-    const clearance = XR_PLAYER_RADIUS + wallHalfThickness;
-
-    const nextDistance = distancePointToSegment2D(
-      next.x,
-      next.z,
-      wall.start.x,
-      wall.start.y,
-      wall.end.x,
-      wall.end.y,
-    );
-
-    if (nextDistance < clearance) return true;
-
-    const movementDistance = distanceSegmentToSegment2D(
-      previous.x,
-      previous.z,
-      next.x,
-      next.z,
-      wall.start.x,
-      wall.start.y,
-      wall.end.x,
-      wall.end.y,
-    );
-
-    if (movementDistance >= clearance) continue;
-
-    const wallDX = wall.end.x - wall.start.x;
-    const wallDZ = wall.end.y - wall.start.y;
-    const previousDX = previous.x - wall.start.x;
-    const previousDZ = previous.z - wall.start.y;
-    const nextDX = next.x - wall.start.x;
-    const nextDZ = next.z - wall.start.y;
-    const previousSide = cross2D(wallDX, wallDZ, previousDX, previousDZ);
-    const nextSide = cross2D(wallDX, wallDZ, nextDX, nextDZ);
-
-    if (previousSide * nextSide <= 0) return true;
-  }
-
-  return false;
+function resolveMovementWithWallSliding(
+  previousSceneX: number,
+  previousSceneZ: number,
+  requestedSceneX: number,
+  requestedSceneZ: number,
+  walls: WallSegment[],
+  modelTransform: [number, number, number],
+): { x: number; z: number } {
+  const previous = sceneToLayoutPosition(previousSceneX, previousSceneZ, modelTransform);
+  const requested = sceneToLayoutPosition(requestedSceneX, requestedSceneZ, modelTransform);
+  const resolved = resolveCircleMovementWithWallSliding(
+    { x: previous.x, y: previous.z },
+    { x: requested.x, y: requested.z },
+    walls,
+    XR_PLAYER_RADIUS,
+  );
+  const world = floorPlanToWorld(resolved, modelTransform, MODEL_YAW_RADIANS);
+  return { x: world.x, z: world.z };
 }
 
 function XRLocomotion({
@@ -395,56 +305,129 @@ function ExternalControllerLocomotion({
 
   return null;
 }
-function KeyboardSpatialMovement({
-  originRef,
+function DesktopFirstPersonController({
+  active,
   walls,
   modelTransform,
   collisionEnabled,
+  spawnPosition,
+  targetPosition,
 }: {
-  originRef: MutableRefObject<Group | null>;
+  active: boolean;
   walls: WallSegment[];
   modelTransform: [number, number, number];
   collisionEnabled: boolean;
-}): ReactNode {
+  spawnPosition: [number, number, number];
+  targetPosition: [number, number, number];
+}): null {
+  const { camera, gl } = useThree();
   const pressed = useRef(new Set<string>());
+  const yaw = useRef(0);
+  const pitch = useRef(0);
+  const verticalVelocity = useRef(0);
 
   useEffect(() => {
-    const down = (event: KeyboardEvent) => pressed.current.add(event.key.toLowerCase());
-    const up = (event: KeyboardEvent) => pressed.current.delete(event.key.toLowerCase());
+    if (!active) {
+      if (document.pointerLockElement === gl.domElement) document.exitPointerLock();
+      pressed.current.clear();
+      return;
+    }
 
-    window.addEventListener('keydown', down);
-    window.addEventListener('keyup', up);
+    camera.position.set(...spawnPosition);
+    camera.rotation.order = 'YXZ';
+    camera.lookAt(...targetPosition);
+    yaw.current = camera.rotation.y;
+    pitch.current = camera.rotation.x;
+    verticalVelocity.current = 0;
+
+    const onKeyDown = (event: KeyboardEvent): void => {
+      const key = event.key.toLowerCase();
+      if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' ', 'shift', 'control'].includes(key)) {
+        event.preventDefault();
+      }
+      pressed.current.add(key);
+    };
+    const onKeyUp = (event: KeyboardEvent): void => { pressed.current.delete(event.key.toLowerCase()); };
+    const onMouseMove = (event: MouseEvent): void => {
+      if (document.pointerLockElement !== gl.domElement) return;
+      yaw.current -= event.movementX * 0.002;
+      pitch.current = THREE.MathUtils.clamp(pitch.current - event.movementY * 0.002, -1.45, 1.45);
+    };
+    const onBlur = (): void => pressed.current.clear();
+
+    gl.domElement.addEventListener('click', requestPointerLock);
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    window.addEventListener('blur', onBlur);
+    document.addEventListener('mousemove', onMouseMove);
+
+    function requestPointerLock(): void {
+      if (document.pointerLockElement !== gl.domElement) {
+        void gl.domElement.requestPointerLock();
+      }
+    }
 
     return () => {
-      window.removeEventListener('keydown', down);
-      window.removeEventListener('keyup', up);
+      gl.domElement.removeEventListener('click', requestPointerLock);
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+      window.removeEventListener('blur', onBlur);
+      document.removeEventListener('mousemove', onMouseMove);
+      if (document.pointerLockElement === gl.domElement) document.exitPointerLock();
+      pressed.current.clear();
     };
-  }, []);
+  }, [active, camera, gl, spawnPosition, targetPosition]);
 
-  useFrame((_, delta) => {
-    if (!originRef.current) return;
+  useFrame((_, rawDelta) => {
+    if (!active) return;
 
-    const forward =
-      Number(pressed.current.has('w') || pressed.current.has('arrowup')) -
-      Number(pressed.current.has('s') || pressed.current.has('arrowdown'));
-    const strafe =
-      Number(pressed.current.has('d') || pressed.current.has('arrowright')) -
-      Number(pressed.current.has('a') || pressed.current.has('arrowleft'));
+    const delta = Math.min(rawDelta, 0.05);
+    camera.rotation.order = 'YXZ';
+    camera.rotation.set(pitch.current, yaw.current, 0, 'YXZ');
 
-    if (!forward && !strafe) return;
+    const keys = pressed.current;
+    const forward = Number(keys.has('w') || keys.has('arrowup')) - Number(keys.has('s') || keys.has('arrowdown'));
+    const strafe = Number(keys.has('d') || keys.has('arrowright')) - Number(keys.has('a') || keys.has('arrowleft'));
+    const length = Math.hypot(forward, strafe) || 1;
+    const sprint = keys.has('shift');
+    const speed = (sprint ? 5.5 : 3.0) * delta;
+    const normalizedForward = forward / length;
+    const normalizedStrafe = strafe / length;
 
-    const speed = 2.5 * delta;
-    const previous = originRef.current.position.clone();
-    const next = previous.clone();
+    if (forward || strafe) {
+      const moveX = -Math.sin(yaw.current) * normalizedForward + Math.cos(yaw.current) * normalizedStrafe;
+      const moveZ = -Math.cos(yaw.current) * normalizedForward - Math.sin(yaw.current) * normalizedStrafe;
+      let nextX = camera.position.x + moveX * speed;
+      let nextZ = camera.position.z + moveZ * speed;
 
-    next.x += strafe * speed;
-    next.z -= forward * speed;
+      if (collisionEnabled) {
+        const resolved = resolveMovementWithWallSliding(
+          camera.position.x,
+          camera.position.z,
+          nextX,
+          nextZ,
+          walls,
+          modelTransform,
+        );
+        nextX = resolved.x;
+        nextZ = resolved.z;
+      }
 
-    const blocked =
-      collisionEnabled &&
-      movementBlockedByWalls(previous.x, previous.z, next.x, next.z, walls, modelTransform);
+      camera.position.x = nextX;
+      camera.position.z = nextZ;
+    }
 
-    if (!blocked) originRef.current.position.copy(next);
+    const grounded = camera.position.y <= WALKTHROUGH_EYE_HEIGHT;
+    if (keys.has(' ') && grounded) {
+      verticalVelocity.current = 4.5;
+      keys.delete(' ');
+    }
+    verticalVelocity.current -= 9.81 * delta;
+    camera.position.y += verticalVelocity.current * delta;
+    if (camera.position.y <= WALKTHROUGH_EYE_HEIGHT) {
+      camera.position.y = WALKTHROUGH_EYE_HEIGHT;
+      verticalVelocity.current = 0;
+    }
   });
 
   return null;
@@ -456,6 +439,42 @@ export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element {
     rightTracked: false,
   });
   const [collisionEnabled, setCollisionEnabled] = useState(true);
+  const [walkthroughMode, setWalkthroughMode] = useState(false);
+  const [importedModel, setImportedModel] = useState<{ url: string; name: string; file: Blob; transform: ModelTransform } | null>(null);
+  const [assetTransformMode, setAssetTransformMode] = useState<'translate' | 'rotate' | 'scale'>('translate');
+  const [importError, setImportError] = useState('');
+  const modelFileInputRef = useRef<HTMLInputElement | null>(null);
+  const persistenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void loadStoredModelAsset().then((record) => {
+      if (cancelled || !record) return;
+      setImportedModel({ url: URL.createObjectURL(record.file), name: record.name, file: record.file, transform: record.transform });
+    }).catch((error: unknown) => {
+      if (!cancelled) setImportError(error instanceof Error ? `Local model restore unavailable: ${error.message}` : 'Local model restore unavailable.');
+    });
+    return () => {
+      cancelled = true;
+      if (persistenceTimerRef.current) clearTimeout(persistenceTimerRef.current);
+    };
+  }, []);
+  useEffect(() => {
+    const url = importedModel?.url;
+    if (!url) return;
+    return () => URL.revokeObjectURL(url);
+  }, [importedModel?.url]);
+  const handleModelTransformChange = useCallback((transform: ModelTransform) => {
+    setImportedModel((current) => {
+      if (!current) return current;
+      const updated = { ...current, transform };
+      if (persistenceTimerRef.current) clearTimeout(persistenceTimerRef.current);
+      persistenceTimerRef.current = setTimeout(() => {
+        void saveStoredModelAsset({ name: updated.name, file: updated.file, mimeType: updated.file.type, transform })
+          .catch((error: unknown) => setImportError(error instanceof Error ? `Transform changed but could not be saved locally: ${error.message}` : 'Transform changed but could not be saved locally.'));
+      }, 350);
+      return updated;
+    });
+  }, []);
   const [controllerState, setControllerState] = useState<ControllerConnectionState>('connecting');
   const [viewCorrectionCommand, setViewCorrectionCommand] = useState<ViewCorrectionCommand>({
     id: 0,
@@ -498,9 +517,8 @@ export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element {
     },
     [],
   );
-  useEffect(() => {
-    if (tracking.sessionActive) requestViewCorrection('level');
-  }, [requestViewCorrection, tracking.sessionActive]);
+  // Do not auto-level an immersive AR camera: its pose is device-tracked.
+  // Manual correction remains available for explicit user calibration only.
   const modelTransform = useMemo<[number, number, number]>(() => {
     if (!walls.length) return [0, 0, -4];
 
@@ -509,7 +527,8 @@ export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element {
     const centerX = (Math.min(...xs) + Math.max(...xs)) / 2;
     const centerY = (Math.min(...ys) + Math.max(...ys)) / 2;
 
-    // Floor-plan (x,y) becomes Three.js (x,z), then the whole layout gets a +90° yaw.
+    // A +90° yaw maps local (x, z) to world (z, -x). Translate by
+    // (-centerY, centerX) so the layout bounds center lands at world z = -4.
     return [-centerY, 0, centerX - 4];
   }, [walls]);
   const fallbackCamera = useMemo<[number, number, number]>(() => {
@@ -607,22 +626,36 @@ export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element {
             {walls.map((wall) => (
               <WallMesh key={wall.id} wall={wall} />
             ))}
+            {importedModel && (
+              <EditableGltfAsset
+                key={importedModel.url}
+                url={importedModel.url}
+                mode={assetTransformMode}
+                initialTransform={importedModel.transform}
+                onTransformChange={handleModelTransformChange}
+                onError={setImportError}
+              />
+            )}
           </group>
           <IfInSessionMode deny={['immersive-ar', 'immersive-vr']}>
-            <KeyboardSpatialMovement
-              originRef={originRef}
+            <DesktopFirstPersonController
+              active={walkthroughMode}
               walls={walls}
               modelTransform={modelTransform}
               collisionEnabled={collisionEnabled}
+              spawnPosition={fallbackCamera}
+              targetPosition={fallbackTarget}
             />
-            <OrbitControls
-              target={fallbackTarget}
-              enablePan
-              enableZoom
-              enableRotate
-              minPolarAngle={0.45}
-              maxPolarAngle={1.5}
-            />
+            {!walkthroughMode && (
+              <OrbitControls
+                target={fallbackTarget}
+                enablePan
+                enableZoom
+                enableRotate
+                minPolarAngle={0.45}
+                maxPolarAngle={1.5}
+              />
+            )}
           </IfInSessionMode>
         </XR>
       </Canvas>
@@ -669,9 +702,10 @@ export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element {
           {walls.length} walls · {rooms.length} rooms
         </div>
         <div className="mt-1 text-slate-400">
-          AR: left thumbstick moves · snap turn controls · teleport pointer can move you. Desktop:
-          WASD / arrows.
+          AR: controller locomotion · Desktop: First-Person Walk for mouse look, WASD, Shift sprint, Space jump.
         </div>
+        {importedModel && <div className="mt-1 text-emerald-300">3D asset: {importedModel.name}</div>}
+        {importError && <div role="status" className="mt-1 max-w-72 text-rose-300">Import: {importError}</div>}
         <div className="mt-1 text-slate-400">
           Wall collision:{' '}
           <span className={collisionEnabled ? 'text-emerald-300' : 'text-amber-300'}>
@@ -685,6 +719,55 @@ export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element {
           </span>
         </div>
       </div>
+      <input
+        ref={modelFileInputRef}
+        type="file"
+        accept=".glb,.gltf,model/gltf-binary,model/gltf+json"
+        className="hidden"
+        aria-label="Import a GLB or self-contained glTF model"
+        onChange={async (event) => {
+          const file = event.currentTarget.files?.[0];
+          event.currentTarget.value = '';
+          if (!file) return;
+          setImportError('');
+          if (file.size > 25 * 1024 * 1024) {
+            setImportError('Model exceeds the 25 MB limit.');
+            return;
+          }
+          const extension = file.name.split('.').pop()?.toLowerCase();
+          if (extension !== 'glb' && extension !== 'gltf') {
+            setImportError('Choose a .glb or .gltf model. CAD/BIM files need a conversion adapter first.');
+            return;
+          }
+          if (extension === 'glb') {
+            const signature = new Uint8Array(await file.slice(0, 4).arrayBuffer());
+            if (signature.length !== 4 || signature[0] !== 0x67 || signature[1] !== 0x6c || signature[2] !== 0x54 || signature[3] !== 0x46) {
+              setImportError('The GLB header is invalid.');
+              return;
+            }
+          } else {
+            try {
+              const document = JSON.parse(await file.text()) as { buffers?: Array<{ uri?: string }>; images?: Array<{ uri?: string }> };
+              const resources = [...(document.buffers ?? []), ...(document.images ?? [])];
+              if (resources.some((resource) => resource.uri && !resource.uri.startsWith('data:'))) {
+                setImportError('This glTF references external files. Package its resources or use a single-file GLB.');
+                return;
+              }
+            } catch {
+              setImportError('The glTF file is not valid JSON.');
+              return;
+            }
+          }
+          const nextModel = { url: URL.createObjectURL(file), name: file.name, file, transform: IDENTITY_MODEL_TRANSFORM };
+          try {
+            await saveStoredModelAsset({ name: file.name, file, mimeType: file.type, transform: IDENTITY_MODEL_TRANSFORM });
+            setImportError('');
+          } catch (error) {
+            setImportError(error instanceof Error ? `Model loaded for this session, but local persistence failed: ${error.message}` : 'Model loaded for this session, but local persistence failed.');
+          }
+          setImportedModel(nextModel);
+        }}
+      />
       <div className="absolute bottom-4 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/90 p-2 shadow-xl backdrop-blur">
         <button
           type="button"
@@ -731,6 +814,50 @@ export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element {
           className="rounded-lg bg-slate-700 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-600"
         >
           Reset view
+        </button>
+        <button
+          type="button"
+          onClick={() => modelFileInputRef.current?.click()}
+          className="rounded-lg bg-sky-700 px-3 py-2 text-sm font-semibold text-white hover:bg-sky-600"
+        >
+          Import 3D model
+        </button>
+        {importedModel && (
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                await removeStoredModelAsset();
+                if (persistenceTimerRef.current) clearTimeout(persistenceTimerRef.current);
+                setImportedModel(null);
+                setImportError('');
+              } catch (error) {
+                setImportError(error instanceof Error ? `Could not remove saved model: ${error.message}` : 'Could not remove saved model.');
+              }
+            }}
+            className="rounded-lg bg-rose-700 px-3 py-2 text-sm font-semibold text-white hover:bg-rose-600"
+          >
+            Remove model
+          </button>
+        )}
+        {importedModel && (['translate', 'rotate', 'scale'] as const).map((mode) => (
+          <button
+            key={mode}
+            type="button"
+            onClick={() => setAssetTransformMode(mode)}
+            aria-pressed={assetTransformMode === mode}
+            className={`rounded-lg px-2 py-2 text-xs font-semibold capitalize ${assetTransformMode === mode ? 'bg-violet-600 text-white' : 'bg-slate-700 text-slate-200 hover:bg-slate-600'}`}
+          >
+            {mode}
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={() => setWalkthroughMode((enabled) => !enabled)}
+          aria-pressed={walkthroughMode}
+          className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${walkthroughMode ? 'bg-indigo-600 text-white hover:bg-indigo-500' : 'bg-slate-700 text-white hover:bg-slate-600'}`}
+        >
+          {walkthroughMode ? 'Exit Walkthrough' : 'First-Person Walk'}
         </button>
         <button
           type="button"

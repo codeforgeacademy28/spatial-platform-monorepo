@@ -2,13 +2,12 @@ import { Router, type Request } from 'express';
 import multer from 'multer';
 import { z } from 'zod';
 import { uploadAsset, getSignedDownloadUrl } from '../services/storage-service.js';
+import { getExtension, hasValidContentSignature, isAllowedForAssetType } from '../services/upload-validation.js';
 
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
-
-const allowedMimeTypes = ['image/png', 'image/jpeg', 'image/gltf+json', 'model/gltf-binary', 'application/octet-stream'];
-
-const assetTypeSchema = z.object({
-  assetType: z.enum(['model', 'image', 'blueprint']),
+const MAX_FILE_SIZE = 25 * 1024 * 1024;
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_FILE_SIZE, files: 1 },
 });
 
 const router = Router();
@@ -26,22 +25,50 @@ router.post('/api/uploads', upload.single('file') as any, async (req: Request, r
     return;
   }
 
-  if (!allowedMimeTypes.includes(file.mimetype)) {
-    res.status(400).json({ error: 'unsupported file type', allowed: allowedMimeTypes });
-    return;
-  }
-
-  if (file.size > 25 * 1024 * 1024) {
+  if (file.size > MAX_FILE_SIZE) {
     res.status(400).json({ error: 'file too large', maxSize: '25MB' });
     return;
   }
 
-  const magicNumber = file.buffer.slice(0, 4).toString('hex');
-  const allowedMagic = ['89504e47', 'ffd8ffe0', 'ffd8ffe1', 'ffd8ffe2', 'ffd8ffe3', '7b0d0a2d'];
-  if (!allowedMagic.includes(magicNumber)) {
-    res.status(400).json({ error: 'invalid file signature' });
+  const extension = getExtension(file.originalname);
+  if (!extension || !isAllowedForAssetType(parsed.data.assetType, extension)) {
+    res.status(400).json({
+      error: 'unsupported file extension for this asset type',
+      assetType: parsed.data.assetType,
+      supportedExtensions: parsed.data.assetType === 'image'
+        ? ['.png', '.jpg', '.jpeg']
+        : parsed.data.assetType === 'blueprint'
+          ? ['.png', '.jpg', '.jpeg', '.pdf']
+          : ['.glb', '.gltf', '.ifc', '.dxf', '.obj', '.stl', '.dwg'],
+    });
     return;
   }
+
+  if (!hasValidContentSignature(extension, file.buffer)) {
+    res.status(400).json({ error: 'file content does not match its extension or is malformed' });
+    return;
+  }
+
+  const allowedMimeTypes = new Set([
+    'application/octet-stream',
+    'application/pdf',
+    'application/ifc',
+    'application/x-step',
+    'application/dxf',
+    'application/x-dxf',
+    'application/vnd.dwg',
+    'model/gltf-binary',
+    'model/gltf+json',
+    'model/stl',
+    'text/plain',
+    'image/png',
+    'image/jpeg',
+  ]);
+  if (!allowedMimeTypes.has(file.mimetype)) {
+    res.status(400).json({ error: 'unsupported content type', received: file.mimetype });
+    return;
+  }
+
 
   const key = `${parsed.data.assetType}/${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
 
