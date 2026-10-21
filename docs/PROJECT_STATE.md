@@ -63,21 +63,22 @@ A blueprint-to-spatial editor with canonical 2D wall geometry, room validation, 
 15. XR floor contract verified against installed v6 source: `buildXRSessionInit()` requests `local-floor` by default.
 
 ## Current verification state
-- Active branch: `fix/xr-browser-spatial-navigation`.
-- Active PR: #57.
-- Latest implementation head tested by Engineering Gate: `3a5af4cbedc7cc8f85327052699cf96ee9efff2d`.
+- Active branch: `main`.
+- Active PRs: none. PR #65 (walkthrough/import/collision foundation) and PR #57 (XR lifecycle/browser navigation) are merged.
+- PR #65 merge commit: `aebd83e698af024cf98490f8cb386f62399faa1e`.
+- PR #57 merge commit: `6c09a07bbb0411dfa11feb2396e814f402b0cf2d`; Vercel status is success for this commit.
 - Engineering Gate #99 on that head passed the established install/runtime/type-check/build/core-snapshot/geometry contract gate.
 - Latest durable documentation head before this update: `df873c766359ef24b096a5895e2180c4378a9c4e`.
 - READY Vercel deployment for the implementation head: `dpl_BB2kj3rRjWQvwywws1h8g3Q3pNoe`; the Vercel integration fetched its preview root with HTTP 200 and the Spatial Platform HTML shell.
 - No interactive browser session was established in the latest agent attempt: `agent-browser` executable was unavailable and `npx --yes agent-browser --version` timed out after 30 seconds; direct container DNS also failed for the Vercel hostname.
 - Therefore upload/file-picker, canvas workflow, keyboard/mouse navigation, collision behavior, browser console behavior, and `?xrTest=1` interaction are not revalidated by this attempt.
 - Native WebXR is unavailable in the current agent environment, so AR floor, controller framing/poses, XR locomotion, native session lifecycle, and XR resize stability remain external browser/device gates.
-- R2.2/R2.3 remain **BUILD GREEN / BROWSER-XR GATE REQUIRED**.
+- R2.2/R2.3 remain **BUILD GREEN / BROWSER-XR GATE REQUIRED**. Merging does not imply the real-browser or physical-device acceptance matrix passed.
 - Do not mark browser or hardware behavior as verified until an externally reachable browser/device exercises the remaining acceptance matrix.
 
 ## Release branches
 - `main`: PR #27 integrated.
-- `fix/xr-browser-spatial-navigation`: active PR #57, XR/browser regression recovery.
+- `main`: merged walkthrough foundation, wall sliding, explicit XR session lifecycle, opt-in XR emulation, and browser navigation fixes.
 
 ## Verification philosophy
 Static/build verification is necessary but not sufficient. Browser interaction and XR hardware behavior must be explicitly marked external gates until actually exercised.
