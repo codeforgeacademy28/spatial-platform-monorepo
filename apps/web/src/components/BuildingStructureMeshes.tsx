@@ -16,12 +16,30 @@ function FloorSlabMesh({ slab, elevation }: { slab: FloorSlab; elevation: number
     const positions: number[] = [];
     const indices: number[] = [];
     triangles.forEach((triangle) => {
+      const topStart = positions.length / 3;
       triangle.forEach((index) => {
         const point = points[index];
         positions.push(point.x, elevation, point.y);
       });
-      const start = indices.length;
-      indices.push(start, start + 1, start + 2);
+      indices.push(topStart, topStart + 1, topStart + 2);
+
+      const bottomStart = positions.length / 3;
+      [...triangle].reverse().forEach((index) => {
+        const point = points[index];
+        positions.push(point.x, elevation - slab.thickness, point.y);
+      });
+      indices.push(bottomStart, bottomStart + 1, bottomStart + 2);
+    });
+    points.forEach((point, index) => {
+      const next = points[(index + 1) % points.length];
+      const sideStart = positions.length / 3;
+      positions.push(
+        point.x, elevation, point.y,
+        next.x, elevation, next.y,
+        next.x, elevation - slab.thickness, next.y,
+        point.x, elevation - slab.thickness, point.y,
+      );
+      indices.push(sideStart, sideStart + 1, sideStart + 2, sideStart, sideStart + 2, sideStart + 3);
     });
     const buffer = new THREE.BufferGeometry();
     buffer.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
@@ -32,7 +50,6 @@ function FloorSlabMesh({ slab, elevation }: { slab: FloorSlab; elevation: number
   if (!geometry) return null;
   return <mesh geometry={geometry} receiveShadow><meshStandardMaterial color={slab.materialHex} side={THREE.DoubleSide} roughness={0.82} /></mesh>;
 }
-
 function StaircaseMeshes({ stair, elevation }: { stair: Staircase; elevation: number }): JSX.Element {
   const stepRise = stair.rise / stair.stepCount;
   const stepRun = stair.run / stair.stepCount;
