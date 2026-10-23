@@ -139,3 +139,8 @@ The editor now has persisted house yaw calibration applied consistently in the S
 - CI was updated to use npx turbo run test --filter=@spatial/api --force so API dependencies build before tests. Project API tests now explicitly cover scene assets, wall openings, presentation data, and fail-closed behavior when Supabase configuration is missing.
 - Persistence handler now commits to process cache only after a successful Supabase write, and durable share-token reads verify the token against Supabase rather than trusting process memory.
 - Await fresh CI. Deployed Supabase save/list/open/restart, browser end-to-end behavior, and physical AR remain external acceptance gates.
+
+
+## Latest gate — 2026-10-23, Engineering Gate #280
+
+**PASS** for clean install, runtime graph, web type-check/build, core snapshot tests, geometry tests, and API dependency build/API tests. API tests report 7 passed, 0 failed, including complete local API project round-trip (assets, openings, presentation, building) and fail-closed missing-Supabase checks. R2 configuration is now validated only when object storage is actually used. Saved-project library search by name/source is included in this gate. This is automated validation only; live Supabase restart survival, browser manual tests, and physical AR are not yet accepted.
