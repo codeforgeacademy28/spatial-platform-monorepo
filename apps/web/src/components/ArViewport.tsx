@@ -17,7 +17,8 @@ import type { MutableRefObject, ReactNode } from 'react';
 import * as THREE from 'three';
 import type { Group } from 'three';
 import { floorPlanToWorld, generateRoomFloorMesh, isCircleMovementBlockedByWall, resolveCircleMovementWithWallSliding, worldToFloorPlan } from '@spatial/geometry-engine';
-import type { Room, WallSegment } from '@spatial/core';
+import type { BuildingModel, Room, WallSegment } from '@spatial/core';
+import { BuildingStructureMeshes, levelElevation } from './BuildingStructureMeshes';
 import {
   ControllerLocomotionClient,
   type ControllerConnectionState,
@@ -28,6 +29,7 @@ interface ArViewportProps {
   walls: WallSegment[];
   rooms: Room[];
   points: Array<{ x: number; y: number }>;
+  building?: BuildingModel;
 }
 interface ControllerTracking {
   sessionActive: boolean;
@@ -59,12 +61,12 @@ function FloorGrid(): JSX.Element {
     </mesh>
   );
 }
-function WallMesh({ wall }: { wall: WallSegment }): JSX.Element {
+function WallMesh({ wall, elevation }: { wall: WallSegment; elevation: number }): JSX.Element {
   const length = Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y) || 0.001;
   const angle = Math.atan2(wall.end.y - wall.start.y, wall.end.x - wall.start.x);
   return (
     <mesh
-      position={[(wall.start.x + wall.end.x) / 2, wall.height / 2, (wall.start.y + wall.end.y) / 2]}
+      position={[(wall.start.x + wall.end.x) / 2, elevation + wall.height / 2, (wall.start.y + wall.end.y) / 2]}
       rotation={[0, -angle, 0]}
       castShadow
       receiveShadow
@@ -74,7 +76,7 @@ function WallMesh({ wall }: { wall: WallSegment }): JSX.Element {
     </mesh>
   );
 }
-function RoomFloor({ room }: { room: Room }): JSX.Element {
+function RoomFloor({ room, elevation }: { room: Room; elevation: number }): JSX.Element {
   const geometry = useMemo(() => {
     const floorMesh = generateRoomFloorMesh(room);
     const bufferGeometry = new THREE.BufferGeometry();
@@ -89,7 +91,7 @@ function RoomFloor({ room }: { room: Room }): JSX.Element {
     return bufferGeometry;
   }, [room]);
   return (
-    <mesh geometry={geometry} position={[0, 0.01, 0]} receiveShadow>
+    <mesh geometry={geometry} position={[0, elevation + 0.01, 0]} receiveShadow>
       <meshStandardMaterial color="#2563eb" transparent opacity={0.35} />
     </mesh>
   );
@@ -436,7 +438,7 @@ function DesktopFirstPersonController({
 
   return null;
 }
-export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element {
+export function ArViewport({ walls, rooms, building }: ArViewportProps): JSX.Element {
   const [tracking, setTracking] = useState<ControllerTracking>({
     sessionActive: false,
     leftTracked: false,
@@ -624,11 +626,12 @@ export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element {
             <IfInSessionMode deny={['immersive-ar', 'immersive-vr']}>
               <FloorGrid />
             </IfInSessionMode>
+            <BuildingStructureMeshes building={building} />
             {rooms.map((room) => (
-              <RoomFloor key={room.id} room={room} />
+              <RoomFloor key={room.id} room={room} elevation={levelElevation(building, room.levelId)} />
             ))}
             {walls.map((wall) => (
-              <WallMesh key={wall.id} wall={wall} />
+              <WallMesh key={wall.id} wall={wall} elevation={levelElevation(building, wall.levelId)} />
             ))}
             {importedModel && (
               <EditableGltfAsset
