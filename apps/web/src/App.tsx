@@ -275,12 +275,13 @@ export function App(): JSX.Element {
         source: result.persistence === 'durable' ? 'Supabase · durable' : 'API memory · temporary (not Supabase)',
         remote: true,
       }));
-      const allEntries = [...localEntries, ...remoteEntries];
-      const distinctEntries = allEntries.filter((entry, index, entries) => entries.findIndex((candidate) =>
-        candidate.project.id === entry.project.id
-        && candidate.remote === entry.remote
-        && candidate.project.updatedAt === entry.project.updatedAt
-      ) === index);
+      // Prefer the server copy when timestamps match, but retain a newer
+      // browser recovery copy if a failed/unfinished save left local changes.
+      const unsyncedLocalEntries = localEntries.filter((local) => {
+        const remote = remoteEntries.find((entry) => entry.project.id === local.project.id);
+        return !remote || local.project.updatedAt > remote.project.updatedAt;
+      });
+      const distinctEntries = [...remoteEntries, ...unsyncedLocalEntries];
       setSavedProjects(distinctEntries.sort((a, b) => b.project.updatedAt.localeCompare(a.project.updatedAt)));
       if (result.persistence !== 'durable') setSavedProjectsError(result.message ?? 'The API is not using durable Supabase persistence. Projects in API memory can disappear when it restarts.');
     } catch (error) {
