@@ -8,6 +8,10 @@ interface SharedProjectResponse {
   persistence?: 'durable' | 'local-only';
 }
 
+interface SavedProjectsResponse { projects?: unknown[]; persistence?: 'durable' | 'local-only'; message?: string; }
+
+interface LoadProjectResponse { project?: unknown; persistence?: 'durable' | 'local-only'; }
+
 interface SaveProjectResponse {
   project: unknown;
   message?: string;
@@ -34,6 +38,33 @@ export async function saveProject(project: Project): Promise<SaveResult> {
   const savedProject = ProjectSchema.parse(payload.project);
   if (payload.persistence === 'durable') return { status: 'durable', project: savedProject };
   return { status: 'local-only', project: savedProject, message: payload.message ?? 'Server storage is temporary.' };
+}
+
+export interface SavedProjectsResult {
+  projects: Project[];
+  persistence: 'durable' | 'local-only';
+  message?: string;
+}
+
+export async function listSavedProjects(): Promise<SavedProjectsResult> {
+  const response = await fetch(`${getApiBaseUrl()}/api/projects`);
+  if (!response.ok) throw await parseError(response, 'Unable to list saved projects from the server.');
+  const payload = (await response.json()) as SavedProjectsResponse;
+  return {
+    projects: (payload.projects ?? []).map((project) => ProjectSchema.parse(project)),
+    persistence: payload.persistence === 'durable' ? 'durable' : 'local-only',
+    message: payload.message,
+  };
+}
+
+export async function loadSavedProject(id: string): Promise<{ project: Project; persistence: 'durable' | 'local-only' }> {
+  const response = await fetch(`${getApiBaseUrl()}/api/projects/${encodeURIComponent(id)}`);
+  if (!response.ok) throw await parseError(response, 'Unable to open the saved project.');
+  const payload = (await response.json()) as LoadProjectResponse;
+  return {
+    project: ProjectSchema.parse(payload.project),
+    persistence: payload.persistence === 'durable' ? 'durable' : 'local-only',
+  };
 }
 
 export async function fetchSharedProject(token: string): Promise<Project> {
