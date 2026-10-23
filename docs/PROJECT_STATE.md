@@ -125,3 +125,8 @@ The previous Save path could report a server save while the API was running in l
 ## Canonical building model update — 2026-10-23
 
 The versioned project schema now includes an additive `building` model: ordered levels/elevations, floor slabs, staircases and typed components with position/rotation/scale, dimensions, material, visibility, lock and door state. Legacy projects parse into a default ground-floor model. The editor stores this model in the same project snapshot used by API/local persistence. The desktop 3D and Spatial/AR scene render the current model's slabs, stair-step meshes and basic component proxies; floor selection and component transform controls are present. These are foundational increments only: level-aware traversal, final geometry for each component type, ceilings, true door hinge/collision behavior, undo/redo and full browser/device acceptance remain open.
+
+
+## Latest implementation additions
+
+The editor now has persisted house yaw calibration applied consistently in the Spatial/AR model transform, inverse coordinate conversion and collision/navigation paths; a known-size rectangular-room transform contract test; component material/scale/duplicate/visibility/lock controls; floor and ceiling material controls; active-floor isolation; full project JSON import-as-copy and export; whole-project undo/redo snapshots; and debounced browser recovery autosave. These features are source-level implementation only until browser/device acceptance is recorded.
