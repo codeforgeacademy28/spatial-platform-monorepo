@@ -48,6 +48,9 @@ export function getSupabasePersistenceReadiness(): { configured: boolean; missin
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
   if (!url || !/^https?:\/\//i.test(url)) missing.push('SUPABASE_URL');
   if (!serviceRoleKey || serviceRoleKey === 'local-service-role') missing.push('SUPABASE_SERVICE_ROLE_KEY');
+  for (const name of ['PERSISTENCE_DEFAULT_TENANT_ID', 'PERSISTENCE_DEFAULT_ORGANIZATION_ID', 'PERSISTENCE_DEFAULT_OWNER_ID'] as const) {
+    if (!z.string().uuid().safeParse(process.env[name]).success) missing.push(name);
+  }
   return { configured: missing.length === 0, missing };
 }
 
