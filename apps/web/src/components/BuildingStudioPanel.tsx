@@ -87,10 +87,19 @@ export function BuildingStudioPanel({ building, setBuilding, activeLevelId, onAc
   const addComponent = (type: BuildingComponentType): void => {
     const xs = walls.flatMap((wall) => [wall.start.x, wall.end.x]);
     const zs = walls.flatMap((wall) => [wall.start.y, wall.end.y]);
+    const centerX = xs.length ? (Math.min(...xs) + Math.max(...xs)) / 2 : 0;
+    const centerZ = zs.length ? (Math.min(...zs) + Math.max(...zs)) / 2 : 0;
+    const placementPattern: Array<[number, number]> = [
+      [0, 0], [1.1, 0], [0, 1.1], [-1.1, 0], [0, -1.1],
+      [1.1, 1.1], [-1.1, 1.1], [-1.1, -1.1], [1.1, -1.1],
+    ];
+    const componentCount = building.components.filter((item) => item.levelId === activeLevelId).length;
+    const offset = placementPattern[componentCount % placementPattern.length] ?? [0, 0];
+    const ring = 1 + Math.floor(componentCount / placementPattern.length);
     const position: [number, number, number] = [
-      xs.length ? (Math.min(...xs) + Math.max(...xs)) / 2 : 0,
+      centerX + offset[0] * ring,
       0,
-      zs.length ? (Math.min(...zs) + Math.max(...zs)) / 2 : 0,
+      centerZ + offset[1] * ring,
     ];
     const component = {
       id: crypto.randomUUID(), levelId: activeLevelId, type,
