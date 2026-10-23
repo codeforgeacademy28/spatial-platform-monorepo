@@ -26,6 +26,19 @@ test('legacy projects migrate to a versioned ground-floor building model', () =>
   assert.deepEqual(project.building?.components, []);
 });
 
+test('room floor finishes validate and survive project serialization', () => {
+  const room = {
+    id: 'room-1', projectId: 'project-legacy', name: 'Living room',
+    polygon: [{ x: 0, y: 0 }, { x: 4, y: 0 }, { x: 4, y: 4 }, { x: 0, y: 4 }],
+    wallSegments: [], floorArea: 16, floorMaterialHex: '#aabbcc',
+    createdAt: timestamp, updatedAt: timestamp,
+  };
+  const project = ProjectSchema.parse({ ...legacyProject(), rooms: [room] });
+  assert.equal(project.rooms[0].floorMaterialHex, '#aabbcc');
+  assert.equal(deserializeProject(serializeProject(project)).rooms[0].floorMaterialHex, '#aabbcc');
+  assert.throws(() => ProjectSchema.parse({ ...legacyProject(), rooms: [{ ...room, floorMaterialHex: 'blue' }] }));
+});
+
 test('unsupported future building schema versions are rejected explicitly', () => {
   assert.throws(
     () => ProjectSchema.parse({ ...legacyProject(), building: { schemaVersion: 2 } }),
