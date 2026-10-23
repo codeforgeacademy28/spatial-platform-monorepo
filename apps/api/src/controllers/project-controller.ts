@@ -39,6 +39,61 @@ async function persistPublishedProject(entry: { id: string; name: string; projec
   if (error) throw new Error(`Durable share-token persistence failed: ${error.message}`);
 }
 
+
+export async function listProjectsHandler(req: Request, res: Response): Promise<void> {
+  const context = requirePersistenceContext(req, res);
+  if (durablePersistenceEnabled() && !context) return;
+  try {
+    if (!durablePersistenceEnabled()) {
+      const projects = [...projectStore.values()].map((project) => cloneProject(project)).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+      res.status(200).json({ projects, persistence: 'local-only', message: 'These projects exist only in this API process. Configure Supabase for durable storage.' });
+      return;
+    }
+    const { data, error } = await supabaseAdmin.from('projects')
+      .select('project_data')
+      .eq('tenant_id', context!.tenantId)
+      .eq('organization_id', context!.organizationId)
+      .eq('owner_id', context!.ownerId)
+      .order('updated_at', { ascending: false });
+    if (error) throw new Error(`Durable project listing failed: ${error.message}`);
+    const projects = (data ?? []).map((row) => ProjectSchema.parse(row.project_data));
+    res.status(200).json({ projects, persistence: 'durable' });
+  } catch (error) {
+    console.error(error);
+    res.status(503).json({ error: error instanceof Error ? error.message : 'Unable to list saved projects.', code: 'PERSISTENCE_READ_FAILED' });
+  }
+}
+
+export async function getProjectHandler(req: Request, res: Response): Promise<void> {
+  const params = projectIdParamSchema.safeParse(req.params);
+  if (!params.success) { res.status(400).json({ error: 'invalid project id', details: params.error.flatten() }); return; }
+  const context = requirePersistenceContext(req, res);
+  if (durablePersistenceEnabled() && !context) return;
+  try {
+    if (!durablePersistenceEnabled()) {
+      const project = projectStore.get(params.data.id);
+      if (!project) { res.status(404).json({ error: 'saved project not found', code: 'PROJECT_NOT_FOUND' }); return; }
+      res.status(200).json({ project: cloneProject(project), persistence: 'local-only' });
+      return;
+    }
+    const { data, error } = await supabaseAdmin.from('projects')
+      .select('project_data')
+      .eq('id', params.data.id)
+      .eq('tenant_id', context!.tenantId)
+      .eq('organization_id', context!.organizationId)
+      .eq('owner_id', context!.ownerId)
+      .maybeSingle();
+    if (error) throw new Error(`Durable project load failed: ${error.message}`);
+    if (!data) { res.status(404).json({ error: 'saved project not found', code: 'PROJECT_NOT_FOUND' }); return; }
+    const project = ProjectSchema.parse(data.project_data);
+    projectStore.set(project.id, cloneProject(project));
+    res.status(200).json({ project: cloneProject(project), persistence: 'durable' });
+  } catch (error) {
+    console.error(error);
+    res.status(503).json({ error: error instanceof Error ? error.message : 'Unable to load saved project.', code: 'PERSISTENCE_READ_FAILED' });
+  }
+}
+
 export async function createProjectHandler(req: Request, res: Response): Promise<void> {
   const entitlement = checkFeatureEntitlement('project-sharing'); if (!entitlement.allowed) { res.status(403).json({ error: 'feature not allowed', reason: entitlement.reason ?? 'Access denied.' }); return; }
   const payload = ProjectSchema.safeParse(req.body); if (!payload.success) { res.status(400).json({ error: 'invalid project payload', details: payload.error.flatten() }); return; }
