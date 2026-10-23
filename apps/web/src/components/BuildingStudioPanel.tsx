@@ -37,9 +37,30 @@ function defaultDimensions(type: BuildingComponentType): { width: number; height
     case 'window': return { width: 1.2, height: 1, depth: 0.1 };
     case 'bed': return { width: 1.6, height: 0.55, depth: 2 };
     case 'sofa': return { width: 2, height: 0.85, depth: 0.85 };
+    case 'chair': return { width: 0.5, height: 0.9, depth: 0.5 };
+    case 'table': return { width: 1.2, height: 0.75, depth: 0.8 };
     case 'wardrobe': return { width: 1.4, height: 2.2, depth: 0.6 };
+    case 'cabinet': return { width: 0.9, height: 0.9, depth: 0.5 };
+    case 'kitchen-unit': return { width: 1.2, height: 0.9, depth: 0.6 };
+    case 'sink': return { width: 0.8, height: 0.9, depth: 0.55 };
+    case 'toilet': return { width: 0.4, height: 0.75, depth: 0.7 };
+    case 'bathtub': return { width: 1.7, height: 0.6, depth: 0.75 };
+    case 'shower': return { width: 1, height: 2.1, depth: 1 };
     case 'column': return { width: 0.3, height: 2.7, depth: 0.3 };
-    case 'light': return { width: 0.25, height: 0.12, depth: 0.25 };
+    case 'beam': return { width: 3, height: 0.2, depth: 0.2 };
+    case 'partition': return { width: 2.5, height: 2.7, depth: 0.12 };
+    case 'roof': return { width: 4, height: 0.2, depth: 4 };
+    case 'light': return { width: 0.25, height: 0.3, depth: 0.25 };
+    case 'switch': return { width: 0.08, height: 0.12, depth: 0.03 };
+    case 'socket': return { width: 0.08, height: 0.08, depth: 0.03 };
+    case 'curtain': return { width: 1.5, height: 2.2, depth: 0.08 };
+    case 'blind': return { width: 1.5, height: 1.5, depth: 0.05 };
+    case 'rug': return { width: 2, height: 0.03, depth: 1.5 };
+    case 'artwork': return { width: 1.2, height: 0.9, depth: 0.06 };
+    case 'plant': return { width: 0.45, height: 1.2, depth: 0.45 };
+    case 'fence':
+    case 'gate': return { width: 2, height: 1.2, depth: 0.08 };
+    case 'driveway': return { width: 4, height: 0.08, depth: 6 };
     case 'pool': return { width: 4, height: 1.2, depth: 6 };
     default: return { width: 0.8, height: 0.8, depth: 0.8 };
   }
