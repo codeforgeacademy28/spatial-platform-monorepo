@@ -167,6 +167,28 @@ export function App(): JSX.Element {
     setRoomsValidated(false);
   }, [activeLevelId, groundLevelId]);
 
+  const handleExportProject = (): void => {
+    try {
+      const exportProject = ProjectSchema.parse({ ...cloneProject(project), updatedAt: new Date().toISOString() });
+      const blob = new Blob([JSON.stringify(exportProject, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const safeName = projectName.trim().replace(/[^a-z0-9_-]+/gi, '-').replace(/^-+|-+$/g, '') || 'spatial-house';
+      link.href = url;
+      link.download = `${safeName}.spatial.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setSaveState('saved');
+      setSaveMessage('Exported the complete editable project, including building levels, slabs, stairs, components and openings.');
+    } catch (error) {
+      console.error(error);
+      setSaveState('error');
+      setSaveMessage(error instanceof Error ? `Project export failed: ${error.message}` : 'Project export failed.');
+    }
+  };
+
   const handleSaveProject = async (): Promise<void> => {
     setSaveState('saving'); setSaveMessage('Saving project…');
     let projectToSave: Project | null = null;
@@ -340,7 +362,7 @@ export function App(): JSX.Element {
     <div className="spatial-shell flex h-screen w-screen overflow-hidden text-slate-100">
       <aside className="spatial-sidebar relative z-30 h-full w-[440px] shrink-0 overflow-y-auto border-r border-slate-800/80 p-3">
         <div className="spatial-panel mb-3 p-3"><div className="mb-2 flex items-center justify-between"><div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-300">Workflow</p><h1 className="mt-1 text-lg font-semibold text-white">Blueprint → Spatial 3D</h1></div><span className="spatial-badge">Step {Math.min(currentStep, 6)}/6</span></div><p className="mb-3 text-xs leading-5 text-slate-400">Complete each stage in order. Drawn walls are the canonical geometry used by 3D, versions, comparison and spatial view.</p><div className="spatial-stepper">{steps.map((step) => { const complete = currentStep > step.number; const active = currentStep === step.number; return <div key={step.number} className={`spatial-step ${active ? 'is-active' : ''} ${complete ? 'is-complete' : ''}`}><span className="spatial-step-number">{complete ? '✓' : step.number}</span><div className="min-w-0"><div className="text-sm font-medium text-slate-100">{step.title}</div><div className="text-xs text-slate-500">{step.detail}</div></div></div>; })}</div>{saveMessage ? <div className={`mt-3 rounded-lg border px-3 py-2 text-xs ${saveState === 'error' ? 'border-rose-500/40 bg-rose-500/10 text-rose-200' : saveState === 'local-only' ? 'border-amber-500/40 bg-amber-500/10 text-amber-100' : 'border-slate-700 bg-slate-900/70 text-slate-300'}`}>{saveMessage}</div> : null}</div>
-        <FloorPlanOverlay walls={activeWalls} rooms={activeRooms} setWalls={updateActiveWalls} setRooms={updateActiveRooms} activeLevelId={activeLevelId} activeLevelWallHeight={building.levels.find((level) => level.id === activeLevelId)?.wallHeight ?? 2.7} projectName={projectName} onProjectNameChange={setProjectName} onSave={handleSaveProject} onLoad={handleLoadProject} onShare={handleShareDesign} onEnterAr={handleEnterSpatial} shareUrl={shareUrl} onSaveVersion={handleSaveVersion} onCompareVersions={handleCompareVersions} savedVersionsCount={versions.length} onBlueprintUploaded={handleBlueprintUpload} onDetectRooms={handleDetectRooms} roomsValidated={roomsValidated} onReview3D={handleReview3D} onEnterSpatial={handleEnterSpatial} onRevert={handleRevertProject} hasSavedBaseline={Boolean(lastSavedProject)} saveState={saveState} blueprintUploaded={blueprintUploaded} scaleCalibrated={scaleCalibrated} scaleMetersPerPixel={scaleMetersPerPixel} onScaleCalibrated={handleScaleCalibrated} />
+        <FloorPlanOverlay walls={activeWalls} rooms={activeRooms} setWalls={updateActiveWalls} setRooms={updateActiveRooms} activeLevelId={activeLevelId} activeLevelWallHeight={building.levels.find((level) => level.id === activeLevelId)?.wallHeight ?? 2.7} projectName={projectName} onProjectNameChange={setProjectName} onSave={handleSaveProject} onLoad={handleLoadProject} onExportProject={handleExportProject} onShare={handleShareDesign} onEnterAr={handleEnterSpatial} shareUrl={shareUrl} onSaveVersion={handleSaveVersion} onCompareVersions={handleCompareVersions} savedVersionsCount={versions.length} onBlueprintUploaded={handleBlueprintUpload} onDetectRooms={handleDetectRooms} roomsValidated={roomsValidated} onReview3D={handleReview3D} onEnterSpatial={handleEnterSpatial} onRevert={handleRevertProject} hasSavedBaseline={Boolean(lastSavedProject)} saveState={saveState} blueprintUploaded={blueprintUploaded} scaleCalibrated={scaleCalibrated} scaleMetersPerPixel={scaleMetersPerPixel} onScaleCalibrated={handleScaleCalibrated} />
         <SceneStudioPanel walls={walls} selectedWallId={selectedWallId} setSelectedWallId={setSelectedWallId} setWalls={setWalls} setSceneAssets={setSceneAssets} setWallOpenings={setWallOpenings} presentation={presentation} setPresentation={setPresentation} /><BuildingStudioPanel building={building} setBuilding={setBuilding} activeLevelId={activeLevelId} onActiveLevelChange={setActiveLevelId} walls={activeWalls} /><div className="mt-3 space-y-3"><RoomHighlightList rooms={rooms} walls={walls} selectedRoomId={selectedRoomId} onSelect={setSelectedRoomId} /><VersionHistoryPanel versions={versions} selectedVersionIds={selectedVersionIds} onToggle={toggleVersionSelection} onCompare={handleCompareVersions} /></div>
         <div className="border-t border-slate-800 p-3 mt-3"><AiAssistantPanel walls={walls} onDispatchAction={dispatchSpatialAction} /></div>
       </aside>
