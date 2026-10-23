@@ -508,3 +508,16 @@ The detailed task plan, priorities, file targets, test requirements, and accepta
 - Geometry contract tests: **failed** in the open-door passage assertion. The collision API expects movement deltas, but the test supplied endpoint coordinates. Corrected the assertion to cross the center of the doorway with `movementBlockedByWalls(2, -0.5, 0, 1, open)` in commit `613567dcee5bf9b7d5031ed81328a132c84874ec`.
 - Fresh CI for that correction is not yet confirmed. API tests were skipped because the geometry test failed. Keep all acceptance checkboxes unchecked until a fresh gate passes.
 - Further increments now in branch: persisted AR yaw calibration shared across rendering/navigation/collision transforms; known-size 4 m × 6 m transform test; component material/scale/duplicate/visibility/lock controls; floor/ceiling material controls; active-floor isolation; full project JSON import/export; project-wide undo/redo and debounced browser recovery autosave.
+
+
+### Latest progress snapshot — 2026-10-23
+
+**Rough implementation coverage: about 35–40%; acceptance-complete tasks: 0 of 17 in Phases 12–13.** This is a planning estimate, not a measured metric. The 17 task IDs remain unchecked because end-to-end/browser/device/deployed acceptance has not been completed. Multiple tasks have partial source changes and passing unit/contract coverage.
+
+- **Engineering Gate #268:** web type-check/build passed; core snapshot tests passed (4/4); geometry tests passed (26/26). API tests failed before executing the project tests because @spatial/billing/dist/index.js was not built. This was a test-pipeline dependency-order defect, not a passing API gate.
+- **CI fix committed:** .github/workflows/engineering-gate.yml now runs npx turbo run test --filter=@spatial/api --force, so Turbo builds the API's workspace dependencies before tests instead of calling the API test script directly.
+- **Persistence safety fix:** durable project writes only update the in-process cache after the Supabase upsert succeeds; durable share reads always validate the share token against Supabase instead of returning a process-memory share as durable.
+- **Expanded API contract test:** local save/list/open now checks scene assets and anchors, wall openings/door state, presentation data, and building components/levels. Missing Supabase credentials should fail save/list/open explicitly and must not leave a false local cache copy.
+- **Still blocked:** fresh CI for these latest commits; live Supabase save/list/open/restart test; browser-level saved-project/autosave/undo-redo acceptance; physical WebXR orientation/scale; full component geometry and blueprint PDF/CAD import.
+
+Next: confirm the updated Engineering Gate, fix any failure, then proceed to browser/API persistence validation. Do not mark any task complete based on this status note.
