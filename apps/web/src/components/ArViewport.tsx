@@ -158,9 +158,13 @@ function XRLocomotion({
   collisionEnabled,
   viewCorrectionCommand,
   onViewCorrectionApplied,
+  building,
+  rooms,
 }: {
   originRef: MutableRefObject<Group | null>;
   walls: WallSegment[];
+  building?: BuildingModel;
+  rooms: Room[];
   modelTransform: [number, number, number];
   collisionEnabled: boolean;
   viewCorrectionCommand: ViewCorrectionCommand;
@@ -214,6 +218,9 @@ function XRLocomotion({
     }
 
     if (!previousPosition.current.equals(current)) {
+      const layout = sceneToLayoutPosition(current.x, current.z, modelTransform);
+      const currentFloor = roomFloorElevation(layout.x, layout.z, rooms, building, current.y);
+      const levelWalls = walls.filter((wall) => Math.abs(levelElevation(building, wall.levelId) - currentFloor) < 0.05);
       const blocked =
         collisionEnabled &&
         movementBlockedByWalls(
@@ -221,7 +228,7 @@ function XRLocomotion({
           previousPosition.current.z,
           current.x,
           current.z,
-          walls,
+          levelWalls,
           modelTransform,
         );
 
@@ -231,6 +238,10 @@ function XRLocomotion({
         previousPosition.current.copy(current);
       }
     }
+
+    const layout = sceneToLayoutPosition(current.x, current.z, modelTransform);
+    const stairElevation = building ? stairFloorElevationAtPoint(layout.x, layout.z, building) : null;
+    current.y = stairElevation ?? roomFloorElevation(layout.x, layout.z, rooms, building, current.y);
   });
 
   return <XROrigin ref={originRef} position={[0, 0, 0]} />;
@@ -242,9 +253,13 @@ function ExternalControllerLocomotion({
   modelTransform,
   collisionEnabled,
   onStateChange,
+  building,
+  rooms,
 }: {
   originRef: MutableRefObject<Group | null>;
   walls: WallSegment[];
+  building?: BuildingModel;
+  rooms: Room[];
   modelTransform: [number, number, number];
   collisionEnabled: boolean;
   onStateChange: (state: ControllerConnectionState) => void;
@@ -283,6 +298,9 @@ function ExternalControllerLocomotion({
     next.x += (strafe * Math.cos(yaw) + forward * Math.sin(yaw)) * speed;
     next.z += (strafe * Math.sin(yaw) - forward * Math.cos(yaw)) * speed;
 
+    const currentLayout = sceneToLayoutPosition(origin.position.x, origin.position.z, modelTransform);
+    const currentFloor = roomFloorElevation(currentLayout.x, currentLayout.z, rooms, building, origin.position.y);
+    const levelWalls = walls.filter((wall) => Math.abs(levelElevation(building, wall.levelId) - currentFloor) < 0.05);
     const blocked =
       collisionEnabled &&
       movementBlockedByWalls(
@@ -290,10 +308,15 @@ function ExternalControllerLocomotion({
         origin.position.z,
         next.x,
         next.z,
-        walls,
+        levelWalls,
         modelTransform,
       );
-    if (!blocked) origin.position.copy(next);
+    if (!blocked) {
+      origin.position.copy(next);
+      const layout = sceneToLayoutPosition(next.x, next.z, modelTransform);
+      const stairElevation = building ? stairFloorElevationAtPoint(layout.x, layout.z, building) : null;
+      origin.position.y = stairElevation ?? roomFloorElevation(layout.x, layout.z, rooms, building, origin.position.y);
+    }
   });
 
   return null;
@@ -650,6 +673,8 @@ export function ArViewport({ walls, rooms, building, wallOpenings = [], onDoorTo
             collisionEnabled={collisionEnabled}
             viewCorrectionCommand={viewCorrectionCommand}
             onViewCorrectionApplied={setViewCorrection}
+            building={building}
+            rooms={rooms}
           />
           <ExternalControllerLocomotion
             originRef={originRef}
@@ -657,6 +682,8 @@ export function ArViewport({ walls, rooms, building, wallOpenings = [], onDoorTo
             modelTransform={modelTransform}
             collisionEnabled={collisionEnabled}
             onStateChange={setControllerState}
+            building={building}
+            rooms={rooms}
           />
           <group position={modelTransform} rotation={[0, MODEL_YAW_RADIANS, 0]}>
             <IfInSessionMode deny={['immersive-ar', 'immersive-vr']}>
