@@ -1,0 +1,64 @@
+import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+import type { AddressInfo } from 'node:net';
+import test from 'node:test';
+import app from '../src/app.js';
+
+test('local-only API save/list/open round-trips a full versioned project', async () => {
+  const previousMode = process.env.SUPABASE_PERSISTENCE_ENABLED;
+  process.env.SUPABASE_PERSISTENCE_ENABLED = 'false';
+  const server = app.listen(0);
+  await new Promise<void>((resolve) => server.once('listening', resolve));
+  const address = server.address() as AddressInfo;
+  const baseUrl = `http://127.0.0.1:${address.port}`;
+  const timestamp = new Date().toISOString();
+  const id = randomUUID();
+  const project = {
+    id,
+    name: 'Persistence contract test',
+    walls: [],
+    rooms: [],
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    building: {
+      schemaVersion: 1,
+      levels: [{ id: 'ground', name: 'Ground Floor', elevation: 0, wallHeight: 2.7, order: 0 }],
+      floorSlabs: [],
+      stairs: [],
+      components: [{
+        id: 'sofa', levelId: 'ground', type: 'sofa', name: 'Test sofa',
+        position: [1, 0, 2], rotation: [0, 0, 0], scale: [1, 1, 1],
+        dimensions: { width: 2, height: 0.8, depth: 0.8 },
+      }],
+    },
+  };
+
+  try {
+    const saveResponse = await fetch(`${baseUrl}/api/projects`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(project),
+    });
+    assert.equal(saveResponse.status, 201);
+    const saved = await saveResponse.json() as { project: { id: string }; persistence: string };
+    assert.equal(saved.project.id, id);
+    assert.equal(saved.persistence, 'local-only');
+
+    const listResponse = await fetch(`${baseUrl}/api/projects`);
+    assert.equal(listResponse.status, 200);
+    const listed = await listResponse.json() as { projects: Array<{ id: string }>; persistence: string };
+    assert.equal(listed.persistence, 'local-only');
+    assert.ok(listed.projects.some((entry) => entry.id === id));
+
+    const openResponse = await fetch(`${baseUrl}/api/projects/${id}`);
+    assert.equal(openResponse.status, 200);
+    const opened = await openResponse.json() as { project: typeof project; persistence: string };
+    assert.equal(opened.persistence, 'local-only');
+    assert.equal(opened.project.building.components[0]?.name, 'Test sofa');
+    assert.equal(opened.project.building.levels[0]?.name, 'Ground Floor');
+  } finally {
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+    if (previousMode === undefined) delete process.env.SUPABASE_PERSISTENCE_ENABLED;
+    else process.env.SUPABASE_PERSISTENCE_ENABLED = previousMode;
+  }
+});
