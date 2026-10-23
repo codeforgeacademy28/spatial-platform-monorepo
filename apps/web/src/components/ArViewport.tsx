@@ -17,8 +17,8 @@ import type { MutableRefObject, ReactNode } from 'react';
 import * as THREE from 'three';
 import type { Group } from 'three';
 import { floorPlanToWorld, generateRoomFloorMesh, isCircleMovementBlockedByWall, resolveCircleMovementWithWallSliding, worldToFloorPlan } from '@spatial/geometry-engine';
-import type { BuildingModel, Room, WallSegment } from '@spatial/core';
-import { BuildingStructureMeshes, levelElevation } from './BuildingStructureMeshes';
+import type { BuildingModel, Room, WallOpening, WallSegment } from '@spatial/core';
+import { BuildingStructureMeshes, BuildingWallMesh, levelElevation } from './BuildingStructureMeshes';
 import {
   ControllerLocomotionClient,
   type ControllerConnectionState,
@@ -30,6 +30,8 @@ interface ArViewportProps {
   rooms: Room[];
   points: Array<{ x: number; y: number }>;
   building?: BuildingModel;
+  wallOpenings?: WallOpening[];
+  onDoorToggle?: (openingId: string) => void;
 }
 interface ControllerTracking {
   sessionActive: boolean;
@@ -58,21 +60,6 @@ function FloorGrid(): JSX.Element {
     <mesh rotation-x={-Math.PI / 2} position={[0, -0.01, 0]} receiveShadow>
       <planeGeometry args={[30, 30]} />
       <meshStandardMaterial color="#0f172a" />
-    </mesh>
-  );
-}
-function WallMesh({ wall, elevation }: { wall: WallSegment; elevation: number }): JSX.Element {
-  const length = Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y) || 0.001;
-  const angle = Math.atan2(wall.end.y - wall.start.y, wall.end.x - wall.start.x);
-  return (
-    <mesh
-      position={[(wall.start.x + wall.end.x) / 2, elevation + wall.height / 2, (wall.start.y + wall.end.y) / 2]}
-      rotation={[0, -angle, 0]}
-      castShadow
-      receiveShadow
-    >
-      <boxGeometry args={[length, wall.height, wall.thickness]} />
-      <meshStandardMaterial color="#38bdf8" metalness={0.25} roughness={0.4} />
     </mesh>
   );
 }
@@ -438,7 +425,7 @@ function DesktopFirstPersonController({
 
   return null;
 }
-export function ArViewport({ walls, rooms, building }: ArViewportProps): JSX.Element {
+export function ArViewport({ walls, rooms, building, wallOpenings = [], onDoorToggle }: ArViewportProps): JSX.Element {
   const [tracking, setTracking] = useState<ControllerTracking>({
     sessionActive: false,
     leftTracked: false,
@@ -631,7 +618,7 @@ export function ArViewport({ walls, rooms, building }: ArViewportProps): JSX.Ele
               <RoomFloor key={room.id} room={room} elevation={levelElevation(building, room.levelId)} />
             ))}
             {walls.map((wall) => (
-              <WallMesh key={wall.id} wall={wall} elevation={levelElevation(building, wall.levelId)} />
+              <BuildingWallMesh key={wall.id} wall={wall} elevation={levelElevation(building, wall.levelId)} openings={wallOpenings} onDoorToggle={onDoorToggle} />
             ))}
             {importedModel && (
               <EditableGltfAsset
