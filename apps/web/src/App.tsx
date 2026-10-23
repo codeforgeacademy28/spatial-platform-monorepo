@@ -160,6 +160,28 @@ export function App(): JSX.Element {
     }
     previousProjectRef.current = cloneProject(snapshot);
   }, [project]);
+  
+  useEffect(() => {
+    const snapshot = ProjectSchema.parse(project);
+    const hasContent = snapshot.walls.length > 0
+      || snapshot.rooms.length > 0
+      || (snapshot.sceneAssets?.length ?? 0) > 0
+      || (snapshot.wallOpenings?.length ?? 0) > 0
+      || (snapshot.building?.floorSlabs.length ?? 0) > 0
+      || (snapshot.building?.components.length ?? 0) > 0
+      || (snapshot.building?.stairs.length ?? 0) > 0;
+    if (!hasContent) return;
+    const recoverySnapshot = { ...cloneProject(snapshot), updatedAt: new Date().toISOString() };
+    const timeoutId = window.setTimeout(() => {
+      try {
+        saveProjectToLocalStorage(recoverySnapshot, STORAGE_KEY);
+        writeLocalProjectLibrary(recoverySnapshot);
+      } catch (error) {
+        console.warn('Autosave recovery snapshot could not be written to browser storage.', error);
+      }
+    }, 800);
+    return () => window.clearTimeout(timeoutId);
+  }, [project]);
   const updateWalls: Dispatch<SetStateAction<WallSegment[]>> = useCallback((next) => { setRoomsValidated(false); setSelectedRoomId(null); setRooms([]); setWalls(next); }, []);
   const { dispatchSpatialAction } = useSpatialActionDispatcher(walls, rooms, updateWalls, setRooms);
   const toggleDoor = (openingId: string): void => setWallOpenings((current) => current.map((opening) => opening.id === openingId ? { ...opening, doorState: opening.doorState === 'open' ? 'closed' : 'open', updatedAt: new Date().toISOString() } : opening));
