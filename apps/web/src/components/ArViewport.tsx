@@ -17,6 +17,7 @@ import type { MutableRefObject, ReactNode } from 'react';
 import * as THREE from 'three';
 import type { Group } from 'three';
 import { floorPlanToWorld, generateRoomFloorMesh, isCircleMovementBlockedByWall, resolveCircleMovementWithWallSliding, wallsWithPassableOpenings, stairFloorElevationAtPoint, worldToFloorPlan } from '@spatial/geometry-engine';
+import { DEFAULT_BUILDING_YAW_RADIANS } from '@spatial/core';
 import type { BuildingModel, Room, WallOpening, WallSegment } from '@spatial/core';
 import { BuildingStructureMeshes, BuildingWallMesh, levelElevation } from './BuildingStructureMeshes';
 import {
@@ -100,7 +101,6 @@ function XRTrackingReporter({
   }, [left, right, session, onChange]);
   return null;
 }
-const MODEL_YAW_RADIANS = Math.PI / 2;
 const WALKTHROUGH_EYE_HEIGHT = 1.65;
 const XR_PLAYER_RADIUS = 0.28;
 
@@ -108,8 +108,9 @@ function sceneToLayoutPosition(
   sceneX: number,
   sceneZ: number,
   modelTransform: [number, number, number],
+  modelYawRadians: number,
 ): { x: number; z: number } {
-  const layoutPoint = worldToFloorPlan(sceneX, sceneZ, modelTransform, MODEL_YAW_RADIANS);
+  const layoutPoint = worldToFloorPlan(sceneX, sceneZ, modelTransform, modelYawRadians);
   return { x: layoutPoint.x, z: layoutPoint.y };
 }
 
@@ -120,9 +121,10 @@ function movementBlockedByWalls(
   nextSceneZ: number,
   walls: WallSegment[],
   modelTransform: [number, number, number],
+  modelYawRadians: number,
 ): boolean {
-  const previous = sceneToLayoutPosition(previousSceneX, previousSceneZ, modelTransform);
-  const next = sceneToLayoutPosition(nextSceneX, nextSceneZ, modelTransform);
+  const previous = sceneToLayoutPosition(previousSceneX, previousSceneZ, modelTransform, modelYawRadians);
+  const next = sceneToLayoutPosition(nextSceneX, nextSceneZ, modelTransform, modelYawRadians);
   return walls.some((wall) => isCircleMovementBlockedByWall(
     { x: previous.x, y: previous.z },
     { x: next.x, y: next.z },
@@ -138,16 +140,17 @@ function resolveMovementWithWallSliding(
   requestedSceneZ: number,
   walls: WallSegment[],
   modelTransform: [number, number, number],
+  modelYawRadians: number,
 ): { x: number; z: number } {
-  const previous = sceneToLayoutPosition(previousSceneX, previousSceneZ, modelTransform);
-  const requested = sceneToLayoutPosition(requestedSceneX, requestedSceneZ, modelTransform);
+  const previous = sceneToLayoutPosition(previousSceneX, previousSceneZ, modelTransform, modelYawRadians);
+  const requested = sceneToLayoutPosition(requestedSceneX, requestedSceneZ, modelTransform, modelYawRadians);
   const resolved = resolveCircleMovementWithWallSliding(
     { x: previous.x, y: previous.z },
     { x: requested.x, y: requested.z },
     walls,
     XR_PLAYER_RADIUS,
   );
-  const world = floorPlanToWorld(resolved, modelTransform, MODEL_YAW_RADIANS);
+  const world = floorPlanToWorld(resolved, modelTransform, modelYawRadians);
   return { x: world.x, z: world.z };
 }
 
@@ -160,11 +163,13 @@ function XRLocomotion({
   onViewCorrectionApplied,
   building,
   rooms,
+  modelYawRadians,
 }: {
   originRef: MutableRefObject<Group | null>;
   walls: WallSegment[];
   building?: BuildingModel;
   rooms: Room[];
+  modelYawRadians: number;
   modelTransform: [number, number, number];
   collisionEnabled: boolean;
   viewCorrectionCommand: ViewCorrectionCommand;
@@ -218,7 +223,7 @@ function XRLocomotion({
     }
 
     if (!previousPosition.current.equals(current)) {
-      const layout = sceneToLayoutPosition(current.x, current.z, modelTransform);
+      const layout = sceneToLayoutPosition(current.x, current.z, modelTransform, modelYawRadians);
       const currentFloor = roomFloorElevation(layout.x, layout.z, rooms, building, current.y);
       const levelWalls = walls.filter((wall) => Math.abs(levelElevation(building, wall.levelId) - currentFloor) < 0.05);
       const blocked =
@@ -230,6 +235,7 @@ function XRLocomotion({
           current.z,
           levelWalls,
           modelTransform,
+          modelYawRadians,
         );
 
       if (blocked) {
@@ -239,7 +245,7 @@ function XRLocomotion({
       }
     }
 
-    const layout = sceneToLayoutPosition(current.x, current.z, modelTransform);
+    const layout = sceneToLayoutPosition(current.x, current.z, modelTransform, modelYawRadians);
     const stairElevation = building ? stairFloorElevationAtPoint(layout.x, layout.z, building) : null;
     current.y = stairElevation ?? roomFloorElevation(layout.x, layout.z, rooms, building, current.y);
   });
@@ -255,6 +261,7 @@ function ExternalControllerLocomotion({
   onStateChange,
   building,
   rooms,
+  modelYawRadians,
 }: {
   originRef: MutableRefObject<Group | null>;
   walls: WallSegment[];
@@ -263,6 +270,7 @@ function ExternalControllerLocomotion({
   modelTransform: [number, number, number];
   collisionEnabled: boolean;
   onStateChange: (state: ControllerConnectionState) => void;
+  modelYawRadians: number;
 }): ReactNode {
   const client = useMemo(() => new ControllerLocomotionClient(), []);
   const input = useRef<SpatialControllerInput | null>(null);
@@ -298,7 +306,7 @@ function ExternalControllerLocomotion({
     next.x += (strafe * Math.cos(yaw) + forward * Math.sin(yaw)) * speed;
     next.z += (strafe * Math.sin(yaw) - forward * Math.cos(yaw)) * speed;
 
-    const currentLayout = sceneToLayoutPosition(origin.position.x, origin.position.z, modelTransform);
+    const currentLayout = sceneToLayoutPosition(origin.position.x, origin.position.z, modelTransform, modelYawRadians);
     const currentFloor = roomFloorElevation(currentLayout.x, currentLayout.z, rooms, building, origin.position.y);
     const levelWalls = walls.filter((wall) => Math.abs(levelElevation(building, wall.levelId) - currentFloor) < 0.05);
     const blocked =
@@ -310,10 +318,11 @@ function ExternalControllerLocomotion({
         next.z,
         levelWalls,
         modelTransform,
+        modelYawRadians,
       );
     if (!blocked) {
       origin.position.copy(next);
-      const layout = sceneToLayoutPosition(next.x, next.z, modelTransform);
+      const layout = sceneToLayoutPosition(next.x, next.z, modelTransform, modelYawRadians);
       const stairElevation = building ? stairFloorElevationAtPoint(layout.x, layout.z, building) : null;
       origin.position.y = stairElevation ?? roomFloorElevation(layout.x, layout.z, rooms, building, origin.position.y);
     }
@@ -360,6 +369,7 @@ function DesktopFirstPersonController({
   targetPosition,
   building,
   rooms,
+  modelYawRadians,
 }: {
   active: boolean;
   walls: WallSegment[];
@@ -451,7 +461,7 @@ function DesktopFirstPersonController({
       let nextZ = camera.position.z + moveZ * speed;
 
       if (collisionEnabled) {
-        const currentLayout = sceneToLayoutPosition(camera.position.x, camera.position.z, modelTransform);
+        const currentLayout = sceneToLayoutPosition(camera.position.x, camera.position.z, modelTransform, modelYawRadians);
         const currentFloor = camera.position.y - WALKTHROUGH_EYE_HEIGHT;
         const collisionLevel = roomFloorElevation(currentLayout.x, currentLayout.z, rooms, building, currentFloor);
         const levelWalls = walls.filter((wall) => Math.abs(levelElevation(building, wall.levelId) - collisionLevel) < 0.05);
@@ -471,7 +481,7 @@ function DesktopFirstPersonController({
       camera.position.z = nextZ;
     }
 
-    const layoutPosition = sceneToLayoutPosition(camera.position.x, camera.position.z, modelTransform);
+    const layoutPosition = sceneToLayoutPosition(camera.position.x, camera.position.z, modelTransform, modelYawRadians);
     const currentElevation = camera.position.y - WALKTHROUGH_EYE_HEIGHT;
     const stairElevation = building ? stairFloorElevationAtPoint(layoutPosition.x, layoutPosition.z, building) : null;
     const floorElevation = stairElevation ?? roomFloorElevation(layoutPosition.x, layoutPosition.z, rooms, building, currentElevation);
@@ -503,6 +513,7 @@ export function ArViewport({ walls, rooms, building, wallOpenings = [], onDoorTo
     rightTracked: false,
   });
   const [collisionEnabled, setCollisionEnabled] = useState(true);
+  const modelYawRadians = building?.orientationYawRadians ?? DEFAULT_BUILDING_YAW_RADIANS;
   const collisionWalls = useMemo(() => wallsWithPassableOpenings(walls, wallOpenings), [walls, wallOpenings]);
   const [walkthroughMode, setWalkthroughMode] = useState(false);
   const [importedModel, setImportedModel] = useState<{ url: string; name: string; file: Blob; transform: ModelTransform } | null>(null);
@@ -586,16 +597,14 @@ export function ArViewport({ walls, rooms, building, wallOpenings = [], onDoorTo
   // Manual correction remains available for explicit user calibration only.
   const modelTransform = useMemo<[number, number, number]>(() => {
     if (!walls.length) return [0, 0, -4];
-
     const xs = walls.flatMap((wall) => [wall.start.x, wall.end.x]);
     const ys = walls.flatMap((wall) => [wall.start.y, wall.end.y]);
     const centerX = (Math.min(...xs) + Math.max(...xs)) / 2;
     const centerY = (Math.min(...ys) + Math.max(...ys)) / 2;
-
-    // A +90° yaw maps local (x, z) to world (z, -x). Translate by
-    // (-centerY, centerX) so the layout bounds center lands at world z = -4.
-    return [-centerY, 0, centerX - 4];
-  }, [walls]);
+    const cos = Math.cos(modelYawRadians);
+    const sin = Math.sin(modelYawRadians);
+    return [-(cos * centerX + sin * centerY), 0, -4 + sin * centerX - cos * centerY];
+  }, [walls, modelYawRadians]);
   const fallbackCamera = useMemo<[number, number, number]>(() => {
     const localDistance = walls.length
       ? Math.max(
@@ -609,8 +618,8 @@ export function ArViewport({ walls, rooms, building, wallOpenings = [], onDoorTo
         )
       : 6;
 
-    const cos = Math.cos(MODEL_YAW_RADIANS);
-    const sin = Math.sin(MODEL_YAW_RADIANS);
+    const cos = Math.cos(modelYawRadians);
+    const sin = Math.sin(modelYawRadians);
 
     // Start at human eye height and look horizontally into the center of the layout.
     const localX = 0;
@@ -620,7 +629,7 @@ export function ArViewport({ walls, rooms, building, wallOpenings = [], onDoorTo
       WALKTHROUGH_EYE_HEIGHT,
       modelTransform[2] - sin * localX + cos * localZ,
     ];
-  }, [modelTransform, walls]);
+  }, [modelTransform, walls, modelYawRadians]);
 
   const fallbackTarget = useMemo<[number, number, number]>(
     () => [modelTransform[0], WALKTHROUGH_EYE_HEIGHT, modelTransform[2]],
@@ -675,6 +684,7 @@ export function ArViewport({ walls, rooms, building, wallOpenings = [], onDoorTo
             onViewCorrectionApplied={setViewCorrection}
             building={building}
             rooms={rooms}
+            modelYawRadians={modelYawRadians}
           />
           <ExternalControllerLocomotion
             originRef={originRef}
@@ -684,8 +694,9 @@ export function ArViewport({ walls, rooms, building, wallOpenings = [], onDoorTo
             onStateChange={setControllerState}
             building={building}
             rooms={rooms}
+            modelYawRadians={modelYawRadians}
           />
-          <group position={modelTransform} rotation={[0, MODEL_YAW_RADIANS, 0]}>
+          <group position={modelTransform} rotation={[0, modelYawRadians, 0]}>
             <IfInSessionMode deny={['immersive-ar', 'immersive-vr']}>
               <FloorGrid />
             </IfInSessionMode>
@@ -717,6 +728,7 @@ export function ArViewport({ walls, rooms, building, wallOpenings = [], onDoorTo
               targetPosition={fallbackTarget}
               building={building}
               rooms={rooms}
+              modelYawRadians={modelYawRadians}
             />
             {!walkthroughMode && (
               <OrbitControls
