@@ -463,3 +463,11 @@ The detailed task plan, priorities, file targets, test requirements, and accepta
 9. Update this ledger, `PRODUCT_EXECUTION_PLAN.md`, `CONTINUATION.md`, and `docs/PROJECT_STATE.md` after meaningful progress.
 
 **Definition of engineering success:** A user can sketch or import a calibrated plan, inspect and correct it, generate a dimensionally consistent multi-floor home, enter it at human scale, open doors, traverse stairs, move furniture, change finishes, save/reopen/share the entire scene, and see the same canonical house in browser and optional AR—without any AI service being required.
+
+### Phase 12 progress log
+
+- **2026-10-23 — Planning committed:** added TASK-1201 through TASK-1214 with explicit scope, dependencies, acceptance criteria and a sequential delivery order. No task checkbox was marked complete by planning alone.
+- **2026-10-23 — Persistence defect identified:** local Load Project restored walls/rooms/scale but did not restore saved sceneAssets, wallOpenings or presentation; Revert to last saved project had the same omission. Save Version rebuilt a reduced project from walls/rooms and silently replaced scene assets/openings/presentation with defaults. This could make the editor appear to have saved a project while some authored data was missing after reload/revert/version restore.
+- **2026-10-23 — Initial fix committed on feat/blueprint-to-playable-house-roadmap:** App.tsx now deep-copies scene asset anchors/light settings, wall openings and presentation in cloneProject; local load and revert restore those fields; version snapshots clone the full current project instead of rebuilding a reduced wall/room-only project.
+- **Verification status:** IMPLEMENTED in source; TypeScript/build and regression verification are still pending. TASK-1202 remains unchecked because durable server persistence for the complete future building scene, asset synchronization, migrations, and end-to-end save/load/share/version round-trip are not yet complete.
+- **AR root cause:** not yet established. Do not change yaw/rotation until a known-size fixture and transform chain are checked and the reported behavior can be reproduced.
