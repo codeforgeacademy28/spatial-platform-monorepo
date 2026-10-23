@@ -30,5 +30,19 @@ export function cloneProject(project: Project): Project {
         })),
       }
     : undefined;
-  return { ...project, walls: project.walls.map(cloneWall), rooms: project.rooms.map(cloneRoom), building };
+  return {
+    ...project,
+    walls: project.walls.map(cloneWall),
+    rooms: project.rooms.map(cloneRoom),
+    sceneAssets: project.sceneAssets?.map((asset) => ({
+      ...asset,
+      anchor: asset.anchor.type === 'wall'
+        ? { ...asset.anchor }
+        : { ...asset.anchor, position: [...asset.anchor.position] as [number, number, number] },
+      light: asset.light ? { ...asset.light } : undefined,
+    })),
+    wallOpenings: project.wallOpenings?.map((opening) => ({ ...opening })),
+    presentation: project.presentation ? { ...project.presentation } : undefined,
+    building,
+  };
 }
