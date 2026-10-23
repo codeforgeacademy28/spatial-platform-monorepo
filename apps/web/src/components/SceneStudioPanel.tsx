@@ -64,6 +64,7 @@ export function SceneStudioPanel({
       width: 0.95,
       height: Math.min(2.2, selectedWall.height),
       bottom: 0,
+      doorState: 'closed',
       createdAt: timestamp,
       updatedAt: timestamp,
     };
