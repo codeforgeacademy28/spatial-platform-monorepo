@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { BuildingModelSchema, type BuildingModel } from './building-model.js';
+export * from './building-model.js';
 
 export interface Point {
   x: number;
@@ -9,6 +11,7 @@ export interface Point {
 export interface WallSegment {
   id: string;
   roomId: string;
+  levelId?: string;
   start: Point;
   end: Point;
   thickness: number;
@@ -25,6 +28,7 @@ export type WallOpeningType = 'door' | 'window';
 export interface WallOpening {
   id: string;
   wallId: string;
+  levelId?: string;
   type: WallOpeningType;
   offset: number;
   width: number;
@@ -38,6 +42,7 @@ export type SceneAssetType = 'image' | 'light';
 
 export interface SceneAsset {
   id: string;
+  levelId?: string;
   assetType: SceneAssetType;
   name: string;
   assetUrl: string;
@@ -77,6 +82,7 @@ export interface PresentationConfig {
 export interface Room {
   id: string;
   projectId: string;
+  levelId?: string;
   name: string;
   polygon: Point[];
   wallSegments: WallSegment[];
@@ -95,6 +101,7 @@ export interface Project {
   sceneAssets?: SceneAsset[];
   wallOpenings?: WallOpening[];
   presentation?: PresentationConfig;
+  building?: BuildingModel;
   createdAt: string;
   updatedAt: string;
 }
@@ -115,6 +122,7 @@ export const PointSchema = z.object({
 export const WallSegmentSchema = z.object({
   id: z.string().trim().min(1),
   roomId: z.string().trim().min(1),
+  levelId: z.string().trim().min(1).optional(),
   start: PointSchema,
   end: PointSchema,
   thickness: z.number().positive(),
@@ -129,6 +137,7 @@ export const WallSegmentSchema = z.object({
 export const WallOpeningSchema = z.object({
   id: z.string().trim().min(1),
   wallId: z.string().trim().min(1),
+  levelId: z.string().trim().min(1).optional(),
   type: z.enum(['door', 'window']),
   offset: z.number().finite().nonnegative(),
   width: z.number().positive(),
@@ -140,6 +149,7 @@ export const WallOpeningSchema = z.object({
 
 export const SceneAssetSchema = z.object({
   id: z.string().trim().min(1),
+  levelId: z.string().trim().min(1).optional(),
   assetType: z.enum(['image', 'light']),
   name: z.string().trim().min(1).max(200),
   assetUrl: z.string(),
@@ -178,6 +188,7 @@ export const PresentationConfigSchema = z.object({
 export const RoomSchema = z.object({
   id: z.string().trim().min(1),
   projectId: z.string().trim().min(1),
+  levelId: z.string().trim().min(1).optional(),
   name: z.string().trim().min(1).max(200),
   polygon: z.array(PointSchema).min(3),
   wallSegments: z.array(WallSegmentSchema).default([]),
@@ -196,11 +207,13 @@ export const ProjectSchema = z.object({
   sceneAssets: z.array(SceneAssetSchema).default([]),
   wallOpenings: z.array(WallOpeningSchema).default([]),
   presentation: PresentationConfigSchema.optional(),
+  building: BuildingModelSchema.optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 }).transform((project) => ({
   ...project,
   walls: project.walls.length > 0 ? project.walls : project.rooms.flatMap((room) => room.wallSegments),
+  building: BuildingModelSchema.parse(project.building ?? {}),
 }));
 
 export const UserRoleSchema = z.nativeEnum(UserRole);
