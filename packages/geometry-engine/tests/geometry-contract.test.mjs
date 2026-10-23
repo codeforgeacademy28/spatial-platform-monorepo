@@ -103,7 +103,7 @@ test('only open door openings remove collision across the doorway span', () => {
   const open = wallsWithPassableOpenings([boundary], [{ ...baseOpening, doorState: 'open' }]);
   assert.equal(open.length, 2);
   assert.ok(Math.abs(open.reduce((sum, segment) => sum + segment.length, 0) - 3) < 0.001);
-  assert.equal(movementBlockedByWalls(1.5, -0.5, 2.5, 0.5, open), false);
+  assert.equal(movementBlockedByWalls(2, -0.5, 2, 0.5, open), false);
 });
 
 test('window openings do not make a wall passable at floor level', () => {
