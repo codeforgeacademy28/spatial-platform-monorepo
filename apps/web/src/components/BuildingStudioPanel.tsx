@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
+import { DEFAULT_BUILDING_YAW_RADIANS } from '@spatial/core';
 import type { BuildingComponentType, BuildingModel, Staircase, WallSegment } from '@spatial/core';
 
 interface BuildingStudioPanelProps {
@@ -140,6 +141,15 @@ export function BuildingStudioPanel({ building, setBuilding, activeLevelId, onAc
         {building.levels.map((level) => <option key={level.id} value={level.id}>{level.name} · {level.elevation.toFixed(2)} m</option>)}
       </select>
       <p className="mt-2 text-xs text-slate-500">{building.levels.length} levels · {building.floorSlabs.length} floor slabs · {building.stairs.length} staircases · {building.components.length} components</p>
+      <div className="mt-3 rounded-lg border border-slate-800 p-2">
+        <div className="flex items-center justify-between"><span className="text-xs font-medium text-slate-200">AR / walkthrough yaw</span><span className="text-xs tabular-nums text-cyan-300">{Math.round(building.orientationYawRadians * 180 / Math.PI)}°</span></div>
+        <p className="mt-1 text-[11px] text-slate-500">Calibrates the house orientation and keeps camera, transform and collision coordinates aligned. Physical AR validation is still required.</p>
+        <div className="mt-2 grid grid-cols-3 gap-1">
+          <button type="button" onClick={() => setBuilding((current) => ({ ...current, orientationYawRadians: current.orientationYawRadians - Math.PI / 12 }))} className="rounded bg-slate-800 px-2 py-2 text-xs">Rotate −15°</button>
+          <button type="button" onClick={() => setBuilding((current) => ({ ...current, orientationYawRadians: DEFAULT_BUILDING_YAW_RADIANS }))} className="rounded bg-slate-800 px-2 py-2 text-xs">Reset default</button>
+          <button type="button" onClick={() => setBuilding((current) => ({ ...current, orientationYawRadians: current.orientationYawRadians + Math.PI / 12 }))} className="rounded bg-slate-800 px-2 py-2 text-xs">Rotate +15°</button>
+        </div>
+      </div>
       <label className="mt-3 flex items-center gap-2 text-xs text-slate-300"><input type="checkbox" checked={building.ceilingEnabled} onChange={(event) => setBuilding((current) => ({ ...current, ceilingEnabled: event.target.checked }))} /> Show ceilings in 3D / Spatial view</label>
       <label className="mt-2 flex items-center gap-2 text-xs text-slate-300"><input type="checkbox" checked={building.isolateActiveLevel} onChange={(event) => setBuilding((current) => ({ ...current, isolateActiveLevel: event.target.checked }))} /> Isolate active floor in 3D review</label>
       <label className="mt-3 block text-xs text-slate-400">Add component to {activeLevel?.name ?? 'floor'}</label>
