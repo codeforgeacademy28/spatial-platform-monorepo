@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 import test from 'node:test';
 import app from '../src/app.js';
-import { getSupabasePersistenceReadiness } from '../src/config/supabase.js';
+import { getSupabasePersistenceReadiness, supabaseAdmin } from '../src/config/supabase.js';
 
 test('Supabase readiness reports missing server configuration without exposing secret values', () => {
   const names = [
@@ -31,6 +31,94 @@ test('Supabase readiness reports missing server configuration without exposing s
       if (value === undefined) delete process.env[name];
       else process.env[name] = value;
     }
+  }
+});
+
+test('Supabase integration: durable project remains listable and openable after API restart', {
+  skip: process.env.SUPABASE_INTEGRATION_TESTS !== 'true',
+}, async () => {
+  const previousMode = process.env.SUPABASE_PERSISTENCE_ENABLED;
+  process.env.SUPABASE_PERSISTENCE_ENABLED = 'true';
+  const id = randomUUID();
+  const timestamp = new Date().toISOString();
+  const project = {
+    id,
+    name: 'Supabase integration round-trip',
+    walls: [],
+    rooms: [],
+    sceneAssets: [{
+      id: 'integration-art', assetType: 'image', name: 'Persisted art',
+      assetUrl: 'https://example.com/integration-art.png',
+      anchor: { type: 'world', position: [1, 2, 3] },
+      createdAt: timestamp, updatedAt: timestamp,
+    }],
+    wallOpenings: [],
+    presentation: { title: 'Supabase round trip', subtitle: 'Integration', finalMessage: 'Welcome', theme: 'museum', ceilingEnabled: true },
+    building: {
+      schemaVersion: 1,
+      levels: [{ id: 'ground', name: 'Ground Floor', elevation: 0, wallHeight: 2.7, order: 0 }],
+      floorSlabs: [],
+      stairs: [],
+      components: [{
+        id: 'integration-sofa', levelId: 'ground', type: 'sofa', name: 'Persisted sofa',
+        position: [1, 0, 2], rotation: [0, 0, 0], scale: [1, 1, 1],
+        dimensions: { width: 2, height: 0.8, depth: 0.8 },
+      }],
+    },
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+
+  const startServer = async (): Promise<{ server: ReturnType<typeof app.listen>; baseUrl: string }> => {
+    const server = app.listen(0);
+    await new Promise<void>((resolve) => server.once('listening', resolve));
+    const address = server.address() as AddressInfo;
+    return { server, baseUrl: `http://127.0.0.1:${address.port}` };
+  };
+  const stopServer = async (server: ReturnType<typeof app.listen>): Promise<void> => {
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  };
+
+  let server: ReturnType<typeof app.listen> | undefined;
+  try {
+    assert.equal(getSupabasePersistenceReadiness().configured, true, 'Supabase integration requires URL, service-role key and valid owner context');
+    const first = await startServer();
+    server = first.server;
+    const saveResponse = await fetch(`${first.baseUrl}/api/projects`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(project),
+    });
+    assert.equal(saveResponse.status, 201, await saveResponse.text());
+    const savePayload = await saveResponse.json() as { persistence: string; project: { id: string } };
+    assert.equal(savePayload.persistence, 'durable');
+    assert.equal(savePayload.project.id, id);
+    await stopServer(server);
+    server = undefined;
+
+    // Start a fresh HTTP server; durable list/open must read Supabase rather than
+    // depending on the controller's process-memory cache.
+    const second = await startServer();
+    server = second.server;
+    const listResponse = await fetch(`${second.baseUrl}/api/projects`);
+    assert.equal(listResponse.status, 200);
+    const listPayload = await listResponse.json() as { persistence: string; projects: Array<{ id: string }> };
+    assert.equal(listPayload.persistence, 'durable');
+    assert.ok(listPayload.projects.some((item) => item.id === id));
+
+    const openResponse = await fetch(`${second.baseUrl}/api/projects/${id}`);
+    assert.equal(openResponse.status, 200);
+    const openPayload = await openResponse.json() as { persistence: string; project: { id: string; sceneAssets: unknown[]; presentation?: { title: string }; building?: { components: unknown[] } } };
+    assert.equal(openPayload.persistence, 'durable');
+    assert.equal(openPayload.project.id, id);
+    assert.equal(openPayload.project.sceneAssets.length, 1);
+    assert.equal(openPayload.project.presentation?.title, 'Supabase round trip');
+    assert.equal(openPayload.project.building?.components.length, 1);
+  } finally {
+    if (server) await stopServer(server);
+    await supabaseAdmin.from('projects').delete().eq('id', id);
+    if (previousMode === undefined) delete process.env.SUPABASE_PERSISTENCE_ENABLED;
+    else process.env.SUPABASE_PERSISTENCE_ENABLED = previousMode;
   }
 });
 
