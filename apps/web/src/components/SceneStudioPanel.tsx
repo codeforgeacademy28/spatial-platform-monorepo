@@ -71,6 +71,19 @@ export function SceneStudioPanel({
     setWallOpenings((current) => [...current, opening]);
   };
 
+  const addWindow = (): void => {
+    if (!selectedWall) return;
+    const length = selectedWall.length || Math.hypot(selectedWall.end.x - selectedWall.start.x, selectedWall.end.y - selectedWall.start.y);
+    const timestamp = now();
+    const opening: WallOpening = {
+      id: crypto.randomUUID(), wallId: selectedWall.id, levelId: selectedWall.levelId,
+      type: 'window', offset: length / 2, width: Math.min(1.2, length * 0.6),
+      height: 1, bottom: Math.min(1, Math.max(0.5, selectedWall.height - 1.5)),
+      createdAt: timestamp, updatedAt: timestamp,
+    };
+    setWallOpenings((current) => [...current, opening]);
+  };
+
   const addArtwork = (): void => {
     if (!selectedWall) return;
     const length = selectedWall.length || Math.hypot(
@@ -232,6 +245,14 @@ export function SceneStudioPanel({
           className="rounded-lg bg-amber-600 px-3 py-2 text-xs font-semibold disabled:opacity-40"
         >
           🚪 Add door
+        </button>
+        <button
+          type="button"
+          onClick={addWindow}
+          disabled={!selectedWall}
+          className="rounded-lg bg-sky-700 px-3 py-2 text-xs font-semibold disabled:opacity-40"
+        >
+          ▣ Add window
         </button>
       </div>
 
