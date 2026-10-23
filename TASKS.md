@@ -471,3 +471,23 @@ The detailed task plan, priorities, file targets, test requirements, and accepta
 - **2026-10-23 — Initial fix committed on feat/blueprint-to-playable-house-roadmap:** App.tsx now deep-copies scene asset anchors/light settings, wall openings and presentation in cloneProject; local load and revert restore those fields; version snapshots clone the full current project instead of rebuilding a reduced wall/room-only project.
 - **Verification status:** GitHub Actions Engineering Gate run #180 completed all listed steps successfully: clean install, critical runtime graph, web type-check, web production build, core snapshot contract tests, geometry contract tests, and API upload validation tests. This is BUILD GREEN for the current branch, not browser behavior verification. Browser regression and end-to-end project round-trip checks remain outstanding. TASK-1202 remains unchecked because durable server persistence for the complete future building scene, asset synchronization, migrations, and end-to-end save/load/share/version round-trip are not yet complete.
 - **AR root cause:** not yet established. Do not change yaw/rotation until a known-size fixture and transform chain are checked and the reported behavior can be reproduced.
+
+
+## Phase 13: Supabase-backed saved-project library (2026-10-23)
+
+### - [ ] TASK-1301: Stable database-compatible project identity
+- **Problem:** the editor previously constructed every current project with the default ID `project-1`, so distinct designs could overwrite one another; Supabase schema declares `projects.id` as UUID, so non-UUID IDs fail durable writes.
+- **Implementation:** assign a stable UUID to each editor project, preserve it across renders and load/revert, and use UUIDs for saved version snapshots. Migrate legacy browser-only project IDs to a UUID when opened/saved.
+- **Acceptance:** saving two different designs creates two distinct rows; repeated saves update only the selected project; legacy local projects remain openable.
+
+### - [ ] TASK-1302: Saved-project list and open workflow
+- **Implementation:** add `GET /api/projects` and `GET /api/projects/:id`; in durable mode query Supabase scoped to the server's tenant/organization/owner context; in local-only mode clearly label API memory as temporary. Add a project-library dialog that merges browser recovery copies with server results and opens the selected full project.
+- **Acceptance:** user can see available projects, distinguish Supabase from browser/API-memory copies, open a selected project and restore walls, rooms, assets, openings, scale and presentation. Missing projects and database read failures are explicit, not silent.
+
+### - [ ] TASK-1303: Verify deployed Supabase persistence end-to-end
+- **Required configuration:** set `SUPABASE_PERSISTENCE_ENABLED=true`, valid server-only `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`, and valid provisioned `PERSISTENCE_DEFAULT_TENANT_ID`, `PERSISTENCE_DEFAULT_ORGANIZATION_ID`, and `PERSISTENCE_DEFAULT_OWNER_ID` until authenticated identity context is implemented. Configure `VITE_API_BASE_URL` to point to the deployed API. Never expose the service-role key in the web app.
+- **Acceptance:** save reports durable only after a successful Supabase upsert; saved list survives API restart and browser refresh; opening a selected saved project round-trips the complete project JSON. Record deployed verification evidence before marking complete.
+
+### Phase 13 progress log
+- **2026-10-23 — Code changes committed on `feat/blueprint-to-playable-house-roadmap`:** added project-list and project-load API endpoints, web API client methods, a saved-project dialog, browser-side project library/recovery copies, stable UUID project identity, and clearer save status messages. The dialog merges browser-local entries with API results and labels API-memory results as temporary rather than claiming they are Supabase rows.
+- **Not yet verified:** no deployed Supabase credentials or project database were accessed from this work session. Do not claim database writes, API restart survival, or browser end-to-end behavior until those are tested. Build/test gate is pending.
