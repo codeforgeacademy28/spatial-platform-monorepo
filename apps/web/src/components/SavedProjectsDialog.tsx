@@ -30,7 +30,7 @@ export function SavedProjectsDialog({ open, projects, loading, error, onRefresh,
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="saved-projects-title">
       <section className="w-full max-w-2xl overflow-hidden rounded-2xl border border-slate-700 bg-slate-950 shadow-2xl">
         <header className="flex items-center justify-between border-b border-slate-800 px-5 py-4">
-          <div><h2 id="saved-projects-title" className="text-lg font-semibold text-white">Saved projects</h2><p className="mt-1 text-xs text-slate-400">Open a design from Supabase or this browser.</p></div>
+          <div><h2 id="saved-projects-title" className="text-lg font-semibold text-white">Saved projects</h2><p className="mt-1 text-xs text-slate-400">Open a durable Supabase project, temporary API copy, or browser recovery copy.</p></div>
           <button type="button" onClick={onClose} aria-label="Close saved projects" className="rounded-lg p-2 text-slate-400 hover:bg-slate-800 hover:text-white"><X size={18} /></button>
         </header>
         <div className="border-b border-slate-800 p-4"><label htmlFor="saved-project-search" className="mb-1 block text-xs font-medium text-slate-300">Find a saved project</label><input id="saved-project-search" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search project name or storage source…" className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-sky-500 focus:outline-none" /></div>
