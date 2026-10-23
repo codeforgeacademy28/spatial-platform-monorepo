@@ -28,7 +28,7 @@ export function SavedProjectsDialog({ open, projects, loading, error, onRefresh,
         </header>
         <div className="max-h-[65vh] space-y-3 overflow-y-auto p-4">
           {error ? <p role="status" className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-100">{error}</p> : null}
-          {loading ? <p className="flex items-center gap-2 p-4 text-sm text-slate-300"><LoaderCircle size={16} className="animate-spin" /> Loading saved projects…</p> : null}
+          {loading ? <p className="flex items-center gap-2 p-4 text-sm text-slate-300"><Loader2 size={16} className="animate-spin" /> Loading saved projects…</p> : null}
           {!loading && projects.length === 0 ? <div className="rounded-xl border border-dashed border-slate-700 p-8 text-center"><FolderOpen className="mx-auto mb-3 text-slate-500" size={28} /><p className="font-medium text-white">No saved projects found</p><p className="mt-1 text-sm text-slate-400">Save a design first, or check your Supabase persistence configuration.</p></div> : null}
           {projects.map(({ project, source, remote }) => <button key={project.id} type="button" onClick={() => onOpen({ project, source, remote })} className="flex w-full items-start gap-3 rounded-xl border border-slate-800 bg-slate-900/70 p-4 text-left transition hover:border-sky-500/60 hover:bg-slate-900">
             <span className="mt-0.5 rounded-lg bg-slate-800 p-2 text-sky-300">{remote ? <Cloud size={18} /> : <HardDrive size={18} />}</span>
