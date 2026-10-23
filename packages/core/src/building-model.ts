@@ -20,6 +20,7 @@ const BuildingPlanPointSchema = z.object({
 export const FloorSlabSchema = z.object({
   id: z.string().trim().min(1),
   levelId: z.string().trim().min(1),
+  roomId: z.string().trim().min(1).optional(),
   outline: z.array(BuildingPlanPointSchema).min(3),
   thickness: z.number().positive().max(1).default(0.2),
   materialHex: z.string().regex(/^#[0-9A-Fa-f]{6}$/).default('#cbd5e1'),
