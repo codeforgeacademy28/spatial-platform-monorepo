@@ -521,3 +521,11 @@ The detailed task plan, priorities, file targets, test requirements, and accepta
 - **Still blocked:** fresh CI for these latest commits; live Supabase save/list/open/restart test; browser-level saved-project/autosave/undo-redo acceptance; physical WebXR orientation/scale; full component geometry and blueprint PDF/CAD import.
 
 Next: confirm the updated Engineering Gate, fix any failure, then proceed to browser/API persistence validation. Do not mark any task complete based on this status note.
+
+
+### Fresh verification — Engineering Gate #280 (2026-10-23)
+- **PASS:** clean install, runtime dependency graph, web type-check, production build, core snapshot tests, geometry contract tests, and API dependency build/API tests.
+- API contract tests: **7 passed, 0 failed**. The suite verifies local save/list/open of a full versioned project, including scene assets, wall openings, presentation settings, and building data; it also verifies that missing Supabase configuration fails save/list/open and failed durable writes do not become local cache entries.
+- The object-storage module now validates R2 configuration only when an upload or signed download URL is requested, allowing local-only project operations without R2 secrets.
+- The saved-project library now has a name/source search field. Gate #280 includes this UI change and passed.
+- **Still not proven:** live Supabase save/list/open after API restart, browser manual interaction, or physical WebXR alignment. Do not check off TASK-1201, TASK-1202, TASK-1302, or TASK-1303 until their own acceptance gates are recorded.
