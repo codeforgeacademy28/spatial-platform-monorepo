@@ -1,5 +1,5 @@
 import type { Project } from '@spatial/core';
-import { FolderOpen, Cloud, HardDrive, LoaderCircle, X } from 'lucide-react';
+import { FolderOpen, Cloud, HardDrive, Loader2, X } from 'lucide-react';
 
 export interface SavedProjectEntry {
   project: Project;
