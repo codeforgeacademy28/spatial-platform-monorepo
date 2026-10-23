@@ -48,6 +48,16 @@ test('local-only API save/list/open round-trips a full versioned project', async
     name: 'Persistence contract test',
     walls: [],
     rooms: [],
+    sceneAssets: [{
+      id: 'art-1', assetType: 'image', name: 'Saved wall art', assetUrl: 'https://example.com/art.png',
+      anchor: { type: 'world', position: [1, 2, 3] },
+      createdAt: timestamp, updatedAt: timestamp,
+    }],
+    wallOpenings: [{
+      id: 'door-1', wallId: 'wall-1', type: 'door', offset: 2, width: 0.9, height: 2.1, bottom: 0, doorState: 'closed',
+      createdAt: timestamp, updatedAt: timestamp,
+    }],
+    presentation: { title: 'Test house', subtitle: 'Whole project', finalMessage: 'Welcome home', theme: 'museum', ceilingEnabled: true },
     createdAt: timestamp,
     updatedAt: timestamp,
     building: {
@@ -86,6 +96,11 @@ test('local-only API save/list/open round-trips a full versioned project', async
     assert.equal(opened.persistence, 'local-only');
     assert.equal(opened.project.building.components[0]?.name, 'Test sofa');
     assert.equal(opened.project.building.levels[0]?.name, 'Ground Floor');
+    assert.equal(opened.project.sceneAssets[0]?.name, 'Saved wall art');
+    assert.deepEqual(opened.project.sceneAssets[0]?.anchor, { type: 'world', position: [1, 2, 3] });
+    assert.equal(opened.project.wallOpenings[0]?.doorState, 'closed');
+    assert.equal(opened.project.presentation?.title, 'Test house');
+    assert.equal(opened.project.presentation?.ceilingEnabled, true);
 
     process.env.SUPABASE_PERSISTENCE_ENABLED = 'true';
     const invalidIdResponse = await fetch(`${baseUrl}/api/projects`, {
