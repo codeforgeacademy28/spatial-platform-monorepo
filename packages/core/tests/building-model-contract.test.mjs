@@ -18,6 +18,7 @@ function legacyProject() {
 test('legacy projects migrate to a versioned ground-floor building model', () => {
   const project = ProjectSchema.parse(legacyProject());
   assert.equal(project.building?.schemaVersion, 1);
+  assert.equal(project.building?.orientationYawRadians, Math.PI / 2);
   assert.equal(project.building?.levels.length, 1);
   assert.equal(project.building?.levels[0]?.id, 'level-ground');
   assert.deepEqual(project.building?.floorSlabs, []);
@@ -30,6 +31,7 @@ test('building model validates floors, stairs, transforms, and catalog component
     ...legacyProject(),
     building: {
       schemaVersion: 1,
+      orientationYawRadians: Math.PI / 6,
       levels: [
         { id: 'ground', name: 'Ground Floor', elevation: 0, wallHeight: 2.8, order: 0 },
         { id: 'first', name: 'First Floor', elevation: 2.8, wallHeight: 2.7, order: 1 },
@@ -50,6 +52,7 @@ test('building model validates floors, stairs, transforms, and catalog component
       }],
     },
   });
+  assert.equal(project.building?.orientationYawRadians, Math.PI / 6);
   assert.equal(project.building?.levels.length, 2);
   assert.equal(project.building?.floorSlabs[0]?.outline.length, 4);
   assert.equal(project.building?.stairs[0]?.stepCount, 16);
