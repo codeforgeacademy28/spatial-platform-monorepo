@@ -87,17 +87,21 @@ function ComponentMesh({ component, elevation }: { component: BuildingComponent;
   );
 }
 
-export function BuildingStructureMeshes({ building }: { building?: BuildingModel }): JSX.Element | null {
+export function BuildingStructureMeshes({ building, activeLevelId }: { building?: BuildingModel; activeLevelId?: string }): JSX.Element | null {
   if (!building) return null;
+  const shouldShowLevel = (levelId: string): boolean => !building.isolateActiveLevel || !activeLevelId || levelId === activeLevelId;
+  const visibleSlabs = building.floorSlabs.filter((slab) => shouldShowLevel(slab.levelId));
+  const visibleStairs = building.stairs.filter((stair) => !building.isolateActiveLevel || !activeLevelId || stair.fromLevelId === activeLevelId || stair.toLevelId === activeLevelId);
+  const visibleComponents = building.components.filter((component) => shouldShowLevel(component.levelId) && component.isVisible);
   return (
     <group>
-      {building.floorSlabs.map((slab) => <FloorSlabMesh key={slab.id} slab={slab} elevation={levelElevation(building, slab.levelId)} />)}
-      {building.ceilingEnabled ? building.floorSlabs.map((slab) => {
+      {visibleSlabs.map((slab) => <FloorSlabMesh key={slab.id} slab={slab} elevation={levelElevation(building, slab.levelId)} />)}
+      {building.ceilingEnabled ? visibleSlabs.map((slab) => {
         const level = building.levels.find((item) => item.id === slab.levelId);
         return <FloorSlabMesh key={`ceiling-${slab.id}`} slab={{ ...slab, id: `ceiling-${slab.id}`, materialHex: '#f1f5f9' }} elevation={levelElevation(building, slab.levelId) + (level?.wallHeight ?? 2.7)} />;
       }) : null}
-      {building.stairs.map((stair) => <StaircaseMeshes key={stair.id} stair={stair} elevation={levelElevation(building, stair.fromLevelId)} />)}
-      {building.components.filter((component) => component.isVisible).map((component) => <ComponentMesh key={component.id} component={component} elevation={levelElevation(building, component.levelId)} />)}
+      {visibleStairs.map((stair) => <StaircaseMeshes key={stair.id} stair={stair} elevation={levelElevation(building, stair.fromLevelId)} />)}
+      {visibleComponents.map((component) => <ComponentMesh key={component.id} component={component} elevation={levelElevation(building, component.levelId)} />)}
     </group>
   );
 }
