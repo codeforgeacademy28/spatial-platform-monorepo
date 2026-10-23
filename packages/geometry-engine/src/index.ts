@@ -6,3 +6,5 @@ export * from './wall-collision.js';
 export * from './navigation-collision.js';
 
 export * from './wall-openings.js';
+
+export * from './stair-navigation.js';
