@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { checkFeatureEntitlement } from '@spatial/billing';
 import { createSpatialComment, SpatialCommentSchema, type SpatialComment } from '@spatial/collaboration';
 import { ProjectSchema, cloneProject, type Project, type ProjectInput } from '@spatial/core';
-import { supabaseAdmin } from '../config/supabase.js';
+import { assertSupabasePersistenceReady, supabaseAdmin } from '../config/supabase.js';
 
 const projectStore = new Map<string, Project>();
 const projectCommentStore = new Map<string, SpatialComment[]>();
@@ -32,6 +32,7 @@ async function persistProject(project: Project, context: PersistenceContext | nu
   const snapshot = cloneProject(project); projectStore.set(snapshot.id, snapshot);
   if (!durablePersistenceEnabled()) return snapshot;
   if (!context) throw new Error('Durable persistence context is required.');
+  assertSupabasePersistenceReady();
   const { error } = await supabaseAdmin.from('projects').upsert({ id: snapshot.id, organization_id: context.organizationId, owner_id: context.ownerId, tenant_id: context.tenantId, name: snapshot.name, description: snapshot.description ?? null, status: 'draft', project_data: snapshot, updated_at: snapshot.updatedAt });
   if (error) throw new Error(`Durable project persistence failed: ${error.message}`);
   return snapshot;
@@ -53,6 +54,7 @@ export async function listProjectsHandler(req: Request, res: Response): Promise<
       res.status(200).json({ projects, persistence: 'local-only', message: 'These projects exist only in this API process. Configure Supabase for durable storage.' });
       return;
     }
+    assertSupabasePersistenceReady();
     const { data, error } = await supabaseAdmin.from('projects')
       .select('project_data')
       .eq('tenant_id', context!.tenantId)
@@ -80,6 +82,7 @@ export async function getProjectHandler(req: Request, res: Response): Promise<vo
       res.status(200).json({ project: cloneProject(project), persistence: 'local-only' });
       return;
     }
+    assertSupabasePersistenceReady();
     const { data, error } = await supabaseAdmin.from('projects')
       .select('project_data')
       .eq('id', params.data.id)
