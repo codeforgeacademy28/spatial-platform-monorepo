@@ -140,3 +140,10 @@ PR #65 and PR #57 are merged. Vercel reports success for the PR #57 merge commit
 5. Separately verify deployed Supabase configuration, save/list/open after API restart, and complete scene round-trip. Never infer durable persistence from a green build.
 
 No deployment secrets or Supabase settings are modified by this plan.
+
+
+## Implementation progress — 2026-10-23
+
+The implementation now extends beyond planning: the versioned building model, level-aware drawing/rendering, basic floor slabs and staircase meshes, starter component catalog with move/rotate/delete controls, wall-opening geometry, door open/close toggling, open-door collision splitting, Supabase readiness reporting, and API project list/open contract tests are in the branch. These are implementation increments, not acceptance-complete tasks.
+
+The active gate remains the fresh Engineering Gate. Run #227 failed on one remaining `LoaderCircle` reference, fixed in `cb9cfd4`; no later run is confirmed yet. Once green, continue with API/database contract tests, save→list→open→restart verification, and the remaining P0 house-engine gates. No physical AR success is inferred from source changes.
