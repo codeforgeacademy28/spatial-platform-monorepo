@@ -9,7 +9,7 @@ import { assertSupabasePersistenceReady, supabaseAdmin } from '../config/supabas
 const projectStore = new Map<string, Project>();
 const projectCommentStore = new Map<string, SpatialComment[]>();
 const publishedStore = new Map<string, { id: string; name: string; project: Project; shareToken: string; publishedAt: string }>();
-const projectIdParamSchema = z.object({ id: z.string().trim().min(1) });
+const projectIdParamSchema = z.object({ id: z.string().uuid() });
 const publishTokenParamSchema = z.object({ token: z.string().trim().min(1) });
 const createCommentSchema = SpatialCommentSchema.omit({ id: true, createdAt: true }).extend({ projectId: z.string().trim().min(1).optional() });
 const persistenceContextSchema = z.object({ tenantId: z.string().uuid(), organizationId: z.string().uuid(), ownerId: z.string().uuid() });
@@ -104,6 +104,7 @@ export async function getProjectHandler(req: Request, res: Response): Promise<vo
 export async function createProjectHandler(req: Request, res: Response): Promise<void> {
   const entitlement = checkFeatureEntitlement('project-sharing'); if (!entitlement.allowed) { res.status(403).json({ error: 'feature not allowed', reason: entitlement.reason ?? 'Access denied.' }); return; }
   const payload = ProjectSchema.safeParse(req.body); if (!payload.success) { res.status(400).json({ error: 'invalid project payload', details: payload.error.flatten() }); return; }
+  if (durablePersistenceEnabled() && !z.string().uuid().safeParse(payload.data.id).success) { res.status(400).json({ error: 'project id must be a UUID for durable database storage', code: 'PROJECT_ID_MUST_BE_UUID' }); return; }
   const context = requirePersistenceContext(req, res); if (durablePersistenceEnabled() && !context) return;
   try { const savedProject = await persistProject(payload.data, context); res.status(201).json({ project: savedProject, persistence: durablePersistenceEnabled() ? 'durable' : 'local-only', message: durablePersistenceEnabled() ? 'Project persisted successfully.' : 'Project stored in the API process only; configure durable persistence for production.' }); }
   catch (error) { console.error(error); res.status(503).json({ error: error instanceof Error ? error.message : 'Unable to persist the project.', code: 'PERSISTENCE_FAILED' }); }
