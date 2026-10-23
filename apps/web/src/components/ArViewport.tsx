@@ -16,7 +16,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { MutableRefObject, ReactNode } from 'react';
 import * as THREE from 'three';
 import type { Group } from 'three';
-import { floorPlanToWorld, generateRoomFloorMesh, isCircleMovementBlockedByWall, resolveCircleMovementWithWallSliding, wallsWithPassableOpenings, worldToFloorPlan } from '@spatial/geometry-engine';
+import { floorPlanToWorld, generateRoomFloorMesh, isCircleMovementBlockedByWall, resolveCircleMovementWithWallSliding, wallsWithPassableOpenings, stairFloorElevationAtPoint, worldToFloorPlan } from '@spatial/geometry-engine';
 import type { BuildingModel, Room, WallOpening, WallSegment } from '@spatial/core';
 import { BuildingStructureMeshes, BuildingWallMesh, levelElevation } from './BuildingStructureMeshes';
 import {
@@ -310,27 +310,6 @@ function pointInPlanPolygon(x: number, y: number, polygon: Array<{ x: number; y:
   return inside;
 }
 
-function stairFloorElevation(
-  x: number,
-  z: number,
-  building: BuildingModel | undefined,
-): number | null {
-  for (const stair of building?.stairs ?? []) {
-    const dx = x - stair.position[0];
-    const dz = z - stair.position[2];
-    const cos = Math.cos(stair.rotationY);
-    const sin = Math.sin(stair.rotationY);
-    const localX = cos * dx - sin * dz;
-    const localZ = sin * dx + cos * dz;
-    if (Math.abs(localX) > stair.width / 2 + 0.3 || Math.abs(localZ) > stair.run / 2 + 0.3) continue;
-    const from = levelElevation(building, stair.fromLevelId);
-    const to = levelElevation(building, stair.toLevelId);
-    const progress = THREE.MathUtils.clamp((stair.run / 2 - localZ) / stair.run, 0, 1);
-    return from + (to - from) * progress;
-  }
-  return null;
-}
-
 function roomFloorElevation(
   x: number,
   z: number,
@@ -471,7 +450,7 @@ function DesktopFirstPersonController({
 
     const layoutPosition = sceneToLayoutPosition(camera.position.x, camera.position.z, modelTransform);
     const currentElevation = camera.position.y - WALKTHROUGH_EYE_HEIGHT;
-    const stairElevation = stairFloorElevation(layoutPosition.x, layoutPosition.z, building);
+    const stairElevation = building ? stairFloorElevationAtPoint(layoutPosition.x, layoutPosition.z, building) : null;
     const floorElevation = stairElevation ?? roomFloorElevation(layoutPosition.x, layoutPosition.z, rooms, building, currentElevation);
     const grounded = camera.position.y <= floorElevation + WALKTHROUGH_EYE_HEIGHT + 0.05;
     if (stairElevation !== null) {
