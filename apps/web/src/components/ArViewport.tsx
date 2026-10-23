@@ -375,6 +375,7 @@ function DesktopFirstPersonController({
   walls: WallSegment[];
   building?: BuildingModel;
   rooms: Room[];
+  modelYawRadians: number;
   modelTransform: [number, number, number];
   collisionEnabled: boolean;
   spawnPosition: [number, number, number];
