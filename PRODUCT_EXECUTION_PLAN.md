@@ -151,3 +151,10 @@ The active gate remains the fresh Engineering Gate. Run #227 failed on one remai
 
 ## Verification update — 2026-10-23
 Engineering Gate #265 passed web type-check, production build and core snapshot contract tests, but failed one geometry assertion. The door test incorrectly passed endpoint coordinates to an API that accepts deltas; corrected in `613567d`. Await a fresh CI run before expanding further or marking any task complete. Latest feature increments include yaw calibration persisted with the project, floor/ceiling materials, active-floor isolation, JSON import/export, project-wide undo/redo and browser recovery autosave. Deployed Supabase and physical AR remain unverified.
+
+
+## Progress snapshot — 2026-10-23
+
+Current estimate: approximately 35–40% implementation coverage across Phases 12–13, with 0/17 tasks acceptance-complete. Source code now includes the building model, initial multilevel/door/component flows, project library API/UI, JSON import/export, browser recovery and undo/redo. Automated tests cover schema snapshots, transforms, collision contracts, and project save/list/open behavior in API memory mode. These tests do not establish live Supabase persistence or browser/device acceptance.
+
+Gate #268 passed web type-check/build, core tests (4/4), and geometry tests (26/26), then failed at API test module loading because @spatial/billing/dist/index.js was not built. The workflow now runs the API test via Turbo so workspace build dependencies execute first. Persistence handling was hardened so failed Supabase writes do not enter the process cache and durable share reads verify the database token. Fresh CI is required before further acceptance claims.
