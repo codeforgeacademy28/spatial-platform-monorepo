@@ -228,7 +228,13 @@ export const ProjectSchema = z.object({
   };
   walls.forEach((wall, index) => checkLevelReference(wall.levelId, ['walls', index, 'levelId']));
   project.rooms.forEach((room, index) => checkLevelReference(room.levelId, ['rooms', index, 'levelId']));
-  building.floorSlabs.forEach((slab, index) => checkLevelReference(slab.levelId, ['building', 'floorSlabs', index, 'levelId']));
+  const roomIds = new Set(project.rooms.map((room) => room.id));
+  building.floorSlabs.forEach((slab, index) => {
+    checkLevelReference(slab.levelId, ['building', 'floorSlabs', index, 'levelId']);
+    if (slab.roomId && !roomIds.has(slab.roomId)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['building', 'floorSlabs', index, 'roomId'], message: `Floor slab references missing room "${slab.roomId}".` });
+    }
+  });
   building.components.forEach((component, index) => checkLevelReference(component.levelId, ['building', 'components', index, 'levelId']));
   building.stairs.forEach((stair, index) => {
     checkLevelReference(stair.fromLevelId, ['building', 'stairs', index, 'fromLevelId']);
