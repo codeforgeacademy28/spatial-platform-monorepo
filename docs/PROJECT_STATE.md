@@ -144,3 +144,10 @@ The editor now has persisted house yaw calibration applied consistently in the S
 ## Latest gate — 2026-10-23, Engineering Gate #280
 
 **PASS** for clean install, runtime graph, web type-check/build, core snapshot tests, geometry tests, and API dependency build/API tests. API tests report 7 passed, 0 failed, including complete local API project round-trip (assets, openings, presentation, building) and fail-closed missing-Supabase checks. R2 configuration is now validated only when object storage is actually used. Saved-project library search by name/source is included in this gate. This is automated validation only; live Supabase restart survival, browser manual tests, and physical AR are not yet accepted.
+
+
+## Latest gate and implementation state — Engineering Gate #305
+
+Gate #305 passed on `37b6eacd01a40ba520aae47de1b350bd09714545`: clean install, runtime graph, web type-check/build, core tests, geometry tests, and API tests. New project-schema checks reject dangling/out-of-bounds wall openings, invalid building-level references, same-level stairs, floor slabs referencing missing rooms, and unsupported future schema versions. Per-room floor finish now persists and synchronizes with its floor slab. The starter component catalog now renders several common home items with parametric geometry and more realistic default dimensions; saved-project search is available.
+
+Implementation estimate remains ~40%, with 0/17 Phase 12/13 tasks acceptance-complete. Deployed Supabase restart-survival, browser manual acceptance, and physical AR remain unverified. Server-configured default owner context is not adequate for public multi-user production until authenticated identity/tenant isolation is implemented.
