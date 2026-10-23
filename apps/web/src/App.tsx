@@ -16,10 +16,13 @@ import { ArViewport } from './components/ArViewport';
 import { CanvasOverlay } from './components/ui/CanvasOverlay';
 import { SpatialHeader } from './components/ui/SpatialHeader';
 import { useSpatialActionDispatcher } from './hooks/useSpatialActionDispatcher';
-import { fetchSharedProject, saveProject as saveProjectToServer } from './services/api-client';
+import { fetchSharedProject, listSavedProjects, loadSavedProject, saveProject as saveProjectToServer } from './services/api-client';
+import { SavedProjectsDialog, type SavedProjectEntry } from './components/SavedProjectsDialog';
 
 const STORAGE_KEY = 'spatial-platform-project-v1';
 const VERSION_STORAGE_KEY = 'spatial-platform-project-versions-v2';
+const PROJECT_LIBRARY_KEY = 'spatial-platform-project-library-v1';
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const DEFAULT_SCALE_METERS_PER_PIXEL = 0.02;
 type ViewMode = 'editor' | '3d' | 'spatial';
 type SaveState = 'idle' | 'saving' | 'saved' | 'local-only' | 'error';
@@ -53,6 +56,23 @@ function buildProject(projectName: string, walls: WallSegment[], rooms: Room[], 
   return { id, name: projectName, walls: cloneWalls(walls), sceneAssets: [], wallOpenings: [], presentation: { title: 'A Walk Through Us', subtitle: 'A birthday gallery made just for you', finalMessage: 'I would choose you in every room, every version, every lifetime. ❤️', theme: 'romantic', ceilingEnabled: true }, rooms: rooms.map((room) => ({ ...room, polygon: room.polygon.map((point) => ({ ...point })), wallSegments: cloneWalls(room.wallSegments) })), scaleMetersPerPixel, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
 }
 
+function readLocalProjectLibrary(): Project[] {
+  try {
+    const raw = window.localStorage.getItem(PROJECT_LIBRARY_KEY);
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    const items = Array.isArray(parsed) ? parsed : [];
+    const projects = items.flatMap((item) => { const result = ProjectSchema.safeParse(item); return result.success ? [result.data] : []; });
+    const legacy = loadProjectFromLocalStorage(STORAGE_KEY);
+    if (legacy) { const result = ProjectSchema.safeParse(legacy); if (result.success && !projects.some((project) => project.id === result.data.id)) projects.push(result.data); }
+    return projects.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  } catch { return []; }
+}
+
+function writeLocalProjectLibrary(project: Project): void {
+  const existing = readLocalProjectLibrary().filter((item) => item.id !== project.id);
+  window.localStorage.setItem(PROJECT_LIBRARY_KEY, JSON.stringify([cloneProject(project), ...existing].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))));
+}
+
 function readLocalVersions(): Project[] {
   try {
     const raw = window.localStorage.getItem(VERSION_STORAGE_KEY);
@@ -64,6 +84,7 @@ function readLocalVersions(): Project[] {
 }
 
 export function App(): JSX.Element {
+  const [projectId, setProjectId] = useState(() => crypto.randomUUID());
   const [projectName, setProjectName] = useState('Spatial Project');
   const [walls, setWalls] = useState<WallSegment[]>([]);
   const [points, setPoints] = useState<Point[]>([]);
@@ -88,6 +109,10 @@ export function App(): JSX.Element {
   const [wallOpenings, setWallOpenings] = useState<WallOpening[]>([]);
   const [presentation, setPresentation] = useState<PresentationConfig>({ title: 'A Walk Through Us', subtitle: 'A birthday gallery made just for you', finalMessage: 'I would choose you in every room, every version, every lifetime. ❤️', theme: 'romantic', ceilingEnabled: true });
   const [presentationMode, setPresentationMode] = useState(false);
+  const [savedProjectsOpen, setSavedProjectsOpen] = useState(false);
+  const [savedProjects, setSavedProjects] = useState<SavedProjectEntry[]>([]);
+  const [savedProjectsLoading, setSavedProjectsLoading] = useState(false);
+  const [savedProjectsError, setSavedProjectsError] = useState('');
 
   useEffect(() => { setPoints(walls.flatMap((wall) => [wall.start, wall.end]).map((point) => PointSchema.parse(point))); }, [walls]);
   useEffect(() => { const localVersions = readLocalVersions(); setVersions(localVersions); if (localVersions.length === 2) setSelectedVersionIds(localVersions.map((version) => version.id)); }, []);
@@ -104,14 +129,28 @@ export function App(): JSX.Element {
     return () => { mounted = false; };
   }, []);
 
-  const project = useMemo(() => ({ ...buildProject(projectName, walls, rooms, scaleMetersPerPixel), sceneAssets, wallOpenings, presentation }), [projectName, walls, rooms, scaleMetersPerPixel, sceneAssets, wallOpenings, presentation]);
+  const project = useMemo(() => ({ ...buildProject(projectName, walls, rooms, scaleMetersPerPixel, projectId), sceneAssets, wallOpenings, presentation }), [projectId, projectName, walls, rooms, scaleMetersPerPixel, sceneAssets, wallOpenings, presentation]);
   const updateWalls: Dispatch<SetStateAction<WallSegment[]>> = useCallback((next) => { setRoomsValidated(false); setSelectedRoomId(null); setRooms([]); setWalls(next); }, []);
   const { dispatchSpatialAction } = useSpatialActionDispatcher(walls, rooms, updateWalls, setRooms);
 
   const handleSaveProject = async (): Promise<void> => {
     setSaveState('saving'); setSaveMessage('Saving project…');
-    try { saveProjectToLocalStorage(project, STORAGE_KEY); const result = await saveProjectToServer(project); const saved = result.project; setProjectName(saved.name); setScaleMetersPerPixel(saved.scaleMetersPerPixel ?? scaleMetersPerPixel); setScaleCalibrated(Boolean(saved.scaleMetersPerPixel)); setLastSavedProject(cloneProject(saved)); if (result.status === 'local-only') { setSaveState('local-only'); setSaveMessage('Saved in this browser only. Server storage is temporary.'); return; } setSaveState('saved'); setSaveMessage(`Saved to server · ${saved.walls.length} walls · ${saved.rooms.length} rooms`); }
-    catch (error) { console.error(error); setSaveState('error'); setSaveMessage('Save failed. Your local copy is kept.'); }
+    let projectToSave: Project | null = null;
+    try {
+      projectToSave = UUID_PATTERN.test(project.id) ? cloneProject(project) : { ...cloneProject(project), id: crypto.randomUUID() };
+      setProjectId(projectToSave.id);
+      saveProjectToLocalStorage(projectToSave, STORAGE_KEY);
+      writeLocalProjectLibrary(projectToSave);
+      const result = await saveProjectToServer(projectToSave);
+      const saved = result.project;
+      setProjectId(saved.id); setProjectName(saved.name); setScaleMetersPerPixel(saved.scaleMetersPerPixel ?? scaleMetersPerPixel);
+      setScaleCalibrated(Boolean(saved.scaleMetersPerPixel)); setLastSavedProject(cloneProject(saved));
+      if (result.status === 'local-only') { setSaveState('local-only'); setSaveMessage('Saved to this browser and temporary API memory — NOT confirmed in Supabase.'); return; }
+      setSaveState('saved'); setSaveMessage(`Saved to Supabase · ${saved.walls.length} walls · ${saved.rooms.length} rooms`);
+    } catch (error) {
+      console.error(error); setSaveState('error');
+      setSaveMessage(error instanceof Error ? `Supabase save failed; browser recovery copy kept. ${error.message}` : 'Supabase save failed; browser recovery copy kept.');
+    }
   };
 
   const handleShareDesign = async (): Promise<void> => {
@@ -125,19 +164,65 @@ export function App(): JSX.Element {
     } catch (error) { console.error(error); setSaveState('error'); setSaveMessage(error instanceof Error ? error.message : 'Project publish failed.'); }
   };
 
-  const handleLoadProject = (): void => {
+  const refreshSavedProjects = async (): Promise<void> => {
+    setSavedProjectsLoading(true); setSavedProjectsError('');
+    const localEntries: SavedProjectEntry[] = readLocalProjectLibrary().map((item) => ({ project: item, source: 'This browser · local recovery', remote: false }));
     try {
-      const loaded = loadProjectFromLocalStorage(STORAGE_KEY);
-      if (!loaded) { setSaveState('error'); setSaveMessage('No local project found.'); return; }
-      const normalized = ProjectSchema.parse(loaded); const validatedRooms = normalized.rooms.filter((room) => room.wallSegments.length > 0);
-      setProjectName(normalized.name); setWalls(cloneWalls(normalized.walls)); setRooms(validatedRooms); setSceneAssets(normalized.sceneAssets ?? []); setWallOpenings(normalized.wallOpenings ?? []); setPresentation(normalized.presentation ?? presentation); setRoomsValidated(validatedRooms.length > 0); setBlueprintUploaded(normalized.walls.length > 0 || validatedRooms.length > 0); setScaleMetersPerPixel(normalized.scaleMetersPerPixel ?? DEFAULT_SCALE_METERS_PER_PIXEL); setScaleCalibrated(Boolean(normalized.scaleMetersPerPixel)); setLastSavedProject(cloneProject(normalized)); setSelectedRoomId(null); setViewMode('editor'); setSaveState('saved'); setSaveMessage(`Loaded local copy · ${normalized.walls.length} walls`);
-    } catch (error) { console.error(error); setSaveState('error'); setSaveMessage(error instanceof Error ? error.message : 'Unable to load the saved project.'); }
+      const result = await listSavedProjects();
+      const remoteEntries: SavedProjectEntry[] = result.projects.map((item) => ({
+        project: item,
+        source: result.persistence === 'durable' ? 'Supabase · durable' : 'API memory · temporary (not Supabase)',
+        remote: true,
+      }));
+      const byId = new Map<string, SavedProjectEntry>();
+      for (const entry of localEntries) byId.set(entry.project.id, entry);
+      for (const entry of remoteEntries) byId.set(entry.project.id, entry);
+      setSavedProjects([...byId.values()].sort((a, b) => b.project.updatedAt.localeCompare(a.project.updatedAt)));
+      if (result.persistence !== 'durable') setSavedProjectsError(result.message ?? 'The API is not using durable Supabase persistence. Projects in API memory can disappear when it restarts.');
+    } catch (error) {
+      setSavedProjects(localEntries);
+      setSavedProjectsError(`Could not retrieve projects from the server. Showing browser recovery projects only. ${error instanceof Error ? error.message : ''}`);
+    } finally { setSavedProjectsLoading(false); }
+  };
+
+  const handleLoadProject = (): void => {
+    setSavedProjectsOpen(true);
+    void refreshSavedProjects();
+  };
+
+  const applyProjectToEditor = (loaded: Project, source: string): void => {
+    const normalizedInput = ProjectSchema.parse(loaded);
+    const normalized = UUID_PATTERN.test(normalizedInput.id) ? normalizedInput : { ...normalizedInput, id: crypto.randomUUID() };
+    const validatedRooms = normalized.rooms.filter((room) => room.wallSegments.length > 0);
+    setProjectId(normalized.id); setProjectName(normalized.name); setWalls(cloneWalls(normalized.walls)); setRooms(validatedRooms);
+    setSceneAssets(normalized.sceneAssets ?? []); setWallOpenings(normalized.wallOpenings ?? []);
+    setPresentation(normalized.presentation ?? presentation); setRoomsValidated(validatedRooms.length > 0);
+    setBlueprintUploaded(normalized.walls.length > 0 || validatedRooms.length > 0);
+    setScaleMetersPerPixel(normalized.scaleMetersPerPixel ?? DEFAULT_SCALE_METERS_PER_PIXEL);
+    setScaleCalibrated(Boolean(normalized.scaleMetersPerPixel)); setLastSavedProject(cloneProject(normalized));
+    setSelectedRoomId(null); setSelectedWallId(null); setViewMode('editor'); setSharedProject(null);
+    setSavedProjectsOpen(false); setSaveState('saved');
+    setSaveMessage(`Opened “${normalized.name}” from ${source} · ${normalized.walls.length} walls`);
+  };
+
+  const handleOpenSavedProject = async (entry: SavedProjectEntry): Promise<void> => {
+    try {
+      if (entry.remote) {
+        setSavedProjectsLoading(true); setSavedProjectsError('');
+        const result = await loadSavedProject(entry.project.id);
+        applyProjectToEditor(result.project, result.persistence === 'durable' ? 'Supabase' : 'temporary API memory');
+      } else {
+        applyProjectToEditor(entry.project, 'this browser');
+      }
+    } catch (error) {
+      setSavedProjectsError(error instanceof Error ? error.message : 'Unable to open the selected project.');
+    } finally { setSavedProjectsLoading(false); }
   };
 
   const handleRevertProject = (): void => {
     if (!lastSavedProject) { setSaveMessage('No saved baseline is available to revert to.'); return; }
     if (!window.confirm('Revert all unsaved wall and room changes to the last saved project?')) return;
-    setProjectName(lastSavedProject.name); setWalls(cloneWalls(lastSavedProject.walls)); setRooms(lastSavedProject.rooms.filter((room) => room.wallSegments.length > 0)); setSceneAssets(lastSavedProject.sceneAssets ?? []); setWallOpenings(lastSavedProject.wallOpenings ?? []); setPresentation(lastSavedProject.presentation ?? presentation); setRoomsValidated(lastSavedProject.rooms.length > 0); setScaleMetersPerPixel(lastSavedProject.scaleMetersPerPixel ?? DEFAULT_SCALE_METERS_PER_PIXEL); setScaleCalibrated(Boolean(lastSavedProject.scaleMetersPerPixel)); setSelectedRoomId(null); setViewMode('editor'); setSaveState('saved'); setSaveMessage('Reverted to the last saved project.');
+    setProjectId(lastSavedProject.id); setProjectName(lastSavedProject.name); setWalls(cloneWalls(lastSavedProject.walls)); setRooms(lastSavedProject.rooms.filter((room) => room.wallSegments.length > 0)); setSceneAssets(lastSavedProject.sceneAssets ?? []); setWallOpenings(lastSavedProject.wallOpenings ?? []); setPresentation(lastSavedProject.presentation ?? presentation); setRoomsValidated(lastSavedProject.rooms.length > 0); setScaleMetersPerPixel(lastSavedProject.scaleMetersPerPixel ?? DEFAULT_SCALE_METERS_PER_PIXEL); setScaleCalibrated(Boolean(lastSavedProject.scaleMetersPerPixel)); setSelectedRoomId(null); setViewMode('editor'); setSaveState('saved'); setSaveMessage('Reverted to the last saved project.');
   };
 
   const handleDetectRooms = (): void => {
@@ -218,6 +303,7 @@ export function App(): JSX.Element {
         <div className="border-t border-slate-800 p-3 mt-3"><AiAssistantPanel walls={walls} onDispatchAction={dispatchSpatialAction} /></div>
       </aside>
       <main className="relative min-w-0 flex-1 overflow-hidden"><SpatialCanvas walls={walls} rooms={rooms} points={points} selectedRoomId={selectedRoomId} /><button type="button" onClick={() => setPresentationMode(true)} disabled={!walls.length} className="absolute right-5 bottom-5 z-40 rounded-full bg-gradient-to-r from-fuchsia-600 via-rose-500 to-amber-500 px-5 py-3 text-xs font-bold text-white shadow-2xl disabled:opacity-40">✨ Preview Birthday Gallery</button><div className="spatial-viewport-card"><div className="spatial-viewport-label">{viewMode === '3d' ? '3D REVIEW' : 'LIVE 3D PREVIEW'}</div><div className="mt-1 text-sm font-medium text-white">{walls.length} wall segments · {rooms.length} rooms</div><div className="spatial-grid-hint">Drag to orbit · scroll to zoom · right-drag to pan</div></div><SpatialHeader projectName={projectName} onProjectNameChange={setProjectName} onSave={handleSaveProject} onLoad={handleLoadProject} onShare={handleShareDesign} onSaveVersion={handleSaveVersion} onEnterAr={handleEnterSpatial} refLength={refLength} onScaleChange={setRefLength} onUploadBlueprint={handleBlueprintUpload} /><CanvasOverlay scaleMetric={refLength} unit="meters" /></main>
+      <SavedProjectsDialog open={savedProjectsOpen} projects={savedProjects} loading={savedProjectsLoading} error={savedProjectsError} onRefresh={() => void refreshSavedProjects()} onOpen={(entry) => void handleOpenSavedProject(entry)} onClose={() => setSavedProjectsOpen(false)} />
     </div>
   );
 }
