@@ -155,3 +155,11 @@ The chat transcript is not the durable project state. Every meaningful implement
 - API contract suite: 7/7 passed. Includes complete project save/list/open round-trip and fail-closed behavior when Supabase configuration is absent. R2 credentials are now required only when storage operations are invoked.
 - Added search by project name/storage source to the saved-project library; included in this passing gate.
 - Supabase deployment/restart survival, browser interaction, and physical WebXR remain unverified. PR #67 stays draft; no main-branch changes.
+
+
+## Latest implementation + verification — 2026-10-23
+- Engineering Gate #305 passed on `37b6eacd01a40ba520aae47de1b350bd09714545`: clean install, runtime graph, web type-check/build, core, geometry and API tests all passed.
+- Schema now validates opening wall references and dimensions, building level references, distinct stair endpoints, floor slab room links, and supported building schema versions; new contract tests cover invalid references.
+- Per-room floor material is persisted and synchronized with its linked floor slab. Common catalog items now render as starter parametric meshes with realistic default dimensions; new components are offset to avoid exact overlap. Saved-project library search by name/source is implemented.
+- Estimate: ~40% implementation coverage; 0/17 Phase 12/13 tasks fully acceptance-complete. Still unverified: deployed Supabase write/list/open/restart survival, browser manual tests, and physical WebXR orientation/scale.
+- Durable ownership currently relies on server-configured tenant/org/owner IDs. Do not enable that shared context for public multi-user production until authenticated identity and tenant isolation are implemented. PR #67 remains draft; main untouched.
