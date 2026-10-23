@@ -16,10 +16,14 @@ const persistenceContextSchema = z.object({ tenantId: z.string().uuid(), organiz
 type PersistenceContext = z.infer<typeof persistenceContextSchema>;
 
 function durablePersistenceEnabled(): boolean { return (process.env.SUPABASE_PERSISTENCE_ENABLED ?? 'false').toLowerCase() === 'true'; }
-function getPersistenceContext(req: Request): PersistenceContext | null {
-  const fromRequest = persistenceContextSchema.safeParse({ tenantId: req.header('x-tenant-id'), organizationId: req.header('x-organization-id'), ownerId: req.header('x-owner-id') });
-  if (fromRequest.success) return fromRequest.data;
-  const fromServer = persistenceContextSchema.safeParse({ tenantId: process.env.PERSISTENCE_DEFAULT_TENANT_ID, organizationId: process.env.PERSISTENCE_DEFAULT_ORGANIZATION_ID, ownerId: process.env.PERSISTENCE_DEFAULT_OWNER_ID });
+function getPersistenceContext(_req: Request): PersistenceContext | null {
+  // These IDs must come from trusted server configuration until authenticated identity context is implemented.
+  // Never trust browser-supplied tenant/owner headers when the service-role client bypasses RLS.
+  const fromServer = persistenceContextSchema.safeParse({
+    tenantId: process.env.PERSISTENCE_DEFAULT_TENANT_ID,
+    organizationId: process.env.PERSISTENCE_DEFAULT_ORGANIZATION_ID,
+    ownerId: process.env.PERSISTENCE_DEFAULT_OWNER_ID,
+  });
   return fromServer.success ? fromServer.data : null;
 }
 function requirePersistenceContext(req: Request, res: Response): PersistenceContext | null { if (!durablePersistenceEnabled()) return null; const context = getPersistenceContext(req); if (context) return context; res.status(503).json({ error: 'durable persistence is enabled but tenant context is missing', code: 'PERSISTENCE_CONTEXT_REQUIRED' }); return null; }
