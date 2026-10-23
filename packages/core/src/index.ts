@@ -34,6 +34,7 @@ export interface WallOpening {
   width: number;
   height: number;
   bottom: number;
+  doorState?: 'open' | 'closed';
   createdAt: string;
   updatedAt: string;
 }
@@ -143,6 +144,7 @@ export const WallOpeningSchema = z.object({
   width: z.number().positive(),
   height: z.number().positive(),
   bottom: z.number().finite().nonnegative(),
+  doorState: z.enum(['open', 'closed']).optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });
