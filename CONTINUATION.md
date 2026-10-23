@@ -114,3 +114,11 @@ The chat transcript is not the durable project state. Every meaningful implement
 - **Runtime change:** commit f7a501a1effed320166b12483ba42a2783f8337d updates App.tsx so local load/revert restore sceneAssets, wallOpenings and presentation, and version snapshots preserve the complete current Project rather than rebuilding walls/rooms only. cloneProject now deep-copies mutable scene metadata.
 - **Verification status:** Engineering Gate run #180 completed with conclusion SUCCESS: clean install, critical runtime graph, web type-check, web production build, core snapshot contract tests, geometry contract tests and API upload validation all passed. This is BUILD GREEN for the branch. Browser save/load behavior and physical AR remain unverified. TASK-1202 remains open; the fix covers a local load/revert/version snapshot defect, not the complete durable scene persistence requirement.
 - **Next required durable update:** run the web type-check/build and add regression coverage for project round-tripping; inspect/diagnose AR transforms without speculative rotation changes. Update task checkboxes only when acceptance criteria pass.
+
+
+## 2026-10-23 — Saved-project/Supabase follow-up
+- Confirmed persistence was not guaranteed: `SUPABASE_PERSISTENCE_ENABLED` defaults to false, and the UI only had a single-project browser Load path; the API exposed save/share but no normal project list/open endpoints.
+- Added `GET /api/projects` and `GET /api/projects/:id`, scoped to tenant/organization/owner context in durable mode; added web API client calls and a saved-project dialog that combines local recovery with server results.
+- Fixed the editor's fixed `project-1` identity by using a stable UUID per project; database table `projects.id` is UUID typed. Saved versions now also use UUIDs.
+- UI labels durable Supabase storage separately from temporary API memory and browser recovery copies. This is intentionally truthful: no Supabase environment was accessed/configured, and deployed write/restart verification is still outstanding.
+- **Next gate:** run the PR's clean install/type-check/build/tests, inspect failures, then perform deployed Supabase save/list/open/restart verification only if the deployment environment is available. Do not merge to `main` or claim Supabase is active based on code alone.
