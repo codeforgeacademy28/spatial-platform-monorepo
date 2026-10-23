@@ -217,6 +217,24 @@ export const ProjectSchema = z.object({
   // renderer creates a hole. Invalid/dangling openings must not silently save.
   const walls = project.walls.length > 0 ? project.walls : project.rooms.flatMap((room) => room.wallSegments);
   const wallById = new Map(walls.map((wall) => [wall.id, wall]));
+  const building = project.building ?? BuildingModelSchema.parse({});
+  const levelIds = new Set(building.levels.map((level) => level.id));
+  const checkLevelReference = (levelId: string | undefined, path: (string | number)[]): void => {
+    if (levelId && !levelIds.has(levelId)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path, message: `Unknown building level "${levelId}".` });
+    }
+  };
+  walls.forEach((wall, index) => checkLevelReference(wall.levelId, ['walls', index, 'levelId']));
+  project.rooms.forEach((room, index) => checkLevelReference(room.levelId, ['rooms', index, 'levelId']));
+  building.floorSlabs.forEach((slab, index) => checkLevelReference(slab.levelId, ['building', 'floorSlabs', index, 'levelId']));
+  building.components.forEach((component, index) => checkLevelReference(component.levelId, ['building', 'components', index, 'levelId']));
+  building.stairs.forEach((stair, index) => {
+    checkLevelReference(stair.fromLevelId, ['building', 'stairs', index, 'fromLevelId']);
+    checkLevelReference(stair.toLevelId, ['building', 'stairs', index, 'toLevelId']);
+    if (stair.fromLevelId === stair.toLevelId) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['building', 'stairs', index, 'toLevelId'], message: 'Staircase must connect two different levels.' });
+    }
+  });
   project.wallOpenings.forEach((opening, index) => {
     const wall = wallById.get(opening.wallId);
     if (!wall) {
