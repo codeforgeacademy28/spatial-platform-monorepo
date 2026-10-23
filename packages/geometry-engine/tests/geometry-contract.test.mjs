@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { detectClosedRooms, extrudeWallSegment, generateRoomFloorMesh, collidesWithWallPosition, movementBlockedByWalls, resolveMovementWithWalls, wallsWithPassableOpenings } from '../dist/index.js';
+import { detectClosedRooms, extrudeWallSegment, generateRoomFloorMesh, collidesWithWallPosition, movementBlockedByWalls, resolveMovementWithWalls, wallsWithPassableOpenings, stairFloorElevationAtPoint } from '../dist/index.js';
 
 function wall(id, start, end) {
   return {
@@ -116,4 +116,24 @@ test('window openings do not make a wall passable at floor level', () => {
   const result = wallsWithPassableOpenings([boundary], [windowOpening]);
   assert.equal(result.length, 1);
   assert.equal(result[0].id, boundary.id);
+});
+
+test('staircase elevation rises deterministically from lower to upper floor', () => {
+  const building = {
+    schemaVersion: 1,
+    levels: [
+      { id: 'ground', name: 'Ground', elevation: 0, wallHeight: 2.7, order: 0 },
+      { id: 'upper', name: 'Upper', elevation: 3, wallHeight: 2.7, order: 1 },
+    ],
+    floorSlabs: [],
+    stairs: [{
+      id: 'stairs', fromLevelId: 'ground', toLevelId: 'upper',
+      position: [0, 0, 0], rotationY: 0, width: 1, run: 3, rise: 3, stepCount: 16,
+    }],
+    components: [],
+  };
+  assert.equal(stairFloorElevationAtPoint(0, 1.5, building), 0);
+  assert.equal(stairFloorElevationAtPoint(0, 0, building), 1.5);
+  assert.equal(stairFloorElevationAtPoint(0, -1.5, building), 3);
+  assert.equal(stairFloorElevationAtPoint(2, 0, building), null);
 });
