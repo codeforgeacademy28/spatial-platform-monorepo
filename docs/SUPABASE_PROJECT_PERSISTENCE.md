@@ -54,7 +54,9 @@ Never use the service-role key as a `VITE_*` variable or put it in web source co
 
 Set `VITE_API_BASE_URL` in the **web build environment** to the deployed API origin, for example `https://your-api.example.com` (no trailing slash required), then rebuild/redeploy the web app. If this is absent, the client uses same-origin `/api` paths, which only works when the web host proxies those paths to the API.
 
-After deployment:
+After deployment, first call `GET https://your-api.example.com/health/ready`. A `200` response with `persistence.ready: true` confirms the API can query the Supabase `projects` table; a `503` response returns a non-secret error code indicating disabled persistence, missing configuration, or a failed database query.
+
+Then:
 1. Open the editor and save a small test project.
 2. Confirm the UI says **Saved to Supabase**, not local-only or temporary API memory.
 3. Open **Saved projects**, refresh the list, and confirm the source says **Supabase · durable**.
