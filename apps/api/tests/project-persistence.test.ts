@@ -129,6 +129,10 @@ test('local-only API save/list/open round-trips a full versioned project', async
   await new Promise<void>((resolve) => server.once('listening', resolve));
   const address = server.address() as AddressInfo;
   const baseUrl = `http://127.0.0.1:${address.port}`;
+  const readinessResponse = await fetch(`${baseUrl}/health/ready`);
+  assert.equal(readinessResponse.status, 503);
+  const readinessPayload = await readinessResponse.json() as { code: string };
+  assert.equal(readinessPayload.code, 'DURABLE_PERSISTENCE_DISABLED');
   const timestamp = new Date().toISOString();
   const id = randomUUID();
   const project = {
