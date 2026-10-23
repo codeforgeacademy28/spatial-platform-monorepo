@@ -69,3 +69,8 @@ The service-role key must never be placed in Vite/browser environment variables.
 ## Runtime persistence health contract
 
 `GET /health` now reports whether durable persistence was requested, whether the required server-side Supabase URL/service-role configuration appears present, and which configuration variable names are missing. This is configuration readiness only; it does not prove database reachability or successful writes. In durable mode, save/list/open must return an explicit failure if configuration or database access fails. Never expose the service-role key or put it in Vite/client environment variables.
+
+
+## Current verification status
+
+Engineering Gate #265 passed web type-check, production build and core snapshot tests, but failed the geometry suite because the doorway test passed endpoint coordinates to a function that expects a movement delta. The assertion was corrected in commit `613567d`; a fresh gate is still required. The API tests were skipped on #265. Supabase readiness in `/health` only checks configuration shape; no live database round-trip or restart-survival has been proven.
