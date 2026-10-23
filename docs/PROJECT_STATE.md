@@ -115,3 +115,8 @@ Phase 12 of TASKS.md is the detailed acceptance backlog. Implement in sequence: 
 
 ### Current branch state
 The branch feat/blueprint-to-playable-house-roadmap contains the Phase 12 backlog and state updates plus a runtime fix in apps/web/src/App.tsx. Local load/revert now restore sceneAssets, wallOpenings and presentation; save-version snapshots preserve the complete current Project instead of reconstructing a reduced wall/room-only object. GitHub Actions Engineering Gate run #180 passed clean install, critical runtime graph, web type-check, web production build, core snapshot contract tests, geometry contract tests and API upload validation. This establishes BUILD GREEN only; browser behavior and physical AR are not verified. TASK-1202 remains open.
+
+
+## 2026-10-23 — Persistence and project library update
+
+The previous Save path could report a server save while the API was running in local-only mode, and Load restored only one browser-local project. The code now exposes list/load API endpoints, assigns UUID identities compatible with the Supabase schema, persists browser recovery copies in a multi-project local library, and presents a saved-project dialog that labels source/durability. Supabase remains deployment-config dependent; there is no evidence yet that the live Supabase instance is enabled or reachable. Automated build and browser round-trip verification are pending.
