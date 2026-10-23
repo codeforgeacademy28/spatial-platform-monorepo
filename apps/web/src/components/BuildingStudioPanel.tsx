@@ -48,9 +48,11 @@ function defaultDimensions(type: BuildingComponentType): { width: number; height
 export function BuildingStudioPanel({ building, setBuilding, activeLevelId, onActiveLevelChange, walls }: BuildingStudioPanelProps): JSX.Element {
   const [selectedComponentId, setSelectedComponentId] = useState<string | null>(null);
   const [selectedStairId, setSelectedStairId] = useState<string | null>(null);
+  const [selectedSlabId, setSelectedSlabId] = useState<string | null>(null);
   const activeLevel = building.levels.find((level) => level.id === activeLevelId) ?? building.levels[0];
   const selectedComponent = building.components.find((component) => component.id === selectedComponentId);
   const selectedStair = building.stairs.find((stair) => stair.id === selectedStairId);
+  const selectedSlab = building.floorSlabs.find((slab) => slab.id === selectedSlabId) ?? building.floorSlabs.find((slab) => slab.levelId === activeLevelId);
 
   const addLevel = (): void => {
     const orderedLevels = [...building.levels].sort((a, b) => a.elevation - b.elevation);
@@ -149,6 +151,12 @@ export function BuildingStudioPanel({ building, setBuilding, activeLevelId, onAc
           <button type="button" onClick={() => setBuilding((current) => ({ ...current, orientationYawRadians: DEFAULT_BUILDING_YAW_RADIANS }))} className="rounded bg-slate-800 px-2 py-2 text-xs">Reset default</button>
           <button type="button" onClick={() => setBuilding((current) => ({ ...current, orientationYawRadians: current.orientationYawRadians + Math.PI / 12 }))} className="rounded bg-slate-800 px-2 py-2 text-xs">Rotate +15°</button>
         </div>
+      </div>
+      <div className="mt-3 rounded-lg border border-slate-800 p-2">
+        <label className="block text-xs text-slate-400">Floor finish</label>
+        {building.floorSlabs.length ? <select value={selectedSlab?.id ?? ''} onChange={(event) => setSelectedSlabId(event.target.value || null)} className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-white">{building.floorSlabs.map((slab) => <option key={slab.id} value={slab.id}>{building.levels.find((level) => level.id === slab.levelId)?.name ?? 'Floor'} · {slab.id.slice(0, 8)}</option>)}</select> : <p className="mt-1 text-xs text-slate-500">Detect closed rooms to create floor slabs.</p>}
+        {selectedSlab ? <label className="mt-2 flex items-center justify-between gap-2 text-xs text-slate-400">Floor material<input type="color" value={selectedSlab.materialHex} onChange={(event) => setBuilding((current) => ({ ...current, floorSlabs: current.floorSlabs.map((slab) => slab.id === selectedSlab.id ? { ...slab, materialHex: event.target.value } : slab) }))} className="h-7 w-10 cursor-pointer rounded border-0 bg-transparent p-0" /></label> : null}
+        <label className="mt-2 flex items-center justify-between gap-2 text-xs text-slate-400">Ceiling material<input type="color" value={building.ceilingMaterialHex} onChange={(event) => setBuilding((current) => ({ ...current, ceilingMaterialHex: event.target.value }))} className="h-7 w-10 cursor-pointer rounded border-0 bg-transparent p-0" /></label>
       </div>
       <label className="mt-3 flex items-center gap-2 text-xs text-slate-300"><input type="checkbox" checked={building.ceilingEnabled} onChange={(event) => setBuilding((current) => ({ ...current, ceilingEnabled: event.target.checked }))} /> Show ceilings in 3D / Spatial view</label>
       <label className="mt-2 flex items-center gap-2 text-xs text-slate-300"><input type="checkbox" checked={building.isolateActiveLevel} onChange={(event) => setBuilding((current) => ({ ...current, isolateActiveLevel: event.target.checked }))} /> Isolate active floor in 3D review</label>
