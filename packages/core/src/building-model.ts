@@ -81,6 +81,7 @@ export const BuildingModelSchema = z.object({
   ]),
   floorSlabs: z.array(FloorSlabSchema).default([]),
   ceilingEnabled: z.boolean().default(false),
+  isolateActiveLevel: z.boolean().default(false),
   stairs: z.array(StaircaseSchema).default([]),
   components: z.array(BuildingComponentSchema).default([]),
 });
