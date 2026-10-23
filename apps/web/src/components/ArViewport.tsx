@@ -16,7 +16,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { MutableRefObject, ReactNode } from 'react';
 import * as THREE from 'three';
 import type { Group } from 'three';
-import { floorPlanToWorld, generateRoomFloorMesh, isCircleMovementBlockedByWall, resolveCircleMovementWithWallSliding, worldToFloorPlan } from '@spatial/geometry-engine';
+import { floorPlanToWorld, generateRoomFloorMesh, isCircleMovementBlockedByWall, resolveCircleMovementWithWallSliding, wallsWithPassableOpenings, worldToFloorPlan } from '@spatial/geometry-engine';
 import type { BuildingModel, Room, WallOpening, WallSegment } from '@spatial/core';
 import { BuildingStructureMeshes, BuildingWallMesh, levelElevation } from './BuildingStructureMeshes';
 import {
@@ -432,6 +432,7 @@ export function ArViewport({ walls, rooms, building, wallOpenings = [], onDoorTo
     rightTracked: false,
   });
   const [collisionEnabled, setCollisionEnabled] = useState(true);
+  const collisionWalls = useMemo(() => wallsWithPassableOpenings(walls, wallOpenings), [walls, wallOpenings]);
   const [walkthroughMode, setWalkthroughMode] = useState(false);
   const [importedModel, setImportedModel] = useState<{ url: string; name: string; file: Blob; transform: ModelTransform } | null>(null);
   const [assetTransformMode, setAssetTransformMode] = useState<'translate' | 'rotate' | 'scale'>('translate');
@@ -596,7 +597,7 @@ export function ArViewport({ walls, rooms, building, wallOpenings = [], onDoorTo
           <XRTrackingReporter onChange={handleTrackingChange} />
           <XRLocomotion
             originRef={originRef}
-            walls={walls}
+            walls={collisionWalls}
             modelTransform={modelTransform}
             collisionEnabled={collisionEnabled}
             viewCorrectionCommand={viewCorrectionCommand}
@@ -604,7 +605,7 @@ export function ArViewport({ walls, rooms, building, wallOpenings = [], onDoorTo
           />
           <ExternalControllerLocomotion
             originRef={originRef}
-            walls={walls}
+            walls={collisionWalls}
             modelTransform={modelTransform}
             collisionEnabled={collisionEnabled}
             onStateChange={setControllerState}
@@ -634,7 +635,7 @@ export function ArViewport({ walls, rooms, building, wallOpenings = [], onDoorTo
           <IfInSessionMode deny={['immersive-ar', 'immersive-vr']}>
             <DesktopFirstPersonController
               active={walkthroughMode}
-              walls={walls}
+              walls={collisionWalls}
               modelTransform={modelTransform}
               collisionEnabled={collisionEnabled}
               spawnPosition={fallbackCamera}
