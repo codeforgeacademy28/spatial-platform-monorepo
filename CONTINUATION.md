@@ -139,3 +139,11 @@ The chat transcript is not the durable project state. Every meaningful implement
 - Engineering Gate #265: clean install/runtime graph, web type-check, web production build, and core snapshot tests passed; geometry contract tests failed on that incorrect test invocation. API tests were skipped. A fresh gate for the correction is not yet confirmed.
 - Recent implementation additions: project-persisted yaw calibration applied consistently to rendering/navigation/collision; known-size rectangular-room transform test; component/floor/ceiling materials and transforms; active-floor isolation; JSON project import/export; whole-project undo/redo; debounced browser recovery autosave.
 - Next action is to obtain a fresh Engineering Gate for the corrected test, fix any remaining failures, and only then continue broadening features. Do not mark tasks complete or claim Supabase/device validation without evidence.
+
+
+## 2026-10-23 — latest status and CI repair
+- Estimate only: approximately 35–40% implementation coverage across Phases 12–13; 0/17 tasks acceptance-complete (all remain unchecked until acceptance criteria pass).
+- Engineering Gate #268: web type-check/build passed, core 4/4 and geometry 26/26 passed; API tests failed at module load because @spatial/billing/dist/index.js was not built.
+- Fixed gate ordering in .github/workflows/engineering-gate.yml by invoking npx turbo run test --filter=@spatial/api --force, which honors workspace ^build dependencies.
+- Improved persistence truthfulness: process cache is updated only after successful durable upsert; share-token lookups in durable mode are always checked against Supabase. Added API round-trip assertions for scene assets, openings, presentation, and building structure, plus fail-closed checks when database configuration is missing.
+- Latest CI for the fixes is not yet confirmed. Supabase deployment/restart survival, browser flows, and physical WebXR remain unverified. Keep PR #67 draft and do not merge to main.
