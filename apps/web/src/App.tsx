@@ -84,7 +84,7 @@ function readLocalVersions(): Project[] {
 }
 
 export function App(): JSX.Element {
-  const [projectId, setProjectId] = useState(() => crypto.randomUUID());
+  const [projectId, setProjectId] = useState<string>(() => crypto.randomUUID());
   const [projectName, setProjectName] = useState('Spatial Project');
   const [walls, setWalls] = useState<WallSegment[]>([]);
   const [points, setPoints] = useState<Point[]>([]);
