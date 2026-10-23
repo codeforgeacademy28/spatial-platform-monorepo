@@ -98,7 +98,7 @@ export function BuildingStructureMeshes({ building, activeLevelId }: { building?
       {visibleSlabs.map((slab) => <FloorSlabMesh key={slab.id} slab={slab} elevation={levelElevation(building, slab.levelId)} />)}
       {building.ceilingEnabled ? visibleSlabs.map((slab) => {
         const level = building.levels.find((item) => item.id === slab.levelId);
-        return <FloorSlabMesh key={`ceiling-${slab.id}`} slab={{ ...slab, id: `ceiling-${slab.id}`, materialHex: '#f1f5f9' }} elevation={levelElevation(building, slab.levelId) + (level?.wallHeight ?? 2.7)} />;
+        return <FloorSlabMesh key={`ceiling-${slab.id}`} slab={{ ...slab, id: `ceiling-${slab.id}`, materialHex: building.ceilingMaterialHex }} elevation={levelElevation(building, slab.levelId) + (level?.wallHeight ?? 2.7)} />;
       }) : null}
       {visibleStairs.map((stair) => <StaircaseMeshes key={stair.id} stair={stair} elevation={levelElevation(building, stair.fromLevelId)} />)}
       {visibleComponents.map((component) => <ComponentMesh key={component.id} component={component} elevation={levelElevation(building, component.levelId)} />)}
