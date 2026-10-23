@@ -109,15 +109,21 @@ test('local-only API save/list/open round-trips a full versioned project', async
       process.env.PERSISTENCE_DEFAULT_TENANT_ID = '00000000-0000-4000-8000-000000000001';
       process.env.PERSISTENCE_DEFAULT_ORGANIZATION_ID = '00000000-0000-4000-8000-000000000002';
       process.env.PERSISTENCE_DEFAULT_OWNER_ID = '00000000-0000-4000-8000-000000000003';
+      const failedDurableId = randomUUID();
       const durableSave = await fetch(`${baseUrl}/api/projects`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...project, id: randomUUID() }),
+        body: JSON.stringify({ ...project, id: failedDurableId }),
       });
       assert.equal(durableSave.status, 503);
       const durableSavePayload = await durableSave.json() as { code?: string; persistence?: string };
       assert.equal(durableSavePayload.code, 'PERSISTENCE_FAILED');
       assert.equal(durableSavePayload.persistence, undefined);
+
+      process.env.SUPABASE_PERSISTENCE_ENABLED = 'false';
+      const notCached = await fetch(`${baseUrl}/api/projects/${failedDurableId}`);
+      assert.equal(notCached.status, 404);
+      process.env.SUPABASE_PERSISTENCE_ENABLED = 'true';
 
       const durableList = await fetch(`${baseUrl}/api/projects`);
       assert.equal(durableList.status, 503);
