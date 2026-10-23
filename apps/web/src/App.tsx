@@ -150,8 +150,12 @@ export function App(): JSX.Element {
       const saveTimestamp = new Date().toISOString();
       projectToSave = { ...cloneProject(project), id: UUID_PATTERN.test(project.id) ? project.id : crypto.randomUUID(), createdAt: projectCreatedAt, updatedAt: saveTimestamp };
       setProjectId(projectToSave.id); setProjectUpdatedAt(saveTimestamp);
-      saveProjectToLocalStorage(projectToSave, STORAGE_KEY);
-      writeLocalProjectLibrary(projectToSave);
+      try {
+        saveProjectToLocalStorage(projectToSave, STORAGE_KEY);
+        writeLocalProjectLibrary(projectToSave);
+      } catch (localError) {
+        console.warn('Browser recovery copy could not be updated; continuing with server save.', localError);
+      }
       const result = await saveProjectToServer(projectToSave);
       const saved = result.project;
       setProjectId(saved.id); setProjectCreatedAt(saved.createdAt); setProjectUpdatedAt(saved.updatedAt); setProjectName(saved.name); setScaleMetersPerPixel(saved.scaleMetersPerPixel ?? scaleMetersPerPixel);
@@ -254,8 +258,8 @@ export function App(): JSX.Element {
       createdAt: versionTimestamp,
       updatedAt: versionTimestamp,
     });
-    const nextVersions = [...versions, version]; setVersions(nextVersions); window.localStorage.setItem(VERSION_STORAGE_KEY, JSON.stringify(nextVersions)); setSelectedVersionIds(nextVersions.length <= 2 ? nextVersions.map((item) => item.id) : [nextVersions[nextVersions.length - 2].id, nextVersions[nextVersions.length - 1].id]);
-    try { writeLocalProjectLibrary(version); const result = await saveProjectToServer(version); if (result.status === 'local-only') { setSaveState('local-only'); setSaveMessage('Version kept in this browser and temporary API memory — NOT confirmed in Supabase.'); return; } setSaveState('saved'); setSaveMessage(`Version ${versionNumber} saved · ${nextVersions.length} versions available.`); }
+    const nextVersions = [...versions, version]; setVersions(nextVersions); try { window.localStorage.setItem(VERSION_STORAGE_KEY, JSON.stringify(nextVersions)); } catch (storageError) { console.warn('Local version history could not be updated.', storageError); } setSelectedVersionIds(nextVersions.length <= 2 ? nextVersions.map((item) => item.id) : [nextVersions[nextVersions.length - 2].id, nextVersions[nextVersions.length - 1].id]);
+    try { try { writeLocalProjectLibrary(version); } catch (storageError) { console.warn('Local version recovery copy could not be updated.', storageError); } const result = await saveProjectToServer(version); if (result.status === 'local-only') { setSaveState('local-only'); setSaveMessage('Version kept in this browser and temporary API memory — NOT confirmed in Supabase.'); return; } setSaveState('saved'); setSaveMessage(`Version ${versionNumber} saved · ${nextVersions.length} versions available.`); }
     catch (error) { console.error(error); setSaveState('error'); setSaveMessage(`Version ${versionNumber} kept locally · server persistence failed.`); }
   };
 
