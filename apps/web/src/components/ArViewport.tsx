@@ -80,7 +80,7 @@ function RoomFloor({ room, elevation }: { room: Room; elevation: number }): JSX.
   }, [room]);
   return (
     <mesh geometry={geometry} position={[0, elevation + 0.01, 0]} receiveShadow>
-      <meshStandardMaterial color="#2563eb" transparent opacity={0.35} />
+      <meshStandardMaterial color={room.floorMaterialHex ?? "#2563eb"} transparent opacity={0.35} />
     </mesh>
   );
 }
