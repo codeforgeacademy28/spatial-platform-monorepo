@@ -163,3 +163,10 @@ Gate #268 passed web type-check/build, core tests (4/4), and geometry tests (26/
 ## Engineering Gate #280 — 2026-10-23
 
 Automated gate passed for commit `6347c1caae4036149e8c4975562f19993bf04d7a`: clean install, runtime graph, web type-check/build, core snapshots, geometry contracts, API workspace dependency build and API tests. API tests: 7/7. The saved-project dialog includes name/source search. API project tests round-trip scene assets, openings, presentation and building model and assert missing Supabase config fails closed. This does not replace deployed Supabase restart-survival, browser manual, or physical WebXR acceptance.
+
+
+## Engineering Gate #305 — 2026-10-23
+
+**PASS** on `37b6eacd01a40ba520aae47de1b350bd09714545`: web type-check/build, core/geometry/API tests, and dependency build passed. The canonical schema now rejects dangling/out-of-bounds openings, invalid level references, same-level stairs, floor slabs with missing room links, and unsupported future schema versions. Per-room finish editing synchronizes to the associated floor slab. Starter parametric geometry is implemented for common catalog items, with human-scale defaults and staggered placement. Project library supports search.
+
+These are source and automated-test milestones, not complete product acceptance. Estimate ~40% implementation coverage; 0/17 Phase 12/13 tasks acceptance-complete. Live Supabase restart survival, browser manual tests, physical WebXR, and multi-user auth/tenant isolation remain open.
