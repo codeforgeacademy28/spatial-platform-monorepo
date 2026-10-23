@@ -151,3 +151,12 @@ The editor now has persisted house yaw calibration applied consistently in the S
 Gate #305 passed on `37b6eacd01a40ba520aae47de1b350bd09714545`: clean install, runtime graph, web type-check/build, core tests, geometry tests, and API tests. New project-schema checks reject dangling/out-of-bounds wall openings, invalid building-level references, same-level stairs, floor slabs referencing missing rooms, and unsupported future schema versions. Per-room floor finish now persists and synchronizes with its floor slab. The starter component catalog now renders several common home items with parametric geometry and more realistic default dimensions; saved-project search is available.
 
 Implementation estimate remains ~40%, with 0/17 Phase 12/13 tasks acceptance-complete. Deployed Supabase restart-survival, browser manual acceptance, and physical AR remain unverified. Server-configured default owner context is not adequate for public multi-user production until authenticated identity/tenant isolation is implemented.
+
+
+## Latest continuation — Engineering Gate #323 (2026-10-23)
+
+**PASS** on `275a9229eee2330b426707c8e34b698e8af35d01`: clean install, runtime graph, web type-check/build, core snapshot tests, geometry tests and API dependency build/tests. API summary: 9 total, 8 passed, 0 failed, 1 skipped (opt-in live Supabase integration; no integration secrets/database used in CI).
+
+New increments include a live Supabase `/health/ready` probe (configuration plus `projects` table query), missing/disabled configuration tests, deployment and owner-seed documentation, and an opt-in save/restart/list/open Supabase integration test. UI includes room floor finishes in Spatial view, editable component dimensions and X/Y/Z placement, stair rotation/material controls, extra structural catalog entries, and duplicate suppression for matching local/server project copies.
+
+This remains automated code validation only. Live Supabase persistence/restart survival, browser manual interaction, physical WebXR orientation/scale, and authenticated multi-user isolation are not yet accepted. PR #67 remains draft; no main-branch changes.
