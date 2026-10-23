@@ -56,6 +56,16 @@ test('local-only API save/list/open round-trips a full versioned project', async
     assert.equal(opened.persistence, 'local-only');
     assert.equal(opened.project.building.components[0]?.name, 'Test sofa');
     assert.equal(opened.project.building.levels[0]?.name, 'Ground Floor');
+
+    process.env.SUPABASE_PERSISTENCE_ENABLED = 'true';
+    const invalidIdResponse = await fetch(`${baseUrl}/api/projects`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...project, id: 'legacy-id' }),
+    });
+    assert.equal(invalidIdResponse.status, 400);
+    const invalidIdPayload = await invalidIdResponse.json() as { code?: string };
+    assert.equal(invalidIdPayload.code, 'PROJECT_ID_MUST_BE_UUID');
   } finally {
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
     if (previousMode === undefined) delete process.env.SUPABASE_PERSISTENCE_ENABLED;
