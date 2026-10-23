@@ -34,6 +34,37 @@ test('Supabase readiness reports missing server configuration without exposing s
   }
 });
 
+test('live readiness endpoint explains missing Supabase configuration', async () => {
+  const names = [
+    'SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY',
+    'PERSISTENCE_DEFAULT_TENANT_ID', 'PERSISTENCE_DEFAULT_ORGANIZATION_ID', 'PERSISTENCE_DEFAULT_OWNER_ID',
+  ] as const;
+  const previous = new Map(names.map((name) => [name, process.env[name]]));
+  const previousMode = process.env.SUPABASE_PERSISTENCE_ENABLED;
+  let server: ReturnType<typeof app.listen> | undefined;
+  try {
+    for (const name of names) delete process.env[name];
+    process.env.SUPABASE_PERSISTENCE_ENABLED = 'true';
+    server = app.listen(0);
+    await new Promise<void>((resolve) => server?.once('listening', resolve));
+    const address = server.address() as AddressInfo;
+    const response = await fetch(`http://127.0.0.1:${address.port}/health/ready`);
+    assert.equal(response.status, 503);
+    const payload = await response.json() as { code: string; persistence: { missingConfiguration: string[] } };
+    assert.equal(payload.code, 'PERSISTENCE_CONFIGURATION_MISSING');
+    assert.equal(payload.persistence.missingConfiguration.length, names.length);
+  } finally {
+    if (server) await new Promise<void>((resolve, reject) => server?.close((error) => error ? reject(error) : resolve()));
+    for (const name of names) {
+      const value = previous.get(name);
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+    if (previousMode === undefined) delete process.env.SUPABASE_PERSISTENCE_ENABLED;
+    else process.env.SUPABASE_PERSISTENCE_ENABLED = previousMode;
+  }
+});
+
 test('Supabase integration: durable project remains listable and openable after API restart', {
   skip: process.env.SUPABASE_INTEGRATION_TESTS !== 'true',
 }, async () => {
