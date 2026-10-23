@@ -14,7 +14,7 @@ interface BuildingStudioPanelProps {
 
 const CATALOG: Array<{ type: BuildingComponentType; label: string }> = [
   { type: 'door', label: 'Door' }, { type: 'window', label: 'Window' },
-  { type: 'column', label: 'Column' }, { type: 'beam', label: 'Beam' },
+  { type: 'column', label: 'Column' }, { type: 'beam', label: 'Beam' }, { type: 'partition', label: 'Partition wall' }, { type: 'roof', label: 'Roof section' }, { type: 'railing', label: 'Railing' },
   { type: 'sofa', label: 'Sofa' }, { type: 'chair', label: 'Chair' },
   { type: 'table', label: 'Table' }, { type: 'bed', label: 'Bed' },
   { type: 'wardrobe', label: 'Wardrobe' }, { type: 'cabinet', label: 'Cabinet' },
