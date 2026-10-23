@@ -80,3 +80,52 @@ export function BuildingStructureMeshes({ building }: { building?: BuildingModel
     </group>
   );
 }
+
+export function BuildingWallMesh({ wall, elevation, openings = [], onDoorToggle }: {
+  wall: import('@spatial/core').WallSegment;
+  elevation: number;
+  openings?: import('@spatial/core').WallOpening[];
+  onDoorToggle?: (openingId: string) => void;
+}): JSX.Element {
+  const length = Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y) || 0.001;
+  const angle = Math.atan2(wall.end.y - wall.start.y, wall.end.x - wall.start.x);
+  const wallOpenings = openings.filter((opening) => opening.wallId === wall.id && opening.offset < length && opening.offset + opening.width / 2 > 0);
+  const boundaries = [...new Set([0, length, ...wallOpenings.flatMap((opening) => [
+    Math.max(0, opening.offset - opening.width / 2),
+    Math.min(length, opening.offset + opening.width / 2),
+  ])])].sort((a, b) => a - b);
+  const segments: Array<{ x: number; width: number; bottom: number; top: number }> = [];
+  for (let index = 0; index < boundaries.length - 1; index += 1) {
+    const start = boundaries[index];
+    const end = boundaries[index + 1];
+    const width = end - start;
+    if (width <= 0.001) continue;
+    const middle = (start + end) / 2;
+    const opening = wallOpenings.find((item) => middle >= item.offset - item.width / 2 && middle <= item.offset + item.width / 2);
+    const vertical = opening
+      ? [[0, Math.min(opening.bottom, wall.height)], [Math.min(wall.height, opening.bottom + opening.height), wall.height]]
+      : [[0, wall.height]];
+    for (const [bottom, top] of vertical) {
+      if (top - bottom > 0.001) segments.push({ x: (start + end) / 2 - length / 2, width, bottom, top });
+    }
+  }
+  return (
+    <group position={[(wall.start.x + wall.end.x) / 2, elevation, (wall.start.y + wall.end.y) / 2]} rotation={[0, -angle, 0]}>
+      {segments.map((segment, index) => <mesh key={index} position={[segment.x, (segment.bottom + segment.top) / 2, 0]} castShadow receiveShadow>
+        <boxGeometry args={[segment.width, segment.top - segment.bottom, wall.thickness]} />
+        <meshStandardMaterial color={wall.materialHex ?? '#cbd5e1'} metalness={0.12} roughness={0.7} />
+      </mesh>)}
+      {wallOpenings.map((opening) => opening.type === 'window'
+        ? <mesh key={opening.id} position={[opening.offset - length / 2, opening.bottom + opening.height / 2, 0]} receiveShadow>
+            <boxGeometry args={[opening.width, opening.height, Math.max(0.025, wall.thickness * 0.25)]} />
+            <meshStandardMaterial color="#7dd3fc" transparent opacity={0.48} roughness={0.2} />
+          </mesh>
+        : <group key={opening.id} position={[opening.offset - opening.width / 2 - length / 2, opening.bottom, 0]}>
+            <mesh position={[opening.width / 2, opening.height / 2, wall.thickness * 0.1]} rotation-y={opening.doorState === 'open' ? -Math.PI / 2 : 0} onClick={(event) => { event.stopPropagation(); onDoorToggle?.(opening.id); }} castShadow>
+              <boxGeometry args={[opening.width, opening.height, Math.max(0.04, wall.thickness * 0.18)]} />
+              <meshStandardMaterial color="#9a6b42" roughness={0.76} />
+            </mesh>
+          </group>)}
+    </group>
+  );
+}
