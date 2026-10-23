@@ -107,3 +107,25 @@ Treat chat history as transient. Every meaningful change must leave code/commit 
 
 ## Current next action
 PR #65 and PR #57 are merged. Vercel reports success for the PR #57 merge commit, while interactive browser/file-picker/canvas and native WebXR acceptance remain unverified in this agent surface. Obtain external real-browser/device evidence for the full R2.2/R2.3 matrix before marking those gates complete or advancing release confidence. P1 remains behind functional acceptance.
+
+---
+
+## North Star expansion — Deterministic blueprint-to-playable-house (2026-10-23)
+
+**Status: PLANNED / repository audit started.** This expands the existing sketch-based spatial editor into a real editable, persistent, multi-floor house. The canonical building model is the source of truth; 2D plan, 3D editor, desktop first-person view and optional AR must render the same data.
+
+**Non-negotiable product constraints**
+- AI recognition is optional; no core construction/edit/save/navigation feature may depend on an LLM.
+- No speculative yaw/rotation fixes. Diagnose the transform chain using known-size geometry and tests.
+- Distinguish browser-local IndexedDB from durable project/server persistence.
+- Existing wall sketching, project save/share, local model import and first-person/collision foundations must be preserved and integrated, not reimplemented blindly.
+- Build evidence is not browser evidence; browser evidence is not physical WebXR evidence.
+
+**Current active goal:** audit the existing transform + persistence paths, then complete the P0 gates in TASKS.md Phase 12 in order:
+1. TASK-1201 — reproduce and resolve AR/world orientation and scale.
+2. TASK-1202 — round-trip the complete editable scene through durable project persistence.
+3. TASK-1203 — versioned canonical building schema and migration.
+4. TASK-1204 — floor slabs, levels and multi-floor structure.
+5. TASK-1205/1206/1207 — real openings, interactive doors/windows, stairs and human-scale traversal.
+
+**Acceptance status:** no Phase 12 task is complete from this planning update. Physical AR alignment remains HARDWARE GATE REQUIRED until tested on a supported device. Use one active implementation goal at a time and update this plan, TASKS.md, CONTINUATION.md, and docs/PROJECT_STATE.md after meaningful changes.
