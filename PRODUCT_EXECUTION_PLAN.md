@@ -129,3 +129,14 @@ PR #65 and PR #57 are merged. Vercel reports success for the PR #57 merge commit
 5. TASK-1205/1206/1207 — real openings, interactive doors/windows, stairs and human-scale traversal.
 
 **Acceptance status:** no Phase 12 task is complete from this planning update. Physical AR alignment remains HARDWARE GATE REQUIRED until tested on a supported device. Use one active implementation goal at a time and update this plan, TASKS.md, CONTINUATION.md, and docs/PROJECT_STATE.md after meaningful changes.
+
+
+## Persistence and project-library gate (2026-10-23)
+
+1. Stabilize project UUID identity and prevent cross-project overwrite.
+2. Add API list/load endpoints with durable query scoping and clear local-only semantics.
+3. Add a project-library UI merging browser recovery copies and server records.
+4. Validate type-check/build/API tests.
+5. Separately verify deployed Supabase configuration, save/list/open after API restart, and complete scene round-trip. Never infer durable persistence from a green build.
+
+No deployment secrets or Supabase settings are modified by this plan.
