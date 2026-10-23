@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { detectClosedRooms } from '@spatial/geometry-engine';
-import { PointSchema, ProjectSchema, loadProjectFromLocalStorage, saveProjectToLocalStorage } from '@spatial/core';
-import type { Point, Project, Room, SceneAsset, PresentationConfig, WallOpening, WallSegment } from '@spatial/core';
+import { BuildingModelSchema, PointSchema, ProjectSchema, loadProjectFromLocalStorage, saveProjectToLocalStorage } from '@spatial/core';
+import type { BuildingModel, Point, Project, Room, SceneAsset, PresentationConfig, WallOpening, WallSegment } from '@spatial/core';
 import type { Dispatch, SetStateAction } from 'react';
 import { ClientViewer } from './components/ClientViewer';
 import { FloorPlanOverlay } from './components/FloorPlanOverlay';
@@ -49,6 +49,13 @@ function cloneProject(project: Project): Project {
     })),
     wallOpenings: project.wallOpenings?.map((opening) => ({ ...opening })),
     presentation: project.presentation ? { ...project.presentation } : undefined,
+    building: project.building ? {
+      ...project.building,
+      levels: project.building.levels.map((level) => ({ ...level })),
+      floorSlabs: project.building.floorSlabs.map((slab) => ({ ...slab, outline: slab.outline.map((point) => ({ ...point })) })),
+      stairs: project.building.stairs.map((stair) => ({ ...stair, position: [...stair.position] as [number, number, number] })),
+      components: project.building.components.map((component) => ({ ...component, position: [...component.position] as [number, number, number], rotation: [...component.rotation] as [number, number, number], scale: [...component.scale] as [number, number, number], dimensions: component.dimensions ? { ...component.dimensions } : undefined })),
+    } : undefined,
   };
 }
 
@@ -111,6 +118,7 @@ export function App(): JSX.Element {
   const [wallOpenings, setWallOpenings] = useState<WallOpening[]>([]);
   const [presentation, setPresentation] = useState<PresentationConfig>({ title: 'A Walk Through Us', subtitle: 'A birthday gallery made just for you', finalMessage: 'I would choose you in every room, every version, every lifetime. ❤️', theme: 'romantic', ceilingEnabled: true });
   const [presentationMode, setPresentationMode] = useState(false);
+  const [building, setBuilding] = useState<BuildingModel>(() => BuildingModelSchema.parse({}));
   const [savedProjectsOpen, setSavedProjectsOpen] = useState(false);
   const [savedProjects, setSavedProjects] = useState<SavedProjectEntry[]>([]);
   const [savedProjectsLoading, setSavedProjectsLoading] = useState(false);
@@ -126,12 +134,12 @@ export function App(): JSX.Element {
     fetchSharedProject(token).then((loaded) => {
       if (!mounted) return;
       const normalized = ProjectSchema.parse(loaded);
-      setProjectId(normalized.id); setProjectCreatedAt(normalized.createdAt); setProjectUpdatedAt(normalized.updatedAt); setProjectName(normalized.name); setWalls(cloneWalls(normalized.walls)); setSceneAssets(normalized.sceneAssets ?? []); setWallOpenings(normalized.wallOpenings ?? []); setPresentation(normalized.presentation ?? presentation); setRooms(normalized.rooms.filter((room) => room.wallSegments.length > 0)); setRoomsValidated(normalized.rooms.length > 0); setBlueprintUploaded(true); setScaleMetersPerPixel(normalized.scaleMetersPerPixel ?? DEFAULT_SCALE_METERS_PER_PIXEL); setScaleCalibrated(Boolean(normalized.scaleMetersPerPixel)); setLastSavedProject(cloneProject(normalized)); setViewMode('3d'); setSharedProject(normalized); setSaveState('saved'); setSaveMessage(`Loaded shared project · ${normalized.walls.length} walls`);
+      setProjectId(normalized.id); setProjectCreatedAt(normalized.createdAt); setProjectUpdatedAt(normalized.updatedAt); setBuilding(normalized.building ?? BuildingModelSchema.parse({})); setProjectName(normalized.name); setWalls(cloneWalls(normalized.walls)); setSceneAssets(normalized.sceneAssets ?? []); setWallOpenings(normalized.wallOpenings ?? []); setPresentation(normalized.presentation ?? presentation); setRooms(normalized.rooms.filter((room) => room.wallSegments.length > 0)); setRoomsValidated(normalized.rooms.length > 0); setBlueprintUploaded(true); setScaleMetersPerPixel(normalized.scaleMetersPerPixel ?? DEFAULT_SCALE_METERS_PER_PIXEL); setScaleCalibrated(Boolean(normalized.scaleMetersPerPixel)); setLastSavedProject(cloneProject(normalized)); setViewMode('3d'); setSharedProject(normalized); setSaveState('saved'); setSaveMessage(`Loaded shared project · ${normalized.walls.length} walls`);
     }).catch((error) => { console.error(error); setSaveState('error'); setSaveMessage(error instanceof Error ? error.message : 'Unable to load shared project.'); });
     return () => { mounted = false; };
   }, []);
 
-  const project = useMemo(() => ({ ...buildProject(projectName, walls, rooms, scaleMetersPerPixel, projectId, projectCreatedAt, projectUpdatedAt), sceneAssets, wallOpenings, presentation }), [projectId, projectCreatedAt, projectUpdatedAt, projectName, walls, rooms, scaleMetersPerPixel, sceneAssets, wallOpenings, presentation]);
+  const project = useMemo(() => ({ ...buildProject(projectName, walls, rooms, scaleMetersPerPixel, projectId, projectCreatedAt, projectUpdatedAt), sceneAssets, wallOpenings, presentation, building }), [projectId, projectCreatedAt, projectUpdatedAt, projectName, walls, rooms, scaleMetersPerPixel, sceneAssets, wallOpenings, presentation, building]);
   const updateWalls: Dispatch<SetStateAction<WallSegment[]>> = useCallback((next) => { setRoomsValidated(false); setSelectedRoomId(null); setRooms([]); setWalls(next); }, []);
   const { dispatchSpatialAction } = useSpatialActionDispatcher(walls, rooms, updateWalls, setRooms);
 
@@ -197,7 +205,7 @@ export function App(): JSX.Element {
     const normalizedInput = ProjectSchema.parse(loaded);
     const normalized = UUID_PATTERN.test(normalizedInput.id) ? normalizedInput : { ...normalizedInput, id: crypto.randomUUID() };
     const validatedRooms = normalized.rooms.filter((room) => room.wallSegments.length > 0);
-    setProjectId(normalized.id); setProjectCreatedAt(normalized.createdAt); setProjectUpdatedAt(normalized.updatedAt); setProjectName(normalized.name); setWalls(cloneWalls(normalized.walls)); setRooms(validatedRooms);
+    setProjectId(normalized.id); setProjectCreatedAt(normalized.createdAt); setProjectUpdatedAt(normalized.updatedAt); setBuilding(normalized.building ?? BuildingModelSchema.parse({})); setProjectName(normalized.name); setWalls(cloneWalls(normalized.walls)); setRooms(validatedRooms);
     setSceneAssets(normalized.sceneAssets ?? []); setWallOpenings(normalized.wallOpenings ?? []);
     setPresentation(normalized.presentation ?? presentation); setRoomsValidated(validatedRooms.length > 0);
     setBlueprintUploaded(normalized.walls.length > 0 || validatedRooms.length > 0);
@@ -225,7 +233,7 @@ export function App(): JSX.Element {
   const handleRevertProject = (): void => {
     if (!lastSavedProject) { setSaveMessage('No saved baseline is available to revert to.'); return; }
     if (!window.confirm('Revert all unsaved wall and room changes to the last saved project?')) return;
-    setProjectId(lastSavedProject.id); setProjectCreatedAt(lastSavedProject.createdAt); setProjectUpdatedAt(lastSavedProject.updatedAt); setProjectName(lastSavedProject.name); setWalls(cloneWalls(lastSavedProject.walls)); setRooms(lastSavedProject.rooms.filter((room) => room.wallSegments.length > 0)); setSceneAssets(lastSavedProject.sceneAssets ?? []); setWallOpenings(lastSavedProject.wallOpenings ?? []); setPresentation(lastSavedProject.presentation ?? presentation); setRoomsValidated(lastSavedProject.rooms.length > 0); setScaleMetersPerPixel(lastSavedProject.scaleMetersPerPixel ?? DEFAULT_SCALE_METERS_PER_PIXEL); setScaleCalibrated(Boolean(lastSavedProject.scaleMetersPerPixel)); setSelectedRoomId(null); setViewMode('editor'); setSaveState('saved'); setSaveMessage('Reverted to the last saved project.');
+    setProjectId(lastSavedProject.id); setProjectCreatedAt(lastSavedProject.createdAt); setProjectUpdatedAt(lastSavedProject.updatedAt); setBuilding(lastSavedProject.building ?? BuildingModelSchema.parse({})); setProjectName(lastSavedProject.name); setWalls(cloneWalls(lastSavedProject.walls)); setRooms(lastSavedProject.rooms.filter((room) => room.wallSegments.length > 0)); setSceneAssets(lastSavedProject.sceneAssets ?? []); setWallOpenings(lastSavedProject.wallOpenings ?? []); setPresentation(lastSavedProject.presentation ?? presentation); setRoomsValidated(lastSavedProject.rooms.length > 0); setScaleMetersPerPixel(lastSavedProject.scaleMetersPerPixel ?? DEFAULT_SCALE_METERS_PER_PIXEL); setScaleCalibrated(Boolean(lastSavedProject.scaleMetersPerPixel)); setSelectedRoomId(null); setViewMode('editor'); setSaveState('saved'); setSaveMessage('Reverted to the last saved project.');
   };
 
   const handleDetectRooms = (): void => {
