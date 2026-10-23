@@ -298,6 +298,57 @@ function ExternalControllerLocomotion({
 
   return null;
 }
+function pointInPlanPolygon(x: number, y: number, polygon: Array<{ x: number; y: number }>): boolean {
+  let inside = false;
+  for (let index = 0, previous = polygon.length - 1; index < polygon.length; previous = index, index += 1) {
+    const currentPoint = polygon[index];
+    const previousPoint = polygon[previous];
+    const intersects = (currentPoint.y > y) !== (previousPoint.y > y)
+      && x < ((previousPoint.x - currentPoint.x) * (y - currentPoint.y)) / (previousPoint.y - currentPoint.y || Number.EPSILON) + currentPoint.x;
+    if (intersects) inside = !inside;
+  }
+  return inside;
+}
+
+function stairFloorElevation(
+  x: number,
+  z: number,
+  building: BuildingModel | undefined,
+): number | null {
+  for (const stair of building?.stairs ?? []) {
+    const dx = x - stair.position[0];
+    const dz = z - stair.position[2];
+    const cos = Math.cos(stair.rotationY);
+    const sin = Math.sin(stair.rotationY);
+    const localX = cos * dx - sin * dz;
+    const localZ = sin * dx + cos * dz;
+    if (Math.abs(localX) > stair.width / 2 + 0.3 || Math.abs(localZ) > stair.run / 2 + 0.3) continue;
+    const from = levelElevation(building, stair.fromLevelId);
+    const to = levelElevation(building, stair.toLevelId);
+    const progress = THREE.MathUtils.clamp((stair.run / 2 - localZ) / stair.run, 0, 1);
+    return from + (to - from) * progress;
+  }
+  return null;
+}
+
+function roomFloorElevation(
+  x: number,
+  z: number,
+  rooms: Room[],
+  building: BuildingModel | undefined,
+  currentElevation: number,
+): number {
+  const candidates = rooms
+    .filter((room) => pointInPlanPolygon(x, z, room.polygon))
+    .map((room) => levelElevation(building, room.levelId));
+  if (!candidates.length) {
+    const levels = building?.levels ?? [];
+    if (!levels.length) return 0;
+    return levels.reduce((closest, level) => Math.abs(level.elevation - currentElevation) < Math.abs(closest - currentElevation) ? level.elevation : closest, levels[0].elevation);
+  }
+  return candidates.reduce((closest, elevation) => Math.abs(elevation - currentElevation) < Math.abs(closest - currentElevation) ? elevation : closest, candidates[0]);
+}
+
 function DesktopFirstPersonController({
   active,
   walls,
@@ -305,9 +356,13 @@ function DesktopFirstPersonController({
   collisionEnabled,
   spawnPosition,
   targetPosition,
+  building,
+  rooms,
 }: {
   active: boolean;
   walls: WallSegment[];
+  building?: BuildingModel;
+  rooms: Room[];
   modelTransform: [number, number, number];
   collisionEnabled: boolean;
   spawnPosition: [number, number, number];
@@ -394,12 +449,16 @@ function DesktopFirstPersonController({
       let nextZ = camera.position.z + moveZ * speed;
 
       if (collisionEnabled) {
+        const currentLayout = sceneToLayoutPosition(camera.position.x, camera.position.z, modelTransform);
+        const currentFloor = camera.position.y - WALKTHROUGH_EYE_HEIGHT;
+        const collisionLevel = roomFloorElevation(currentLayout.x, currentLayout.z, rooms, building, currentFloor);
+        const levelWalls = walls.filter((wall) => Math.abs(levelElevation(building, wall.levelId) - collisionLevel) < 0.05);
         const resolved = resolveMovementWithWallSliding(
           camera.position.x,
           camera.position.z,
           nextX,
           nextZ,
-          walls,
+          levelWalls,
           modelTransform,
         );
         nextX = resolved.x;
@@ -410,16 +469,26 @@ function DesktopFirstPersonController({
       camera.position.z = nextZ;
     }
 
-    const grounded = camera.position.y <= WALKTHROUGH_EYE_HEIGHT;
-    if (keys.has(' ') && grounded) {
-      verticalVelocity.current = 4.5;
-      keys.delete(' ');
-    }
-    verticalVelocity.current -= 9.81 * delta;
-    camera.position.y += verticalVelocity.current * delta;
-    if (camera.position.y <= WALKTHROUGH_EYE_HEIGHT) {
-      camera.position.y = WALKTHROUGH_EYE_HEIGHT;
+    const layoutPosition = sceneToLayoutPosition(camera.position.x, camera.position.z, modelTransform);
+    const currentElevation = camera.position.y - WALKTHROUGH_EYE_HEIGHT;
+    const stairElevation = stairFloorElevation(layoutPosition.x, layoutPosition.z, building);
+    const floorElevation = stairElevation ?? roomFloorElevation(layoutPosition.x, layoutPosition.z, rooms, building, currentElevation);
+    const grounded = camera.position.y <= floorElevation + WALKTHROUGH_EYE_HEIGHT + 0.05;
+    if (stairElevation !== null) {
+      camera.position.y = floorElevation + WALKTHROUGH_EYE_HEIGHT;
       verticalVelocity.current = 0;
+      keys.delete(' ');
+    } else {
+      if (keys.has(' ') && grounded) {
+        verticalVelocity.current = 4.5;
+        keys.delete(' ');
+      }
+      verticalVelocity.current -= 9.81 * delta;
+      camera.position.y += verticalVelocity.current * delta;
+      if (camera.position.y <= floorElevation + WALKTHROUGH_EYE_HEIGHT) {
+        camera.position.y = floorElevation + WALKTHROUGH_EYE_HEIGHT;
+        verticalVelocity.current = 0;
+      }
     }
   });
 
@@ -640,6 +709,8 @@ export function ArViewport({ walls, rooms, building, wallOpenings = [], onDoorTo
               collisionEnabled={collisionEnabled}
               spawnPosition={fallbackCamera}
               targetPosition={fallbackTarget}
+              building={building}
+              rooms={rooms}
             />
             {!walkthroughMode && (
               <OrbitControls
