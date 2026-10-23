@@ -87,3 +87,31 @@ Static/build verification is necessary but not sufficient. Browser interaction a
 - Canonical mode keyword: `TIGER-SPATIAL-OWNER`.
 - Durable behavior instructions: `.github/SPATIAL_PRODUCT_OWNER_MODE.md`.
 - The repo is the durable source of truth when chat history is unavailable.
+
+---
+
+## Product state update — Blueprint-to-playable-house (2026-10-23)
+
+### Product requirement
+The product target is a deterministic, editable, dimensionally coherent building model that can be traced/imported from a calibrated blueprint, rendered as a 3D home, navigated at human scale, edited component-by-component, and reliably saved/reopened/shared. AI recognition is optional and must not be in the critical path.
+
+### Evidence-backed existing foundations
+- 2D wall sketching and canonical WallSegment/Room data exist.
+- Floor-plan/world transform helpers and an initial desktop first-person controller exist.
+- Wall collision has geometry-engine implementation and automated contract tests from prior work.
+- Local GLB/glTF import and browser-local IndexedDB persistence exist for the imported source file and transform.
+- Project API save/share and local project save paths exist; their support for all future building-scene data is not yet complete.
+
+### Open product gaps
+- User reports AR orientation/immersion is incorrect; this remains a reproduction and physical-device verification item, not a proven root cause.
+- Browser-local asset storage is not equivalent to durable project/server/version/share persistence.
+- Current wall sketching does not constitute a full multi-floor building editor.
+- Complete horizontal slabs/ceilings, level-aware building schema, real interactive openings, door state-aware collision, stairs, grounded multi-floor navigation, and independently editable furniture/components remain to be implemented/verified.
+- Blueprint image/PDF reconstruction must use explicit scale and human review when geometry is ambiguous; AI recognition is optional.
+- Browser walkthrough and supported-device WebXR behavior require separate acceptance evidence.
+
+### Execution control
+Phase 12 of TASKS.md is the detailed acceptance backlog. Implement in sequence: orientation/scale diagnosis → full-scene persistence → versioned canonical building schema → floor levels/slabs → openings/doors/windows → stairs and first-person traversal → component catalog/materials → deterministic blueprint ingestion → browser and device validation. Do not check off work from planning, source inspection or build evidence alone.
+
+### Current branch state
+The branch feat/blueprint-to-playable-house-roadmap currently contains documentation-only changes to TASKS.md, PRODUCT_EXECUTION_PLAN.md and CONTINUATION.md. Runtime code has not been changed or tested in this branch as of this update.
