@@ -82,6 +82,7 @@ export const BuildingModelSchema = z.object({
   ]),
   floorSlabs: z.array(FloorSlabSchema).default([]),
   ceilingEnabled: z.boolean().default(false),
+  ceilingMaterialHex: z.string().regex(/^#[0-9A-Fa-f]{6}$/).default('#f1f5f9'),
   isolateActiveLevel: z.boolean().default(false),
   orientationYawRadians: z.number().finite().default(DEFAULT_BUILDING_YAW_RADIANS),
   stairs: z.array(StaircaseSchema).default([]),
