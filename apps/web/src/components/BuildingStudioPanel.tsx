@@ -128,6 +128,7 @@ export function BuildingStudioPanel({ building, setBuilding, activeLevelId, onAc
         {building.levels.map((level) => <option key={level.id} value={level.id}>{level.name} · {level.elevation.toFixed(2)} m</option>)}
       </select>
       <p className="mt-2 text-xs text-slate-500">{building.levels.length} levels · {building.floorSlabs.length} floor slabs · {building.stairs.length} staircases · {building.components.length} components</p>
+      <label className="mt-3 flex items-center gap-2 text-xs text-slate-300"><input type="checkbox" checked={building.ceilingEnabled} onChange={(event) => setBuilding((current) => ({ ...current, ceilingEnabled: event.target.checked }))} /> Show ceilings in 3D / Spatial view</label>
       <label className="mt-3 block text-xs text-slate-400">Add component to {activeLevel?.name ?? 'floor'}</label>
       <select value="" onChange={(event) => { if (event.target.value) addComponent(event.target.value as BuildingComponentType); }} className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white">
         <option value="">Choose a door, window, furniture, fixture…</option>
