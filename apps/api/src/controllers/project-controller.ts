@@ -29,19 +29,24 @@ function getPersistenceContext(_req: Request): PersistenceContext | null {
 function requirePersistenceContext(req: Request, res: Response): PersistenceContext | null { if (!durablePersistenceEnabled()) return null; const context = getPersistenceContext(req); if (context) return context; res.status(503).json({ error: 'durable persistence is enabled but tenant context is missing', code: 'PERSISTENCE_CONTEXT_REQUIRED' }); return null; }
 
 async function persistProject(project: Project, context: PersistenceContext | null): Promise<Project> {
-  const snapshot = cloneProject(project); projectStore.set(snapshot.id, snapshot);
-  if (!durablePersistenceEnabled()) return snapshot;
+  const snapshot = cloneProject(project);
+  if (!durablePersistenceEnabled()) {
+    projectStore.set(snapshot.id, snapshot);
+    return snapshot;
+  }
   if (!context) throw new Error('Durable persistence context is required.');
   assertSupabasePersistenceReady();
   const { error } = await supabaseAdmin.from('projects').upsert({ id: snapshot.id, organization_id: context.organizationId, owner_id: context.ownerId, tenant_id: context.tenantId, name: snapshot.name, description: snapshot.description ?? null, status: 'draft', project_data: snapshot, updated_at: snapshot.updatedAt });
   if (error) throw new Error(`Durable project persistence failed: ${error.message}`);
+  // Update the in-process cache only after the durable write succeeds.
+  projectStore.set(snapshot.id, snapshot);
   return snapshot;
 }
 
 async function persistPublishedProject(entry: { id: string; name: string; project: Project; shareToken: string; publishedAt: string }, context: PersistenceContext): Promise<void> {
-  publishedStore.set(entry.shareToken, entry);
   const { error } = await supabaseAdmin.from('share_tokens').upsert({ id: crypto.randomUUID(), organization_id: context.organizationId, project_id: entry.project.id, tenant_id: context.tenantId, token: entry.shareToken, is_active: true, created_at: entry.publishedAt, updated_at: entry.publishedAt });
   if (error) throw new Error(`Durable share-token persistence failed: ${error.message}`);
+  publishedStore.set(entry.shareToken, entry);
 }
 
 
@@ -128,9 +133,8 @@ export async function createProjectCommentHandler(req: Request, res: Response): 
 
 export async function getSharedProjectHandler(req: Request, res: Response): Promise<void> {
   const params = publishTokenParamSchema.safeParse(req.params); if (!params.success) { res.status(400).json({ error: 'invalid token', details: params.error.flatten() }); return; }
-  const inMemory = publishedStore.get(params.data.token);
-  if (inMemory && durablePersistenceEnabled()) { res.status(200).json({ project: cloneProject(inMemory.project), shareToken: inMemory.shareToken, publishedAt: inMemory.publishedAt, persistence: 'durable' }); return; }
   if (!durablePersistenceEnabled()) { res.status(404).json({ error: 'shared design not found', code: 'DURABLE_PERSISTENCE_REQUIRED' }); return; }
+  // Durable mode always verifies the share token in Supabase; process memory is not authoritative.
   const { data: tokenRow, error: tokenError } = await supabaseAdmin.from('share_tokens').select('token, project_id, created_at, is_active').eq('token', params.data.token).eq('is_active', true).maybeSingle();
   if (tokenError) { console.error(tokenError); res.status(503).json({ error: `Unable to read share token: ${tokenError.message}`, code: 'PERSISTENCE_READ_FAILED' }); return; }
   if (!tokenRow) { res.status(404).json({ error: 'shared design not found' }); return; }
