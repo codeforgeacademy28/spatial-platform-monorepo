@@ -29,7 +29,24 @@ function cloneWalls(walls: WallSegment[]): WallSegment[] {
 }
 
 function cloneProject(project: Project): Project {
-  return { ...project, walls: cloneWalls(project.walls), rooms: project.rooms.map((room) => ({ ...room, polygon: room.polygon.map((point) => ({ ...point })), wallSegments: cloneWalls(room.wallSegments) })) };
+  return {
+    ...project,
+    walls: cloneWalls(project.walls),
+    rooms: project.rooms.map((room) => ({
+      ...room,
+      polygon: room.polygon.map((point) => ({ ...point })),
+      wallSegments: cloneWalls(room.wallSegments),
+    })),
+    sceneAssets: project.sceneAssets?.map((asset) => ({
+      ...asset,
+      anchor: asset.anchor.type === 'wall'
+        ? { ...asset.anchor }
+        : { ...asset.anchor, position: [...asset.anchor.position] as [number, number, number] },
+      light: asset.light ? { ...asset.light } : undefined,
+    })),
+    wallOpenings: project.wallOpenings?.map((opening) => ({ ...opening })),
+    presentation: project.presentation ? { ...project.presentation } : undefined,
+  };
 }
 
 function buildProject(projectName: string, walls: WallSegment[], rooms: Room[], scaleMetersPerPixel: number, id = 'project-1'): Project {
@@ -113,14 +130,14 @@ export function App(): JSX.Element {
       const loaded = loadProjectFromLocalStorage(STORAGE_KEY);
       if (!loaded) { setSaveState('error'); setSaveMessage('No local project found.'); return; }
       const normalized = ProjectSchema.parse(loaded); const validatedRooms = normalized.rooms.filter((room) => room.wallSegments.length > 0);
-      setProjectName(normalized.name); setWalls(cloneWalls(normalized.walls)); setRooms(validatedRooms); setRoomsValidated(validatedRooms.length > 0); setBlueprintUploaded(normalized.walls.length > 0 || validatedRooms.length > 0); setScaleMetersPerPixel(normalized.scaleMetersPerPixel ?? DEFAULT_SCALE_METERS_PER_PIXEL); setScaleCalibrated(Boolean(normalized.scaleMetersPerPixel)); setLastSavedProject(cloneProject(normalized)); setSelectedRoomId(null); setViewMode('editor'); setSaveState('saved'); setSaveMessage(`Loaded local copy · ${normalized.walls.length} walls`);
+      setProjectName(normalized.name); setWalls(cloneWalls(normalized.walls)); setRooms(validatedRooms); setSceneAssets(normalized.sceneAssets ?? []); setWallOpenings(normalized.wallOpenings ?? []); setPresentation(normalized.presentation ?? presentation); setRoomsValidated(validatedRooms.length > 0); setBlueprintUploaded(normalized.walls.length > 0 || validatedRooms.length > 0); setScaleMetersPerPixel(normalized.scaleMetersPerPixel ?? DEFAULT_SCALE_METERS_PER_PIXEL); setScaleCalibrated(Boolean(normalized.scaleMetersPerPixel)); setLastSavedProject(cloneProject(normalized)); setSelectedRoomId(null); setViewMode('editor'); setSaveState('saved'); setSaveMessage(`Loaded local copy · ${normalized.walls.length} walls`);
     } catch (error) { console.error(error); setSaveState('error'); setSaveMessage(error instanceof Error ? error.message : 'Unable to load the saved project.'); }
   };
 
   const handleRevertProject = (): void => {
     if (!lastSavedProject) { setSaveMessage('No saved baseline is available to revert to.'); return; }
     if (!window.confirm('Revert all unsaved wall and room changes to the last saved project?')) return;
-    setProjectName(lastSavedProject.name); setWalls(cloneWalls(lastSavedProject.walls)); setRooms(lastSavedProject.rooms.filter((room) => room.wallSegments.length > 0)); setRoomsValidated(lastSavedProject.rooms.length > 0); setScaleMetersPerPixel(lastSavedProject.scaleMetersPerPixel ?? DEFAULT_SCALE_METERS_PER_PIXEL); setScaleCalibrated(Boolean(lastSavedProject.scaleMetersPerPixel)); setSelectedRoomId(null); setViewMode('editor'); setSaveState('saved'); setSaveMessage('Reverted to the last saved project.');
+    setProjectName(lastSavedProject.name); setWalls(cloneWalls(lastSavedProject.walls)); setRooms(lastSavedProject.rooms.filter((room) => room.wallSegments.length > 0)); setSceneAssets(lastSavedProject.sceneAssets ?? []); setWallOpenings(lastSavedProject.wallOpenings ?? []); setPresentation(lastSavedProject.presentation ?? presentation); setRoomsValidated(lastSavedProject.rooms.length > 0); setScaleMetersPerPixel(lastSavedProject.scaleMetersPerPixel ?? DEFAULT_SCALE_METERS_PER_PIXEL); setScaleCalibrated(Boolean(lastSavedProject.scaleMetersPerPixel)); setSelectedRoomId(null); setViewMode('editor'); setSaveState('saved'); setSaveMessage('Reverted to the last saved project.');
   };
 
   const handleDetectRooms = (): void => {
@@ -133,7 +150,14 @@ export function App(): JSX.Element {
   const handleSaveVersion = async (): Promise<void> => {
     const versionNumber = versions.length + 1;
     if (!walls.length) { setSaveState('error'); setSaveMessage('Cannot save an empty version. Draw wall geometry first.'); return; }
-    const version = cloneProject(buildProject(`${projectName} (v${versionNumber})`, walls, rooms, scaleMetersPerPixel, `project-1-v${Date.now()}-${versionNumber}`));
+    const versionTimestamp = new Date().toISOString();
+    const version = cloneProject({
+      ...project,
+      id: `project-1-v${Date.now()}-${versionNumber}`,
+      name: `${projectName} (v${versionNumber})`,
+      createdAt: versionTimestamp,
+      updatedAt: versionTimestamp,
+    });
     const nextVersions = [...versions, version]; setVersions(nextVersions); window.localStorage.setItem(VERSION_STORAGE_KEY, JSON.stringify(nextVersions)); setSelectedVersionIds(nextVersions.length <= 2 ? nextVersions.map((item) => item.id) : [nextVersions[nextVersions.length - 2].id, nextVersions[nextVersions.length - 1].id]);
     try { const result = await saveProjectToServer(version); if (result.status === 'local-only') { setSaveState('local-only'); setSaveMessage('Saved in this browser only. Server storage is temporary.'); return; } setSaveState('saved'); setSaveMessage(`Version ${versionNumber} saved · ${nextVersions.length} versions available.`); }
     catch (error) { console.error(error); setSaveState('error'); setSaveMessage(`Version ${versionNumber} kept locally · server persistence failed.`); }
