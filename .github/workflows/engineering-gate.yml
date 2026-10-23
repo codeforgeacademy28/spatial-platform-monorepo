@@ -66,5 +66,5 @@ jobs:
       - name: Geometry contract tests
         run: npm run test --workspace=@spatial/geometry-engine
 
-      - name: API upload validation tests
-        run: npm run test --workspace=@spatial/api
+      - name: API dependency build and tests
+        run: npx turbo run test --filter=@spatial/api --force
