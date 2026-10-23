@@ -59,6 +59,32 @@ test('building model validates floors, stairs, transforms, and catalog component
   assert.equal(project.building?.components[0]?.doorState, 'closed');
 });
 
+test('project validation rejects dangling building level references', () => {
+  const invalidComponent = {
+    ...legacyProject(),
+    building: {
+      levels: [{ id: 'ground', name: 'Ground Floor', elevation: 0, order: 0 }],
+      components: [{
+        id: 'sofa', levelId: 'missing-level', type: 'sofa', name: 'Sofa',
+        position: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1],
+      }],
+    },
+  };
+  assert.throws(() => ProjectSchema.parse(invalidComponent), /Unknown building level/);
+
+  const invalidStairs = {
+    ...legacyProject(),
+    building: {
+      levels: [{ id: 'ground', name: 'Ground Floor', elevation: 0, order: 0 }],
+      stairs: [{
+        id: 'stairs-1', fromLevelId: 'ground', toLevelId: 'ground',
+        position: [0, 0, 0], width: 1, run: 2, rise: 2.7, stepCount: 12,
+      }],
+    },
+  };
+  assert.throws(() => ProjectSchema.parse(invalidStairs), /Staircase must connect two different levels/);
+});
+
 test('project validation rejects dangling or out-of-bounds wall openings', () => {
   const wall = {
     id: 'wall-1', roomId: 'room-1',
@@ -92,7 +118,10 @@ test('clone and JSON round-trip preserve all nested building data without aliasi
     ...legacyProject(),
     building: {
       schemaVersion: 1,
-      levels: [{ id: 'ground', name: 'Ground Floor', elevation: 0, wallHeight: 2.7, order: 0 }],
+      levels: [
+        { id: 'ground', name: 'Ground Floor', elevation: 0, wallHeight: 2.7, order: 0 },
+        { id: 'first', name: 'First Floor', elevation: 2.7, wallHeight: 2.7, order: 1 },
+      ],
       floorSlabs: [{
         id: 'slab', levelId: 'ground',
         outline: [{ x: 0, y: 0 }, { x: 3, y: 0 }, { x: 3, y: 3 }],
