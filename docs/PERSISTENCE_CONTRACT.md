@@ -49,3 +49,18 @@ Versions are deep snapshots. Subsequent editor mutations must not change previou
 
 ## Release requirement
 Before production release, configure durable persistence, provision the referenced organization/user/tenant records, and authenticate the request context. A production build with local-only persistence is not considered a complete release.
+
+
+## Saved project library and troubleshooting
+
+The editor's **Load** action opens the saved-project library. It combines browser-local recovery copies with the server's `GET /api/projects` result; selecting a server project fetches `GET /api/projects/:id` and restores the full validated Project model. The API list/load endpoints scope durable reads by tenant, organization and owner context.
+
+**Important: code support does not enable Supabase by itself.** The API currently defaults `SUPABASE_PERSISTENCE_ENABLED` to `false`. In that mode it reports `persistence: "local-only"` and holds a temporary in-memory API copy. The UI must not describe this as a database save. Durable deployment requires:
+
+- `SUPABASE_PERSISTENCE_ENABLED=true`
+- server-side `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` values for the correct Supabase project
+- valid, already-provisioned UUIDs for `PERSISTENCE_DEFAULT_TENANT_ID`, `PERSISTENCE_DEFAULT_ORGANIZATION_ID`, and `PERSISTENCE_DEFAULT_OWNER_ID` until authenticated identity context is available
+- `VITE_API_BASE_URL` configured to reach the deployed API
+- the SQL migration applied to that same Supabase project
+
+The service-role key must never be placed in Vite/browser environment variables. Do not create synthetic tenant/user rows or disable RLS to make writes appear successful. The project table uses UUID primary keys; the editor now assigns UUIDs to new projects and saved version snapshots so database writes are compatible. A successful production build does not prove that these runtime environment variables or database records exist.
