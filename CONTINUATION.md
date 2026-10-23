@@ -147,3 +147,11 @@ The chat transcript is not the durable project state. Every meaningful implement
 - Fixed gate ordering in .github/workflows/engineering-gate.yml by invoking npx turbo run test --filter=@spatial/api --force, which honors workspace ^build dependencies.
 - Improved persistence truthfulness: process cache is updated only after successful durable upsert; share-token lookups in durable mode are always checked against Supabase. Added API round-trip assertions for scene assets, openings, presentation, and building structure, plus fail-closed checks when database configuration is missing.
 - Latest CI for the fixes is not yet confirmed. Supabase deployment/restart survival, browser flows, and physical WebXR remain unverified. Keep PR #67 draft and do not merge to main.
+
+
+## Fresh verification — Engineering Gate #280
+- Commit tested: `6347c1caae4036149e8c4975562f19993bf04d7a`.
+- **PASS:** clean install, critical runtime graph, web type-check, web production build, core snapshot tests, geometry tests, and API dependency build/API tests.
+- API contract suite: 7/7 passed. Includes complete project save/list/open round-trip and fail-closed behavior when Supabase configuration is absent. R2 credentials are now required only when storage operations are invoked.
+- Added search by project name/storage source to the saved-project library; included in this passing gate.
+- Supabase deployment/restart survival, browser interaction, and physical WebXR remain unverified. PR #67 stays draft; no main-branch changes.
