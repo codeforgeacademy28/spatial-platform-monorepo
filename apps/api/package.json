@@ -7,7 +7,8 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "test": "tsx --test tests/*.test.ts",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "test:integration:supabase": "tsx --test tests/project-persistence.test.ts"
   },
   "dependencies": {
     "@spatial/ai-engine": "*",
