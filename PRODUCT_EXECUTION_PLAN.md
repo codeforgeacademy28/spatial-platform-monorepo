@@ -170,3 +170,10 @@ Automated gate passed for commit `6347c1caae4036149e8c4975562f19993bf04d7a`: cle
 **PASS** on `37b6eacd01a40ba520aae47de1b350bd09714545`: web type-check/build, core/geometry/API tests, and dependency build passed. The canonical schema now rejects dangling/out-of-bounds openings, invalid level references, same-level stairs, floor slabs with missing room links, and unsupported future schema versions. Per-room finish editing synchronizes to the associated floor slab. Starter parametric geometry is implemented for common catalog items, with human-scale defaults and staggered placement. Project library supports search.
 
 These are source and automated-test milestones, not complete product acceptance. Estimate ~40% implementation coverage; 0/17 Phase 12/13 tasks acceptance-complete. Live Supabase restart survival, browser manual tests, physical WebXR, and multi-user auth/tenant isolation remain open.
+
+
+## Continuation update — Engineering Gate #323
+
+Gate #323 passed on `275a9229eee2330b426707c8e34b698e8af35d01`: clean install, web type-check/build, core and geometry tests, API dependency build/tests. API: 8 passed, 0 failed, 1 skipped (opt-in live Supabase integration). New readiness endpoint `GET /health/ready` distinguishes disabled persistence, missing configuration, and failed live database query without exposing secrets. Supabase deployment and integration-test instructions are in `docs/SUPABASE_PROJECT_PERSISTENCE.md`.
+
+Additional editing work: room floor finishes rendered in Spatial view; component dimension and 3-axis placement controls; stair rotation/finish; partition/roof/railing catalog options; saved-project local/server duplicate handling. This does not close acceptance gates for live Supabase, browser interaction, AR hardware, or public multi-user tenant isolation.
