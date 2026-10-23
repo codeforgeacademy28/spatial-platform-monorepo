@@ -158,3 +158,8 @@ Engineering Gate #265 passed web type-check, production build and core snapshot 
 Current estimate: approximately 35–40% implementation coverage across Phases 12–13, with 0/17 tasks acceptance-complete. Source code now includes the building model, initial multilevel/door/component flows, project library API/UI, JSON import/export, browser recovery and undo/redo. Automated tests cover schema snapshots, transforms, collision contracts, and project save/list/open behavior in API memory mode. These tests do not establish live Supabase persistence or browser/device acceptance.
 
 Gate #268 passed web type-check/build, core tests (4/4), and geometry tests (26/26), then failed at API test module loading because @spatial/billing/dist/index.js was not built. The workflow now runs the API test via Turbo so workspace build dependencies execute first. Persistence handling was hardened so failed Supabase writes do not enter the process cache and durable share reads verify the database token. Fresh CI is required before further acceptance claims.
+
+
+## Engineering Gate #280 — 2026-10-23
+
+Automated gate passed for commit `6347c1caae4036149e8c4975562f19993bf04d7a`: clean install, runtime graph, web type-check/build, core snapshots, geometry contracts, API workspace dependency build and API tests. API tests: 7/7. The saved-project dialog includes name/source search. API project tests round-trip scene assets, openings, presentation and building model and assert missing Supabase config fails closed. This does not replace deployed Supabase restart-survival, browser manual, or physical WebXR acceptance.
