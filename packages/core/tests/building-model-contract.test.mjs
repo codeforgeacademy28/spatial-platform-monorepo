@@ -26,6 +26,13 @@ test('legacy projects migrate to a versioned ground-floor building model', () =>
   assert.deepEqual(project.building?.components, []);
 });
 
+test('unsupported future building schema versions are rejected explicitly', () => {
+  assert.throws(
+    () => ProjectSchema.parse({ ...legacyProject(), building: { schemaVersion: 2 } }),
+    /Number must be less than or equal to 1/,
+  );
+});
+
 test('building model validates floors, stairs, transforms, and catalog components', () => {
   const project = ProjectSchema.parse({
     ...legacyProject(),
