@@ -45,9 +45,10 @@ test('live readiness endpoint explains missing Supabase configuration', async ()
   try {
     for (const name of names) delete process.env[name];
     process.env.SUPABASE_PERSISTENCE_ENABLED = 'true';
-    server = app.listen(0);
-    await new Promise<void>((resolve) => server?.once('listening', resolve));
-    const address = server.address() as AddressInfo;
+    const currentServer = app.listen(0);
+    server = currentServer;
+    await new Promise<void>((resolve) => currentServer.once('listening', resolve));
+    const address = currentServer.address() as AddressInfo;
     const response = await fetch(`http://127.0.0.1:${address.port}/health/ready`);
     assert.equal(response.status, 503);
     const payload = await response.json() as { code: string; persistence: { missingConfiguration: string[] } };
