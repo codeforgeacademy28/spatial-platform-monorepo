@@ -96,6 +96,42 @@ test('local-only API save/list/open round-trips a full versioned project', async
     assert.equal(invalidIdResponse.status, 400);
     const invalidIdPayload = await invalidIdResponse.json() as { code?: string };
     assert.equal(invalidIdPayload.code, 'PROJECT_ID_MUST_BE_UUID');
+
+    // Missing database configuration must fail closed rather than silently
+    // report a process-local cache write as durable success.
+    const configNames = [
+      'SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY',
+      'PERSISTENCE_DEFAULT_TENANT_ID', 'PERSISTENCE_DEFAULT_ORGANIZATION_ID', 'PERSISTENCE_DEFAULT_OWNER_ID',
+    ] as const;
+    const previousConfig = new Map(configNames.map((name) => [name, process.env[name]]));
+    try {
+      for (const name of configNames) delete process.env[name];
+      const durableSave = await fetch(`${baseUrl}/api/projects`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...project, id: randomUUID() }),
+      });
+      assert.equal(durableSave.status, 503);
+      const durableSavePayload = await durableSave.json() as { code?: string; persistence?: string };
+      assert.equal(durableSavePayload.code, 'PERSISTENCE_FAILED');
+      assert.equal(durableSavePayload.persistence, undefined);
+
+      const durableList = await fetch(`${baseUrl}/api/projects`);
+      assert.equal(durableList.status, 503);
+      const durableListPayload = await durableList.json() as { code?: string };
+      assert.equal(durableListPayload.code, 'PERSISTENCE_READ_FAILED');
+
+      const durableOpen = await fetch(`${baseUrl}/api/projects/${id}`);
+      assert.equal(durableOpen.status, 503);
+      const durableOpenPayload = await durableOpen.json() as { code?: string };
+      assert.equal(durableOpenPayload.code, 'PERSISTENCE_READ_FAILED');
+    } finally {
+      for (const name of configNames) {
+        const value = previousConfig.get(name);
+        if (value === undefined) delete process.env[name];
+        else process.env[name] = value;
+      }
+    }
   } finally {
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
     if (previousMode === undefined) delete process.env.SUPABASE_PERSISTENCE_ENABLED;
