@@ -106,6 +106,9 @@ test('local-only API save/list/open round-trips a full versioned project', async
     const previousConfig = new Map(configNames.map((name) => [name, process.env[name]]));
     try {
       for (const name of configNames) delete process.env[name];
+      process.env.PERSISTENCE_DEFAULT_TENANT_ID = '00000000-0000-4000-8000-000000000001';
+      process.env.PERSISTENCE_DEFAULT_ORGANIZATION_ID = '00000000-0000-4000-8000-000000000002';
+      process.env.PERSISTENCE_DEFAULT_OWNER_ID = '00000000-0000-4000-8000-000000000003';
       const durableSave = await fetch(`${baseUrl}/api/projects`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
