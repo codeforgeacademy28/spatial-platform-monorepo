@@ -529,3 +529,14 @@ Next: confirm the updated Engineering Gate, fix any failure, then proceed to bro
 - The object-storage module now validates R2 configuration only when an upload or signed download URL is requested, allowing local-only project operations without R2 secrets.
 - The saved-project library now has a name/source search field. Gate #280 includes this UI change and passed.
 - **Still not proven:** live Supabase save/list/open after API restart, browser manual interaction, or physical WebXR alignment. Do not check off TASK-1201, TASK-1202, TASK-1302, or TASK-1303 until their own acceptance gates are recorded.
+
+
+### Latest implementation + verification — Engineering Gate #305 (2026-10-23)
+
+- **Gate #305 PASS** on `37b6eacd01a40ba520aae47de1b350bd09714545`: clean install, runtime graph, web type-check/build, core contract tests, geometry tests, and API dependency build/API tests all passed.
+- Expanded the canonical project schema to reject dangling/out-of-bounds door/window openings, unknown building-level references, stairs that connect a level to itself, floor slabs linked to missing rooms, and unsupported future schema versions. Added contract tests for these cases.
+- Added persisted per-room floor finish; room material controls update the linked floor slab too. The room-to-slab relationship is serialized as optional `roomId` in the building schema for compatibility.
+- Replaced single-box proxies with starter parametric meshes for common furniture and home components (tables, chairs, sofas, beds, columns, windows/doors, lights, plants, bathroom fixtures, rugs, pools, fences/gates, etc.). Catalog defaults now use more realistic dimensions; new components are staggered to avoid spawning every item at the exact same point.
+- Saved-project library now supports searching by project name/storage source. API project persistence tests cover full JSON round-trip and fail-closed configuration handling.
+- **Acceptance remains open:** 0/17 tasks in Phases 12–13 are fully acceptance-complete. Estimate is ~40% implementation coverage (subjective, not a measured metric). No live Supabase deployment/restart test, browser manual acceptance, or physical WebXR test has been performed.
+- **Security/deployment gate:** current durable ownership context uses trusted server-configured tenant/org/owner UUIDs. Do not enable this shared default context for a public multi-user deployment until authenticated user/tenant isolation is implemented and tested.
