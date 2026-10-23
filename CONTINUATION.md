@@ -101,7 +101,7 @@ The chat transcript is not the durable project state. Every meaningful implement
 ## Active continuation — Blueprint-to-playable-house (2026-10-23)
 
 - **Active branch:** feat/blueprint-to-playable-house-roadmap (created from main; do not push directly to main).
-- **Active PR:** draft PR #67, https://github.com/codeforgeacademy28/spatial-platform-monorepo/pull/67. Current head: dda5e3a3f8ff5129722082fc129426d44c683c18.
+- **Active PR:** draft PR #67, https://github.com/codeforgeacademy28/spatial-platform-monorepo/pull/67. Current latest known commit: cb9cfd49616152c88db4eec7f7fe81b18264fa93.
 - **Current objective:** deliver a deterministic, engineering-first house engine. AI recognition is optional and cannot be required for core geometry, editing, saving or navigation.
 - **Durable requirements:** TASKS.md Phase 12 is the canonical detailed backlog. PRODUCT_EXECUTION_PLAN.md contains the ordered P0 gates. Do not rely on chat history as the task store.
 - **First changed commit:** 0b883450057df11299f091729c81d0296c8d45ad — adds Phase 12 requirements/acceptance to TASKS.md.
@@ -122,3 +122,13 @@ The chat transcript is not the durable project state. Every meaningful implement
 - Fixed the editor's fixed `project-1` identity by using a stable UUID per project; database table `projects.id` is UUID typed. Saved versions now also use UUIDs.
 - UI labels durable Supabase storage separately from temporary API memory and browser recovery copies. This is intentionally truthful: no Supabase environment was accessed/configured, and deployed write/restart verification is still outstanding.
 - **Next gate:** run the PR's clean install/type-check/build/tests, inspect failures, then perform deployed Supabase save/list/open/restart verification only if the deployment environment is available. Do not merge to `main` or claim Supabase is active based on code alone.
+
+
+## Latest implementation state — 2026-10-23
+- **Active branch:** `feat/blueprint-to-playable-house-roadmap`; active PR #67 remains draft and main is untouched.
+- **Latest known code commit:** `cb9cfd49616152c88db4eec7f7fe81b18264fa93` (replace remaining unsupported loader icon reference after Engineering Gate #227).
+- Added canonical versioned building data (levels, floor slabs, stairs, component transforms/catalog), legacy ProjectSchema defaults/migration, deep snapshot cloning, floor-aware wall drawing, derived room slabs, basic 3D rendering and component editing controls.
+- Added wall-opening geometry and interactive door open/close state; open door spans are excluded from collision-only walls, while windows remain blocking at floor level.
+- Added API project save/list/open contract test; API test script now runs all API tests. Added runtime Supabase readiness guard and health metadata without exposing secrets.
+- **Verification status:** Gate #227 failed only at TypeScript on one remaining `LoaderCircle` usage; all references were changed to `Loader2` in the latest commit. Fresh CI for that commit is pending/not yet confirmed. Build, contract tests and deployed Supabase round-trip must not be claimed passed.
+- **Next:** verify fresh CI, repair all failures before expanding further. Then run deployed save/list/open/restart check; continue grounded stair traversal, wall/door collision in every controller mode, material/ceiling behavior, deterministic import, undo/redo and exports. AR yaw remains a measurement/test task, not a guessed rotation.
