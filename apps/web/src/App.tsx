@@ -244,7 +244,7 @@ export function App(): JSX.Element {
       updatedAt: versionTimestamp,
     });
     const nextVersions = [...versions, version]; setVersions(nextVersions); window.localStorage.setItem(VERSION_STORAGE_KEY, JSON.stringify(nextVersions)); setSelectedVersionIds(nextVersions.length <= 2 ? nextVersions.map((item) => item.id) : [nextVersions[nextVersions.length - 2].id, nextVersions[nextVersions.length - 1].id]);
-    try { saveProjectToLocalStorage(version, STORAGE_KEY); writeLocalProjectLibrary(version); const result = await saveProjectToServer(version); if (result.status === 'local-only') { setSaveState('local-only'); setSaveMessage('Version kept in this browser and temporary API memory — NOT confirmed in Supabase.'); return; } setSaveState('saved'); setSaveMessage(`Version ${versionNumber} saved · ${nextVersions.length} versions available.`); }
+    try { writeLocalProjectLibrary(version); const result = await saveProjectToServer(version); if (result.status === 'local-only') { setSaveState('local-only'); setSaveMessage('Version kept in this browser and temporary API memory — NOT confirmed in Supabase.'); return; } setSaveState('saved'); setSaveMessage(`Version ${versionNumber} saved · ${nextVersions.length} versions available.`); }
     catch (error) { console.error(error); setSaveState('error'); setSaveMessage(`Version ${versionNumber} kept locally · server persistence failed.`); }
   };
 
