@@ -120,3 +120,8 @@ The branch feat/blueprint-to-playable-house-roadmap contains the Phase 12 backlo
 ## 2026-10-23 — Persistence and project library update
 
 The previous Save path could report a server save while the API was running in local-only mode, and Load restored only one browser-local project. The code now exposes list/load API endpoints, assigns UUID identities compatible with the Supabase schema, persists browser recovery copies in a multi-project local library, and presents a saved-project dialog that labels source/durability. Supabase remains deployment-config dependent; there is no evidence yet that the live Supabase instance is enabled or reachable. Automated build and browser round-trip verification are pending.
+
+
+## Canonical building model update — 2026-10-23
+
+The versioned project schema now includes an additive `building` model: ordered levels/elevations, floor slabs, staircases and typed components with position/rotation/scale, dimensions, material, visibility, lock and door state. Legacy projects parse into a default ground-floor model. The editor stores this model in the same project snapshot used by API/local persistence. The desktop 3D and Spatial/AR scene render the current model's slabs, stair-step meshes and basic component proxies; floor selection and component transform controls are present. These are foundational increments only: level-aware traversal, final geometry for each component type, ceilings, true door hinge/collision behavior, undo/redo and full browser/device acceptance remain open.
