@@ -64,3 +64,8 @@ The editor's **Load** action opens the saved-project library. It combines browse
 - the SQL migration applied to that same Supabase project
 
 The service-role key must never be placed in Vite/browser environment variables. Do not create synthetic tenant/user rows or disable RLS to make writes appear successful. The project table uses UUID primary keys; the editor now assigns UUIDs to new projects and saved version snapshots so database writes are compatible. A successful production build does not prove that these runtime environment variables or database records exist.
+
+
+## Runtime persistence health contract
+
+`GET /health` now reports whether durable persistence was requested, whether the required server-side Supabase URL/service-role configuration appears present, and which configuration variable names are missing. This is configuration readiness only; it does not prove database reachability or successful writes. In durable mode, save/list/open must return an explicit failure if configuration or database access fails. Never expose the service-role key or put it in Vite/client environment variables.
