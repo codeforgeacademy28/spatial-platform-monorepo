@@ -33,9 +33,21 @@ test('room floor finishes validate and survive project serialization', () => {
     wallSegments: [], floorArea: 16, floorMaterialHex: '#aabbcc',
     createdAt: timestamp, updatedAt: timestamp,
   };
-  const project = ProjectSchema.parse({ ...legacyProject(), rooms: [room] });
+  const project = ProjectSchema.parse({
+    ...legacyProject(),
+    rooms: [room],
+    building: {
+      floorSlabs: [{
+        id: 'slab-room-1', roomId: 'room-1', levelId: 'level-ground',
+        outline: room.polygon.map((point) => ({ x: point.x, y: point.y })),
+        thickness: 0.2, materialHex: '#aabbcc',
+      }],
+    },
+  });
   assert.equal(project.rooms[0].floorMaterialHex, '#aabbcc');
-  assert.equal(deserializeProject(serializeProject(project)).rooms[0].floorMaterialHex, '#aabbcc');
+  const restored = deserializeProject(serializeProject(project));
+  assert.equal(restored.rooms[0].floorMaterialHex, '#aabbcc');
+  assert.equal(restored.building?.floorSlabs[0]?.roomId, 'room-1');
   assert.throws(() => ProjectSchema.parse({ ...legacyProject(), rooms: [{ ...room, floorMaterialHex: 'blue' }] }));
 });
 
