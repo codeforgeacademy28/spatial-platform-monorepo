@@ -115,6 +115,17 @@ test('project validation rejects dangling building level references', () => {
     },
   };
   assert.throws(() => ProjectSchema.parse(invalidStairs), /Staircase must connect two different levels/);
+
+  const invalidSlab = {
+    ...legacyProject(),
+    building: {
+      floorSlabs: [{
+        id: 'slab-1', roomId: 'missing-room', levelId: 'level-ground',
+        outline: [{ x: 0, y: 0 }, { x: 2, y: 0 }, { x: 2, y: 2 }],
+      }],
+    },
+  };
+  assert.throws(() => ProjectSchema.parse(invalidSlab), /Floor slab references missing room/);
 });
 
 test('project validation rejects dangling or out-of-bounds wall openings', () => {
