@@ -29,6 +29,8 @@ interface FloorPlanOverlayProps {
   scaleCalibrated?: boolean;
   scaleMetersPerPixel: number;
   onScaleCalibrated?: (scaleMetersPerPixel: number) => void;
+  activeLevelId?: string;
+  activeLevelWallHeight?: number;
 }
 
 interface CanvasPoint { x: number; y: number }
@@ -57,9 +59,9 @@ function snapToExistingEndpoint(point: CanvasPoint, walls: WallSegment[], scale:
   return best ?? point;
 }
 
-function createWall(start: CanvasPoint, end: CanvasPoint, scale: number): WallSegment {
+function createWall(start: CanvasPoint, end: CanvasPoint, scale: number, levelId: string, wallHeight: number): WallSegment {
   const worldStart = canvasToWorld(start, scale); const worldEnd = canvasToWorld(end, scale); const now = new Date().toISOString();
-  return { id: `wall-${Date.now()}-${Math.random().toString(16).slice(2)}`, roomId: 'unassigned', start: worldStart, end: worldEnd, thickness: 0.2, height: 3, length: Math.hypot(worldEnd.x - worldStart.x, worldEnd.y - worldStart.y), createdAt: now, updatedAt: now };
+  return { id: `wall-${Date.now()}-${Math.random().toString(16).slice(2)}`, roomId: 'unassigned', levelId, start: worldStart, end: worldEnd, thickness: 0.2, height: wallHeight, length: Math.hypot(worldEnd.x - worldStart.x, worldEnd.y - worldStart.y), createdAt: now, updatedAt: now };
 }
 
 export function FloorPlanOverlay({
@@ -67,6 +69,7 @@ export function FloorPlanOverlay({
   onEnterAr, shareUrl, onSaveVersion, onCompareVersions, savedVersionsCount = 0, onBlueprintUploaded,
   onDetectRooms, roomsValidated = false, onReview3D, onEnterSpatial, onRevert, hasSavedBaseline = false, saveState = 'idle',
   blueprintUploaded = false, scaleCalibrated = false, scaleMetersPerPixel = DEFAULT_SCALE_METERS_PER_PIXEL, onScaleCalibrated,
+  activeLevelId = 'level-ground', activeLevelWallHeight = 2.7,
 }: FloorPlanOverlayProps): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [imageData, setImageData] = useState<string | null>(null);
@@ -118,7 +121,7 @@ export function FloorPlanOverlay({
     if (!wallPreview || !scaleCalibrated) { setWallPreview(null); return; }
     const pixelLength = Math.hypot(wallPreview.end.x - wallPreview.start.x, wallPreview.end.y - wallPreview.start.y); setWallPreview(null);
     if (pixelLength < 8) return;
-    replaceWalls([...walls, WallSegmentSchema.parse(createWall(wallPreview.start, wallPreview.end, scaleMetersPerPixel))]);
+    replaceWalls([...walls, WallSegmentSchema.parse(createWall(wallPreview.start, wallPreview.end, scaleMetersPerPixel, activeLevelId, activeLevelWallHeight))]);
   };
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>): void => { const file = event.target.files?.[0]; if (!file || !['image/jpeg', 'image/png'].includes(file.type)) { window.alert('Blueprint upload currently supports JPG and PNG images.'); return; } const reader = new FileReader(); reader.onload = () => setImageData(typeof reader.result === 'string' ? reader.result : null); reader.readAsDataURL(file); onBlueprintUploaded?.(file); setReferenceLine(null); setWallPreview(null); };
   const applyCalibration = (): void => {
