@@ -147,3 +147,7 @@ No deployment secrets or Supabase settings are modified by this plan.
 The implementation now extends beyond planning: the versioned building model, level-aware drawing/rendering, basic floor slabs and staircase meshes, starter component catalog with move/rotate/delete controls, wall-opening geometry, door open/close toggling, open-door collision splitting, Supabase readiness reporting, and API project list/open contract tests are in the branch. These are implementation increments, not acceptance-complete tasks.
 
 The active gate remains the fresh Engineering Gate. Run #227 failed on one remaining `LoaderCircle` reference, fixed in `cb9cfd4`; no later run is confirmed yet. Once green, continue with API/database contract tests, save→list→open→restart verification, and the remaining P0 house-engine gates. No physical AR success is inferred from source changes.
+
+
+## Verification update — 2026-10-23
+Engineering Gate #265 passed web type-check, production build and core snapshot contract tests, but failed one geometry assertion. The door test incorrectly passed endpoint coordinates to an API that accepts deltas; corrected in `613567d`. Await a fresh CI run before expanding further or marking any task complete. Latest feature increments include yaw calibration persisted with the project, floor/ceiling materials, active-floor isolation, JSON import/export, project-wide undo/redo and browser recovery autosave. Deployed Supabase and physical AR remain unverified.
