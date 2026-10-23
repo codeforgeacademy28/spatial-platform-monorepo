@@ -540,3 +540,13 @@ Next: confirm the updated Engineering Gate, fix any failure, then proceed to bro
 - Saved-project library now supports searching by project name/storage source. API project persistence tests cover full JSON round-trip and fail-closed configuration handling.
 - **Acceptance remains open:** 0/17 tasks in Phases 12–13 are fully acceptance-complete. Estimate is ~40% implementation coverage (subjective, not a measured metric). No live Supabase deployment/restart test, browser manual acceptance, or physical WebXR test has been performed.
 - **Security/deployment gate:** current durable ownership context uses trusted server-configured tenant/org/owner UUIDs. Do not enable this shared default context for a public multi-user deployment until authenticated user/tenant isolation is implemented and tested.
+
+
+### Continuation update — Engineering Gate #323 (2026-10-23)
+
+- **PASS:** Engineering Gate #323 on `275a9229eee2330b426707c8e34b698e8af35d01`: clean install, critical runtime graph, web type-check, production build, core snapshot tests, geometry tests, API dependency build/tests.
+- API test summary: 9 tests, 8 passed, 0 failed, 1 skipped. The skipped test is the opt-in live Supabase restart round-trip because this CI run has no Supabase integration environment. It has not been executed against a real database.
+- Added `GET /health/ready`: verifies persistence is enabled, required config is present, and the API can query the Supabase `projects` table; reports non-secret diagnostic codes on failure. Added tests for disabled mode and missing configuration.
+- Added `docs/SUPABASE_PROJECT_PERSISTENCE.md` with migration, required server/web variables, organization/owner seed constraints, deployment checks, and the opt-in command `SUPABASE_INTEGRATION_TESTS=true npm --workspace @spatial/api run test:integration:supabase`.
+- Expanded component editing: explicit width/height/depth fields, X/Y/Z placement controls, staircase rotation/finish, and catalog entries for partition walls, roof sections and railings. Room floor finishes now appear in Spatial view. Saved-project merge deduplicates matching server/browser copies while retaining a newer local recovery copy.
+- **Still unverified:** live Supabase credentials/schema connectivity, opt-in database integration test, deployed API restart survival, browser manual flows, physical WebXR orientation/scale, and authenticated multi-user/tenant isolation. Keep TASK-1201, TASK-1202, TASK-1301, TASK-1302 and TASK-1303 unchecked until their specific acceptance evidence exists.
