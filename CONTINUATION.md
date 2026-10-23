@@ -132,3 +132,10 @@ The chat transcript is not the durable project state. Every meaningful implement
 - Added API project save/list/open contract test; API test script now runs all API tests. Added runtime Supabase readiness guard and health metadata without exposing secrets.
 - **Verification status:** Gate #227 failed only at TypeScript on one remaining `LoaderCircle` usage; all references were changed to `Loader2` in the latest commit. Fresh CI for that commit is pending/not yet confirmed. Build, contract tests and deployed Supabase round-trip must not be claimed passed.
 - **Next:** verify fresh CI, repair all failures before expanding further. Then run deployed save/list/open/restart check; continue grounded stair traversal, wall/door collision in every controller mode, material/ceiling behavior, deterministic import, undo/redo and exports. AR yaw remains a measurement/test task, not a guessed rotation.
+
+
+## Latest gate and continuation
+- Latest known code correction: `613567dcee5bf9b7d5031ed81328a132c84874ec` (fix doorway collision test to pass movement delta rather than endpoint).
+- Engineering Gate #265: clean install/runtime graph, web type-check, web production build, and core snapshot tests passed; geometry contract tests failed on that incorrect test invocation. API tests were skipped. A fresh gate for the correction is not yet confirmed.
+- Recent implementation additions: project-persisted yaw calibration applied consistently to rendering/navigation/collision; known-size rectangular-room transform test; component/floor/ceiling materials and transforms; active-floor isolation; JSON project import/export; whole-project undo/redo; debounced browser recovery autosave.
+- Next action is to obtain a fresh Engineering Gate for the corrected test, fix any remaining failures, and only then continue broadening features. Do not mark tasks complete or claim Supabase/device validation without evidence.
