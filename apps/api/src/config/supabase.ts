@@ -46,7 +46,7 @@ export function getSupabasePersistenceReadiness(): { configured: boolean; missin
   const missing: string[] = [];
   const url = process.env.SUPABASE_URL?.trim();
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
-  if (!url || !/^https:\/\//i.test(url) || url.includes('localhost')) missing.push('SUPABASE_URL');
+  if (!url || !/^https?:\/\//i.test(url)) missing.push('SUPABASE_URL');
   if (!serviceRoleKey || serviceRoleKey === 'local-service-role') missing.push('SUPABASE_SERVICE_ROLE_KEY');
   return { configured: missing.length === 0, missing };
 }
