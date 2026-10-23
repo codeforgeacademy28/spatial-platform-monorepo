@@ -95,3 +95,19 @@ Run the remaining R2.2/R2.3 acceptance matrix in a real browser and supported We
 
 ## Conversation-limit rule
 The chat transcript is not the durable project state. Every meaningful implementation or decision must leave code/commit plus durable plan/state updates. When a chat is near its limit, update this packet before doing anything else. A new chat should then resume from the repository packet without requiring the historical transcript.
+
+---
+
+## Active continuation — Blueprint-to-playable-house (2026-10-23)
+
+- **Active branch:** feat/blueprint-to-playable-house-roadmap (created from main; do not push directly to main).
+- **Current objective:** deliver a deterministic, engineering-first house engine. AI recognition is optional and cannot be required for core geometry, editing, saving or navigation.
+- **Durable requirements:** TASKS.md Phase 12 is the canonical detailed backlog. PRODUCT_EXECUTION_PLAN.md contains the ordered P0 gates. Do not rely on chat history as the task store.
+- **First changed commit:** 0b883450057df11299f091729c81d0296c8d45ad — adds Phase 12 requirements/acceptance to TASKS.md.
+- **Second changed commit:** 5c6336c077be134be44ff492524c89d606d8c468 — records the active North Star and implementation order in PRODUCT_EXECUTION_PLAN.md.
+- **Current implementation status:** these commits are documentation/planning only. No runtime code has been changed or tested in this branch yet.
+- **Known repository foundations:** existing 2D wall sketching, Room/WallSegment/WallOpening types, floor-plan/world transform helpers, initial first-person movement and collision, local GLB/glTF import and browser IndexedDB persistence, and project API save/share. Each must be inspected before extending.
+- **Known gaps to address:** reported AR model orientation/immersion is not accepted on hardware; imported asset persistence is browser-local and not fully integrated with project save/version/share; room/floor geometry is not a complete multi-level building model; doors/windows are not yet a complete interactive component/collision system; stair geometry and grounded multi-floor traversal are incomplete.
+- **Immediate next action:** inspect the precise model transform and save/load code paths; define a known-dimension rectangular-room regression fixture; identify the reproducible AR orientation cause before changing transforms. Then work one gate at a time and run the narrowest relevant tests.
+- **Verification truth:** do not claim browser or physical AR acceptance from source inspection or build results. Record test command, commit, outcome and remaining external gates in the task ledger and state docs.
+- **Next required durable update:** update docs/PROJECT_STATE.md and this packet after the first code-level change; update task checkboxes only when acceptance criteria pass.
