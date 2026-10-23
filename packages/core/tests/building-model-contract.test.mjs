@@ -59,6 +59,34 @@ test('building model validates floors, stairs, transforms, and catalog component
   assert.equal(project.building?.components[0]?.doorState, 'closed');
 });
 
+test('project validation rejects dangling or out-of-bounds wall openings', () => {
+  const wall = {
+    id: 'wall-1', roomId: 'room-1',
+    start: { x: 0, y: 0 }, end: { x: 4, y: 0 },
+    thickness: 0.15, height: 2.7, length: 4,
+    createdAt: timestamp, updatedAt: timestamp,
+  };
+  const base = { ...legacyProject(), walls: [wall] };
+  const opening = {
+    id: 'door-1', wallId: 'wall-1', type: 'door', offset: 2,
+    width: 0.9, height: 2.1, bottom: 0, doorState: 'closed',
+    createdAt: timestamp, updatedAt: timestamp,
+  };
+  assert.equal(ProjectSchema.parse({ ...base, wallOpenings: [opening] }).wallOpenings[0].id, 'door-1');
+  assert.throws(
+    () => ProjectSchema.parse({ ...base, wallOpenings: [{ ...opening, wallId: 'missing-wall' }] }),
+    /Opening references missing wall/,
+  );
+  assert.throws(
+    () => ProjectSchema.parse({ ...base, wallOpenings: [{ ...opening, offset: 0.1 }] }),
+    /Opening must fit completely within its wall length/,
+  );
+  assert.throws(
+    () => ProjectSchema.parse({ ...base, wallOpenings: [{ ...opening, height: 3 }] }),
+    /Opening bottom plus height must not exceed wall height/,
+  );
+});
+
 test('clone and JSON round-trip preserve all nested building data without aliasing', () => {
   const project = ProjectSchema.parse({
     ...legacyProject(),
