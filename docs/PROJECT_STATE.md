@@ -130,3 +130,12 @@ The versioned project schema now includes an additive `building` model: ordered 
 ## Latest implementation additions
 
 The editor now has persisted house yaw calibration applied consistently in the Spatial/AR model transform, inverse coordinate conversion and collision/navigation paths; a known-size rectangular-room transform contract test; component material/scale/duplicate/visibility/lock controls; floor and ceiling material controls; active-floor isolation; full project JSON import-as-copy and export; whole-project undo/redo snapshots; and debounced browser recovery autosave. These features are source-level implementation only until browser/device acceptance is recorded.
+
+
+## Latest engineering status — 2026-10-23
+
+- Implementation estimate across Phases 12–13: roughly 35–40%; 0/17 tasks are acceptance-complete. All task checkboxes remain open by design.
+- Gate #268 results: web type-check/build passed; core tests 4/4 passed; geometry tests 26/26 passed; API tests failed on missing built workspace dependency @spatial/billing/dist/index.js before API contract tests could run.
+- CI was updated to use npx turbo run test --filter=@spatial/api --force so API dependencies build before tests. Project API tests now explicitly cover scene assets, wall openings, presentation data, and fail-closed behavior when Supabase configuration is missing.
+- Persistence handler now commits to process cache only after a successful Supabase write, and durable share-token reads verify the token against Supabase rather than trusting process memory.
+- Await fresh CI. Deployed Supabase save/list/open/restart, browser end-to-end behavior, and physical AR remain external acceptance gates.
