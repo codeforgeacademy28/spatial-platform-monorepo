@@ -70,20 +70,106 @@ function ComponentMesh({ component, elevation }: { component: BuildingComponent;
   const width = dimensions?.width ?? (component.type === 'door' ? 0.9 : component.type === 'window' ? 1.2 : 0.8);
   const height = dimensions?.height ?? (component.type === 'door' ? 2.1 : component.type === 'window' ? 1 : 0.8);
   const depth = dimensions?.depth ?? (component.type === 'door' ? 0.08 : component.type === 'window' ? 0.1 : 0.8);
-  const defaultColor = component.type === 'window' ? '#7dd3fc' : component.type === 'door' ? '#9a6b42' : '#b8c2cc';
+  const color = component.materialHex ?? (component.type === 'window' ? '#7dd3fc' : component.type === 'door' ? '#9a6b42' : '#b8c2cc');
+  const leg = Math.max(0.04, Math.min(width, depth) * 0.08);
+  const box = (key: string, position: [number, number, number], size: [number, number, number], material = color): JSX.Element => (
+    <mesh key={key} position={position} castShadow receiveShadow>
+      <boxGeometry args={size} />
+      <meshStandardMaterial color={material} roughness={0.72} />
+    </mesh>
+  );
+  const cylinder = (key: string, position: [number, number, number], radius: number, tall: number, material = color): JSX.Element => (
+    <mesh key={key} position={position} castShadow receiveShadow>
+      <cylinderGeometry args={[radius, radius, tall, 16]} />
+      <meshStandardMaterial color={material} roughness={0.76} />
+    </mesh>
+  );
+  const sphere = (key: string, position: [number, number, number], radius: number, material = color): JSX.Element => (
+    <mesh key={key} position={position} castShadow receiveShadow>
+      <sphereGeometry args={[radius, 12, 10]} />
+      <meshStandardMaterial color={material} roughness={0.68} />
+    </mesh>
+  );
+
+  let parts: JSX.Element;
+  switch (component.type) {
+    case 'column':
+      parts = <>{cylinder('column', [0, height / 2, 0], Math.min(width, depth) / 2, height)}{box('capital', [0, height * 0.96, 0], [width * 1.2, height * 0.08, depth * 1.2])}</>;
+      break;
+    case 'table':
+      parts = <>{box('table-top', [0, height * 0.88, 0], [width, height * 0.12, depth])}{[-1, 1].flatMap((x) => [-1, 1].map((z) => box(`leg-${x}-${z}`, [x * (width / 2 - leg), height * 0.42, z * (depth / 2 - leg)], [leg, height * 0.84, leg])))}</>;
+      break;
+    case 'chair':
+      parts = <>{box('seat', [0, height * 0.48, depth * 0.06], [width, height * 0.12, depth * 0.82])}{box('back', [0, height * 0.77, -depth * 0.36], [width * 0.92, height * 0.42, depth * 0.12])}{[-1, 1].flatMap((x) => [-1, 1].map((z) => box(`leg-${x}-${z}`, [x * width * 0.42, height * 0.23, z * depth * 0.34], [leg, height * 0.46, leg])))}</>;
+      break;
+    case 'sofa':
+      parts = <>{box('sofa-base', [0, height * 0.24, 0], [width, height * 0.38, depth])}{box('sofa-back', [0, height * 0.67, -depth * 0.39], [width, height * 0.54, depth * 0.22])}{[-1, 1].map((side) => box(`arm-${side}`, [side * (width / 2 - leg), height * 0.48, 0], [leg * 2.2, height * 0.62, depth]))}</>;
+      break;
+    case 'bed':
+      parts = <>{box('bed-frame', [0, height * 0.24, 0], [width * 1.04, height * 0.4, depth * 1.04], '#77563f')}{box('mattress', [0, height * 0.49, 0], [width, height * 0.22, depth], '#f1f5f9')}{box('headboard', [0, height * 0.7, -depth * 0.47], [width * 1.04, height * 0.6, depth * 0.08], '#8b6b4f')}{box('pillow', [0, height * 0.64, -depth * 0.3], [width * 0.48, height * 0.08, depth * 0.18], '#e2e8f0')}</>;
+      break;
+    case 'door':
+      parts = <>{box('door-leaf', [0, height / 2, 0], [width, height, depth], color)}{sphere('handle', [width * 0.36, height * 0.48, depth * 0.58], Math.max(0.025, width * 0.025), '#e5c07b')}</>;
+      break;
+    case 'window':
+      parts = <>{box('glass', [0, height / 2, 0], [width * 0.9, height * 0.9, depth * 0.3], '#7dd3fc')}{box('frame-left', [-width * 0.47, height / 2, 0], [width * 0.06, height, depth], '#f8fafc')}{box('frame-right', [width * 0.47, height / 2, 0], [width * 0.06, height, depth], '#f8fafc')}{box('frame-top', [0, height * 0.47, 0], [width, height * 0.06, depth], '#f8fafc')}{box('frame-bottom', [0, -height * 0.47 + height / 2, 0], [width, height * 0.06, depth], '#f8fafc')}{box('mullion', [0, height / 2, depth * 0.15], [width * 0.035, height * 0.9, depth * 0.25], '#f8fafc')}</>;
+      break;
+    case 'light':
+      parts = <>{cylinder('stem', [0, height * 0.82, 0], Math.max(0.015, width * 0.035), height * 0.36, '#64748b')}{sphere('bulb', [0, height * 0.42, 0], Math.min(width, depth) * 0.42, '#fde68a')}</>;
+      break;
+    case 'plant':
+      parts = <>{cylinder('pot', [0, height * 0.16, 0], Math.min(width, depth) * 0.38, height * 0.32, '#b45309')}{cylinder('stem', [0, height * 0.56, 0], Math.max(0.015, width * 0.025), height * 0.58, '#166534')}{sphere('leaf-a', [-width * 0.2, height * 0.7, 0], width * 0.22, '#22c55e')}{sphere('leaf-b', [width * 0.2, height * 0.78, depth * 0.08], width * 0.2, '#16a34a')}{sphere('leaf-c', [0, height * 0.9, -depth * 0.08], width * 0.2, '#4ade80')}</>;
+      break;
+    case 'rug':
+      parts = box('rug', [0, Math.max(0.015, height / 2), 0], [width, Math.max(0.02, height), depth], color);
+      break;
+    case 'pool':
+      parts = <>{box('pool-shell', [0, height * 0.38, 0], [width, height * 0.76, depth], '#94a3b8')}{box('water', [0, height * 0.78, 0], [width * 0.9, 0.025, depth * 0.9], '#38bdf8')}</>;
+      break;
+    case 'fence':
+    case 'gate':
+      parts = <>{[-1, 0, 1].map((x) => box(`post-${x}`, [x * width * 0.44, height / 2, 0], [leg * 1.4, height, depth]))}{box('upper-rail', [0, height * 0.78, 0], [width, leg * 1.5, depth])}{box('lower-rail', [0, height * 0.25, 0], [width, leg * 1.5, depth])}{Array.from({ length: 5 }, (_, index) => box(`picket-${index}`, [-width * 0.36 + index * width * 0.18, height * 0.5, 0], [leg, height * 0.65, depth * 0.8]))}</>;
+      break;
+    case 'artwork':
+      parts = <>{box('frame', [0, height / 2, 0], [width, height, depth], '#8b6b4f')}{box('art', [0, height / 2, depth * 0.52], [width * 0.84, height * 0.82, Math.max(0.01, depth * 0.06)], color)}</>;
+      break;
+    case 'sink':
+      parts = <>{box('vanity', [0, height * 0.38, 0], [width, height * 0.72, depth])}{box('basin', [0, height * 0.78, 0], [width * 0.86, height * 0.12, depth * 0.84], '#e2e8f0')}{cylinder('tap', [0, height * 0.92, -depth * 0.3], Math.max(0.02, width * 0.025), height * 0.16, '#94a3b8')}</>;
+      break;
+    case 'toilet':
+      parts = <>{cylinder('bowl', [0, height * 0.25, depth * 0.04], Math.min(width, depth) * 0.42, height * 0.48, '#f8fafc')}{box('tank', [0, height * 0.66, -depth * 0.34], [width * 0.78, height * 0.48, depth * 0.28], '#f8fafc')}</>;
+      break;
+    case 'bathtub':
+      parts = <>{box('tub-shell', [0, height * 0.34, 0], [width, height * 0.68, depth], '#e2e8f0')}{box('water', [0, height * 0.69, 0], [width * 0.78, 0.025, depth * 0.78], '#bae6fd')}</>;
+      break;
+    case 'shower':
+      parts = <>{box('shower-tray', [0, height * 0.04, 0], [width, height * 0.08, depth], '#e2e8f0')}{box('glass-screen', [width * 0.42, height * 0.5, 0], [depth * 0.08, height, depth], '#bae6fd')}{cylinder('shower-post', [-width * 0.4, height * 0.6, -depth * 0.4], Math.max(0.015, width * 0.025), height * 0.8, '#94a3b8')}</>;
+      break;
+    case 'curtain':
+    case 'blind':
+      parts = <>{box('curtain-rod', [0, height * 0.95, 0], [width * 1.08, Math.max(0.02, height * 0.04), Math.max(0.02, depth * 0.08)], '#94a3b8')}{box('left-panel', [-width * 0.25, height * 0.48, 0], [width * 0.42, height * 0.86, Math.max(0.025, depth * 0.1)], color)}{box('right-panel', [width * 0.25, height * 0.48, 0], [width * 0.42, height * 0.86, Math.max(0.025, depth * 0.1)], color)}</>;
+      break;
+    case 'switch':
+    case 'socket':
+      parts = box('wall-plate', [0, height / 2, 0], [width, height, Math.max(0.025, depth * 0.12)], '#f8fafc');
+      break;
+    case 'driveway':
+      parts = box('driveway', [0, Math.max(0.025, height / 2), 0], [width, Math.max(0.05, height), depth], '#64748b');
+      break;
+    default:
+      parts = <>{box('body', [0, height / 2, 0], [width, height, depth])}{['wardrobe', 'cabinet', 'kitchen-unit', 'appliance'].includes(component.type) ? <>{box('left-door', [-width * 0.24, height * 0.52, depth * 0.52], [width * 0.44, height * 0.84, Math.max(0.02, depth * 0.035)], '#d6c4ad')}{box('right-door', [width * 0.24, height * 0.52, depth * 0.52], [width * 0.44, height * 0.84, Math.max(0.02, depth * 0.035)], '#d6c4ad')}</> : null}</>;
+  }
+
   return (
-    <mesh
+    <group
       position={[component.position[0], component.position[1] + elevation, component.position[2]]}
       rotation={component.rotation}
       scale={component.scale}
       visible={component.isVisible}
-      castShadow
-      receiveShadow
       userData={{ componentId: component.id, componentType: component.type, doorState: component.doorState ?? 'closed', isLocked: component.isLocked }}
     >
-      <boxGeometry args={[width, height, depth]} />
-      <meshStandardMaterial color={component.materialHex ?? defaultColor} transparent={component.type === 'window'} opacity={component.type === 'window' ? 0.48 : 1} roughness={0.72} />
-    </mesh>
+      {parts}
+    </group>
   );
 }
 
