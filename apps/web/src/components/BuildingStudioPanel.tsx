@@ -52,7 +52,8 @@ export function BuildingStudioPanel({ building, setBuilding, activeLevelId, onAc
   const selectedStair = building.stairs.find((stair) => stair.id === selectedStairId);
 
   const addLevel = (): void => {
-    const highest = [...building.levels].sort((a, b) => a.elevation - b.elevation).at(-1);
+    const orderedLevels = [...building.levels].sort((a, b) => a.elevation - b.elevation);
+    const highest = orderedLevels[orderedLevels.length - 1];
     const order = Math.max(-1, ...building.levels.map((level) => level.order)) + 1;
     const level = { id: crypto.randomUUID(), name: order === 1 ? 'First Floor' : `Floor ${order + 1}`, elevation: (highest?.elevation ?? 0) + (highest?.wallHeight ?? 2.7), wallHeight: 2.7, order };
     setBuilding((current) => ({ ...current, levels: [...current.levels, level].sort((a, b) => a.order - b.order) }));
