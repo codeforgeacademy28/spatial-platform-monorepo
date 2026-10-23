@@ -80,6 +80,7 @@ export const BuildingModelSchema = z.object({
     { id: 'level-ground', name: 'Ground Floor', elevation: 0, wallHeight: 2.7, order: 0 },
   ]),
   floorSlabs: z.array(FloorSlabSchema).default([]),
+  ceilingEnabled: z.boolean().default(false),
   stairs: z.array(StaircaseSchema).default([]),
   components: z.array(BuildingComponentSchema).default([]),
 });
