@@ -227,7 +227,7 @@ export function App(): JSX.Element {
 
   const handleDetectRooms = (): void => {
     if (!scaleCalibrated) { setSaveState('error'); setSaveMessage('Calibrate scale before validating rooms.'); return; }
-    const nextRooms = detectClosedRooms(walls, 'project-1', 'Room'); setRooms(nextRooms); setSelectedRoomId(null); setRoomsValidated(nextRooms.length > 0);
+    const nextRooms = detectClosedRooms(walls, projectId, 'Room'); setRooms(nextRooms); setSelectedRoomId(null); setRoomsValidated(nextRooms.length > 0);
     if (!nextRooms.length) { setSaveState('error'); setSaveMessage('No closed rooms detected. Check wall endpoints and close the loop.'); return; }
     setSaveState('saved'); setSaveMessage(`${nextRooms.length} room${nextRooms.length === 1 ? '' : 's'} detected.`);
   };
@@ -238,13 +238,13 @@ export function App(): JSX.Element {
     const versionTimestamp = new Date().toISOString();
     const version = cloneProject({
       ...project,
-      id: `project-1-v${Date.now()}-${versionNumber}`,
+      id: crypto.randomUUID(),
       name: `${projectName} (v${versionNumber})`,
       createdAt: versionTimestamp,
       updatedAt: versionTimestamp,
     });
     const nextVersions = [...versions, version]; setVersions(nextVersions); window.localStorage.setItem(VERSION_STORAGE_KEY, JSON.stringify(nextVersions)); setSelectedVersionIds(nextVersions.length <= 2 ? nextVersions.map((item) => item.id) : [nextVersions[nextVersions.length - 2].id, nextVersions[nextVersions.length - 1].id]);
-    try { const result = await saveProjectToServer(version); if (result.status === 'local-only') { setSaveState('local-only'); setSaveMessage('Saved in this browser only. Server storage is temporary.'); return; } setSaveState('saved'); setSaveMessage(`Version ${versionNumber} saved · ${nextVersions.length} versions available.`); }
+    try { saveProjectToLocalStorage(version, STORAGE_KEY); writeLocalProjectLibrary(version); const result = await saveProjectToServer(version); if (result.status === 'local-only') { setSaveState('local-only'); setSaveMessage('Version kept in this browser and temporary API memory — NOT confirmed in Supabase.'); return; } setSaveState('saved'); setSaveMessage(`Version ${versionNumber} saved · ${nextVersions.length} versions available.`); }
     catch (error) { console.error(error); setSaveState('error'); setSaveMessage(`Version ${versionNumber} kept locally · server persistence failed.`); }
   };
 
