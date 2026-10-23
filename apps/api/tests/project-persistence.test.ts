@@ -3,6 +3,36 @@ import { randomUUID } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 import test from 'node:test';
 import app from '../src/app.js';
+import { getSupabasePersistenceReadiness } from '../src/config/supabase.js';
+
+test('Supabase readiness reports missing server configuration without exposing secret values', () => {
+  const names = [
+    'SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY',
+    'PERSISTENCE_DEFAULT_TENANT_ID', 'PERSISTENCE_DEFAULT_ORGANIZATION_ID', 'PERSISTENCE_DEFAULT_OWNER_ID',
+  ] as const;
+  const previous = new Map(names.map((name) => [name, process.env[name]]));
+  try {
+    for (const name of names) delete process.env[name];
+    const missing = getSupabasePersistenceReadiness();
+    assert.equal(missing.configured, false);
+    assert.deepEqual(new Set(missing.missing), new Set(names));
+
+    process.env.SUPABASE_URL = 'https://example.supabase.co';
+    process.env.SUPABASE_SERVICE_ROLE_KEY = 'server-only-test-key';
+    process.env.PERSISTENCE_DEFAULT_TENANT_ID = '00000000-0000-4000-8000-000000000001';
+    process.env.PERSISTENCE_DEFAULT_ORGANIZATION_ID = '00000000-0000-4000-8000-000000000002';
+    process.env.PERSISTENCE_DEFAULT_OWNER_ID = '00000000-0000-4000-8000-000000000003';
+    const ready = getSupabasePersistenceReadiness();
+    assert.equal(ready.configured, true);
+    assert.deepEqual(ready.missing, []);
+  } finally {
+    for (const name of names) {
+      const value = previous.get(name);
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  }
+});
 
 test('local-only API save/list/open round-trips a full versioned project', async () => {
   const previousMode = process.env.SUPABASE_PERSISTENCE_ENABLED;
