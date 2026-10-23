@@ -76,7 +76,7 @@ export type BuildingComponent = z.infer<typeof BuildingComponentSchema>;
  * supported while every renderer and editor migrates to this shared model.
  */
 export const BuildingModelSchema = z.object({
-  schemaVersion: z.number().int().min(1).default(BUILDING_SCHEMA_VERSION),
+  schemaVersion: z.number().int().min(1).max(BUILDING_SCHEMA_VERSION).default(BUILDING_SCHEMA_VERSION),
   levels: z.array(BuildingLevelSchema).min(1).default([
     { id: 'level-ground', name: 'Ground Floor', elevation: 0, wallHeight: 2.7, order: 0 },
   ]),
