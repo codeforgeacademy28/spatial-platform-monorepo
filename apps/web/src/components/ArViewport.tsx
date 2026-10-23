@@ -473,6 +473,7 @@ function DesktopFirstPersonController({
           nextZ,
           levelWalls,
           modelTransform,
+          modelYawRadians,
         );
         nextX = resolved.x;
         nextZ = resolved.z;
