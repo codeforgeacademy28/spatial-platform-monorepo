@@ -163,3 +163,12 @@ The chat transcript is not the durable project state. Every meaningful implement
 - Per-room floor material is persisted and synchronized with its linked floor slab. Common catalog items now render as starter parametric meshes with realistic default dimensions; new components are offset to avoid exact overlap. Saved-project library search by name/source is implemented.
 - Estimate: ~40% implementation coverage; 0/17 Phase 12/13 tasks fully acceptance-complete. Still unverified: deployed Supabase write/list/open/restart survival, browser manual tests, and physical WebXR orientation/scale.
 - Durable ownership currently relies on server-configured tenant/org/owner IDs. Do not enable that shared context for public multi-user production until authenticated identity and tenant isolation are implemented. PR #67 remains draft; main untouched.
+
+
+## Continuation resumed — Engineering Gate #323
+- Current verified code commit: `275a9229eee2330b426707c8e34b698e8af35d01`; Engineering Gate #323 **PASS**. Clean install, runtime graph, web type-check/build, core/geometry contract tests, API dependency build/tests all passed.
+- API test summary: 9 total, 8 passed, 0 failed, 1 skipped. Skipped test is the opt-in live Supabase integration test; no live database credentials were available in CI, so no durable write/restart behavior is claimed verified.
+- Added live `GET /health/ready` probe for Supabase configuration and a read query against `projects`; test coverage covers disabled persistence and missing config.
+- Added Supabase deployment/seed/verification guide at `docs/SUPABASE_PROJECT_PERSISTENCE.md`; opt-in integration command: `SUPABASE_INTEGRATION_TESTS=true npm --workspace @spatial/api run test:integration:supabase`.
+- UI increments: room finish rendered in Spatial view; component dimensions editable and placement controls support X/Y/Z; staircase rotation and material editing; catalog includes partition, roof and railing; saved-project list deduplicates matching local/server versions but preserves newer local recovery copies.
+- All acceptance tasks remain unchecked. Live Supabase test, browser manual acceptance, physical WebXR calibration, and public multi-user identity/tenant isolation remain outstanding. PR #67 remains draft and main untouched.
