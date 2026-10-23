@@ -46,7 +46,12 @@ test('local-only API save/list/open round-trips a full versioned project', async
   const project = {
     id,
     name: 'Persistence contract test',
-    walls: [],
+    walls: [{
+      id: 'wall-1', roomId: 'test-room', levelId: 'ground',
+      start: { x: 0, y: 0 }, end: { x: 4, y: 0 },
+      thickness: 0.15, height: 2.7, length: 4,
+      createdAt: timestamp, updatedAt: timestamp,
+    }],
     rooms: [],
     sceneAssets: [{
       id: 'art-1', assetType: 'image', name: 'Saved wall art', assetUrl: 'https://example.com/art.png',
