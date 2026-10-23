@@ -212,6 +212,39 @@ export const ProjectSchema = z.object({
   building: BuildingModelSchema.optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
+}).superRefine((project, ctx) => {
+  // Validate opening references against canonical wall geometry before the
+  // renderer creates a hole. Invalid/dangling openings must not silently save.
+  const walls = project.walls.length > 0 ? project.walls : project.rooms.flatMap((room) => room.wallSegments);
+  const wallById = new Map(walls.map((wall) => [wall.id, wall]));
+  project.wallOpenings.forEach((opening, index) => {
+    const wall = wallById.get(opening.wallId);
+    if (!wall) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['wallOpenings', index, 'wallId'],
+        message: `Opening references missing wall "${opening.wallId}".`,
+      });
+      return;
+    }
+    const length = Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y);
+    const start = opening.offset - opening.width / 2;
+    const end = opening.offset + opening.width / 2;
+    if (start < -1e-6 || end > length + 1e-6) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['wallOpenings', index, 'offset'],
+        message: 'Opening must fit completely within its wall length.',
+      });
+    }
+    if (opening.bottom + opening.height > wall.height + 1e-6) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['wallOpenings', index, 'height'],
+        message: 'Opening bottom plus height must not exceed wall height.',
+      });
+    }
+  });
 }).transform((project) => ({
   ...project,
   walls: project.walls.length > 0 ? project.walls : project.rooms.flatMap((room) => room.wallSegments),
