@@ -87,3 +87,76 @@ Static/build verification is necessary but not sufficient. Browser interaction a
 - Canonical mode keyword: `TIGER-SPATIAL-OWNER`.
 - Durable behavior instructions: `.github/SPATIAL_PRODUCT_OWNER_MODE.md`.
 - The repo is the durable source of truth when chat history is unavailable.
+
+---
+
+## Product state update — Blueprint-to-playable-house (2026-10-23)
+
+### Product requirement
+The product target is a deterministic, editable, dimensionally coherent building model that can be traced/imported from a calibrated blueprint, rendered as a 3D home, navigated at human scale, edited component-by-component, and reliably saved/reopened/shared. AI recognition is optional and must not be in the critical path.
+
+### Evidence-backed existing foundations
+- 2D wall sketching and canonical WallSegment/Room data exist.
+- Floor-plan/world transform helpers and an initial desktop first-person controller exist.
+- Wall collision has geometry-engine implementation and automated contract tests from prior work.
+- Local GLB/glTF import and browser-local IndexedDB persistence exist for the imported source file and transform.
+- Project API save/share and local project save paths exist; their support for all future building-scene data is not yet complete.
+
+### Open product gaps
+- User reports AR orientation/immersion is incorrect; this remains a reproduction and physical-device verification item, not a proven root cause.
+- Browser-local asset storage is not equivalent to durable project/server/version/share persistence.
+- Current wall sketching does not constitute a full multi-floor building editor.
+- Complete horizontal slabs/ceilings, level-aware building schema, real interactive openings, door state-aware collision, stairs, grounded multi-floor navigation, and independently editable furniture/components remain to be implemented/verified.
+- Blueprint image/PDF reconstruction must use explicit scale and human review when geometry is ambiguous; AI recognition is optional.
+- Browser walkthrough and supported-device WebXR behavior require separate acceptance evidence.
+
+### Execution control
+Phase 12 of TASKS.md is the detailed acceptance backlog. Implement in sequence: orientation/scale diagnosis → full-scene persistence → versioned canonical building schema → floor levels/slabs → openings/doors/windows → stairs and first-person traversal → component catalog/materials → deterministic blueprint ingestion → browser and device validation. Do not check off work from planning, source inspection or build evidence alone.
+
+### Current branch state
+The branch feat/blueprint-to-playable-house-roadmap contains the Phase 12 backlog and state updates plus a runtime fix in apps/web/src/App.tsx. Local load/revert now restore sceneAssets, wallOpenings and presentation; save-version snapshots preserve the complete current Project instead of reconstructing a reduced wall/room-only object. GitHub Actions Engineering Gate run #180 passed clean install, critical runtime graph, web type-check, web production build, core snapshot contract tests, geometry contract tests and API upload validation. This establishes BUILD GREEN only; browser behavior and physical AR are not verified. TASK-1202 remains open.
+
+
+## 2026-10-23 — Persistence and project library update
+
+The previous Save path could report a server save while the API was running in local-only mode, and Load restored only one browser-local project. The code now exposes list/load API endpoints, assigns UUID identities compatible with the Supabase schema, persists browser recovery copies in a multi-project local library, and presents a saved-project dialog that labels source/durability. Supabase remains deployment-config dependent; there is no evidence yet that the live Supabase instance is enabled or reachable. Automated build and browser round-trip verification are pending.
+
+
+## Canonical building model update — 2026-10-23
+
+The versioned project schema now includes an additive `building` model: ordered levels/elevations, floor slabs, staircases and typed components with position/rotation/scale, dimensions, material, visibility, lock and door state. Legacy projects parse into a default ground-floor model. The editor stores this model in the same project snapshot used by API/local persistence. The desktop 3D and Spatial/AR scene render the current model's slabs, stair-step meshes and basic component proxies; floor selection and component transform controls are present. These are foundational increments only: level-aware traversal, final geometry for each component type, ceilings, true door hinge/collision behavior, undo/redo and full browser/device acceptance remain open.
+
+
+## Latest implementation additions
+
+The editor now has persisted house yaw calibration applied consistently in the Spatial/AR model transform, inverse coordinate conversion and collision/navigation paths; a known-size rectangular-room transform contract test; component material/scale/duplicate/visibility/lock controls; floor and ceiling material controls; active-floor isolation; full project JSON import-as-copy and export; whole-project undo/redo snapshots; and debounced browser recovery autosave. These features are source-level implementation only until browser/device acceptance is recorded.
+
+
+## Latest engineering status — 2026-10-23
+
+- Implementation estimate across Phases 12–13: roughly 35–40%; 0/17 tasks are acceptance-complete. All task checkboxes remain open by design.
+- Gate #268 results: web type-check/build passed; core tests 4/4 passed; geometry tests 26/26 passed; API tests failed on missing built workspace dependency @spatial/billing/dist/index.js before API contract tests could run.
+- CI was updated to use npx turbo run test --filter=@spatial/api --force so API dependencies build before tests. Project API tests now explicitly cover scene assets, wall openings, presentation data, and fail-closed behavior when Supabase configuration is missing.
+- Persistence handler now commits to process cache only after a successful Supabase write, and durable share-token reads verify the token against Supabase rather than trusting process memory.
+- Await fresh CI. Deployed Supabase save/list/open/restart, browser end-to-end behavior, and physical AR remain external acceptance gates.
+
+
+## Latest gate — 2026-10-23, Engineering Gate #280
+
+**PASS** for clean install, runtime graph, web type-check/build, core snapshot tests, geometry tests, and API dependency build/API tests. API tests report 7 passed, 0 failed, including complete local API project round-trip (assets, openings, presentation, building) and fail-closed missing-Supabase checks. R2 configuration is now validated only when object storage is actually used. Saved-project library search by name/source is included in this gate. This is automated validation only; live Supabase restart survival, browser manual tests, and physical AR are not yet accepted.
+
+
+## Latest gate and implementation state — Engineering Gate #305
+
+Gate #305 passed on `37b6eacd01a40ba520aae47de1b350bd09714545`: clean install, runtime graph, web type-check/build, core tests, geometry tests, and API tests. New project-schema checks reject dangling/out-of-bounds wall openings, invalid building-level references, same-level stairs, floor slabs referencing missing rooms, and unsupported future schema versions. Per-room floor finish now persists and synchronizes with its floor slab. The starter component catalog now renders several common home items with parametric geometry and more realistic default dimensions; saved-project search is available.
+
+Implementation estimate remains ~40%, with 0/17 Phase 12/13 tasks acceptance-complete. Deployed Supabase restart-survival, browser manual acceptance, and physical AR remain unverified. Server-configured default owner context is not adequate for public multi-user production until authenticated identity/tenant isolation is implemented.
+
+
+## Latest continuation — Engineering Gate #323 (2026-10-23)
+
+**PASS** on `275a9229eee2330b426707c8e34b698e8af35d01`: clean install, runtime graph, web type-check/build, core snapshot tests, geometry tests and API dependency build/tests. API summary: 9 total, 8 passed, 0 failed, 1 skipped (opt-in live Supabase integration; no integration secrets/database used in CI).
+
+New increments include a live Supabase `/health/ready` probe (configuration plus `projects` table query), missing/disabled configuration tests, deployment and owner-seed documentation, and an opt-in save/restart/list/open Supabase integration test. UI includes room floor finishes in Spatial view, editable component dimensions and X/Y/Z placement, stair rotation/material controls, extra structural catalog entries, and duplicate suppression for matching local/server project copies.
+
+This remains automated code validation only. Live Supabase persistence/restart survival, browser manual interaction, physical WebXR orientation/scale, and authenticated multi-user isolation are not yet accepted. PR #67 remains draft; no main-branch changes.

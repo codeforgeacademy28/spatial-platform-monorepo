@@ -4,3 +4,7 @@ export * from './clearance-calculator.js';
 export * from './spatial-transforms.js';
 export * from './wall-collision.js';
 export * from './navigation-collision.js';
+
+export * from './wall-openings.js';
+
+export * from './stair-navigation.js';

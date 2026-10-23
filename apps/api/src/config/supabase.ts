@@ -36,3 +36,27 @@ export function getSupabaseConfig(): SupabaseClientConfig {
     serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY,
   };
 }
+
+/**
+ * Runtime guard for durable project persistence. The client has harmless local
+ * placeholders so the API can start in local-only mode, but those placeholders
+ * must never be mistaken for a configured production database.
+ */
+export function getSupabasePersistenceReadiness(): { configured: boolean; missing: string[] } {
+  const missing: string[] = [];
+  const url = process.env.SUPABASE_URL?.trim();
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  if (!url || !/^https?:\/\//i.test(url)) missing.push('SUPABASE_URL');
+  if (!serviceRoleKey || serviceRoleKey === 'local-service-role') missing.push('SUPABASE_SERVICE_ROLE_KEY');
+  for (const name of ['PERSISTENCE_DEFAULT_TENANT_ID', 'PERSISTENCE_DEFAULT_ORGANIZATION_ID', 'PERSISTENCE_DEFAULT_OWNER_ID'] as const) {
+    if (!z.string().uuid().safeParse(process.env[name]).success) missing.push(name);
+  }
+  return { configured: missing.length === 0, missing };
+}
+
+export function assertSupabasePersistenceReady(): void {
+  const readiness = getSupabasePersistenceReadiness();
+  if (!readiness.configured) {
+    throw new Error(`Supabase persistence is enabled but required server configuration is missing or invalid: ${readiness.missing.join(', ')}.`);
+  }
+}

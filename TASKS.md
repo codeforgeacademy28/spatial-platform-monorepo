@@ -347,3 +347,206 @@ The detailed task plan, priorities, file targets, test requirements, and accepta
 - [ ] **TASK-1102**: Browser and physical-device AR validation checklist. Checklist is written; device verification is not yet performed.
 
 **Completion rule:** a task stays unchecked until its acceptance criteria and applicable tests pass. See the roadmap for P1/P2 tasks and full substeps.
+
+---
+
+## Phase 12 — Blueprint-to-Playable-House Product North Star
+
+**Product intent (2026-10-23):** Evolve the current sketch-based wall layout into a deterministic, engineering-first building editor and human-scale playable house. The user must be able to construct/reconstruct a home from a calibrated blueprint, enter and navigate it, edit its components, and reliably save/reopen/share the complete project. AI recognition is optional and must never be a dependency for core construction, editing, persistence, or interaction.
+
+**Current-state honesty:** The repository has a 2D wall-sketch workflow, room/wall geometry, a browser Spatial view, initial desktop first-person controls and wall collision, local GLB/glTF import with browser-local IndexedDB storage, and server project save/share foundations. These do not yet establish a complete building model, durable persistence for all 3D scene edits, correct real-device AR placement, multi-floor construction/traversal, or a full interactive home. Do not describe upload validation as conversion, browser-local storage as cloud persistence, or build success as AR acceptance.
+
+### North-star acceptance contract
+
+- The canonical, versioned building model—not renderer meshes—is the source of truth.
+- Every generated view is derived from the same model: 2D plan, 3D editor, first-person walkthrough, and optional AR.
+- Core operations are deterministic, explainable, validated and testable without AI or a network LLM.
+- Units and coordinate conventions are explicit. Floor surfaces are horizontal; vertical height uses the world-up axis; floor-plan axes map consistently to the horizontal world plane.
+- Ambiguous raster plans require calibration and user review; never invent exact dimensions from an unscaled image.
+- Save/load/version/share round-trips supported model data, scene assets, materials and transforms. Failed saves must never show success.
+- All tasks remain unchecked until their acceptance criteria pass. Browser and physical-device acceptance are recorded separately from automated tests.
+
+### P0 — Correctness and durable foundations
+
+#### - [ ] TASK-1201: Reproduce and resolve AR/world orientation and scale
+- **Files:** `apps/web/src/components/ArViewport.tsx`, `packages/geometry-engine/src/spatial-transforms.ts`, related tests and `docs/testing/spatial-walkthrough-checklist.md`.
+- **Objective:** Find the actual cause of the reported vertical/sideways house in AR; do not add another guessed yaw/rotation offset.
+- **Steps:** Inspect plan-to-world transforms, wall extrusion axes, root model transform, camera/reference-space behavior, model origin and unit conversion. Add a known rectangular-room fixture with labeled axes and known dimensions. Keep device-tracked head pose separate from app-owned model placement.
+- **Acceptance:** Desktop and XR use the same canonical geometry; floor plane is horizontal, walls extrude upward, measured dimensions match the fixture, placement yaw is deliberate, and no per-blueprint hard-coded corrective rotation is required.
+- **Verification:** Transform unit tests + browser view + physical supported-device AR test. Hardware test remains explicitly BLOCKED until performed.
+
+#### - [ ] TASK-1202: Durable project persistence for the whole editable scene
+- **Files:** `packages/core/src/index.ts`, `apps/web/src/App.tsx`, `apps/web/src/services/api-client.ts`, project API/storage/versioning, migration tests.
+- **Objective:** Save the actual building model, not only the current wall list or a browser-local imported model.
+- **Steps:** Audit the existing save/load paths and preserve their durability-status contract. Persist floors, rooms, walls/openings, components, object transforms, materials, source-file references, units and schema version. Integrate asset metadata with project save/load, server persistence, share and project versions. Keep IndexedDB as an explicit local recovery/cache layer, not a claim of server sync.
+- **Acceptance:** Create/edit/save/refresh/reopen/share/version-restore round-trips all supported data; server failure is visible and cannot be reported as durable success; legacy projects still load through tested migrations; private source assets remain access-controlled.
+
+#### - [ ] TASK-1203: Versioned canonical building/scene schema
+- **Files:** `packages/core/src/index.ts`, geometry-engine types, API validation, migration fixtures.
+- **Objective:** Define stable IDs and explicit data contracts for building, levels, rooms, wall junctions, openings, slabs, stairs, reusable components, scene objects, materials and transforms.
+- **Steps:** Add a schema version and backwards-compatible defaults. Define metric units and coordinate contract centrally. Store editable parameters/source relationships; derive renderer meshes and collision geometry rather than persisting those as the only representation.
+- **Acceptance:** Zod/runtime validation rejects invalid dimensions and dangling references; migrations preserve existing projects; a serialized project can reconstruct equivalent geometry deterministically.
+
+#### - [ ] TASK-1204: Real floor slabs, ceilings and multi-level building structure
+- **Files:** core schema, geometry-engine, `ArViewport.tsx`/scene renderer, editor floor controls and tests.
+- **Objective:** Move beyond walls-only single-floor output.
+- **Steps:** Represent level elevation and floor-to-floor height; create horizontal room floor/slab geometry from validated room boundaries; support optional ceilings/roof visibility; isolate/show a selected level without mutating canonical geometry; align vertical openings to their owning level.
+- **Acceptance:** A closed-room fixture has a walkable horizontal floor; a two-level fixture has correct elevations and connected level data; changing a level height updates dependent geometry consistently; open/invalid room loops are reported instead of generating arbitrary slabs.
+
+#### - [ ] TASK-1205: Wall openings and interactive door/window components
+- **Files:** existing `WallOpening` schema, wall geometry generation, scene component library and tests.
+- **Objective:** Turn door/window metadata into genuine wall openings and usable components.
+- **Steps:** Cut openings into wall geometry with validated width/height/offset/bottom; create independently selectable frames, door leaves and window parts; add hinge/pivot-based door animation and open/close interaction. Define collision behavior for open and closed states.
+- **Acceptance:** No hidden solid wall blocks a declared opening; dimensions and placement validate against wall bounds; a door opens around its hinge and navigation/collision matches its state; edits survive save/load.
+
+#### - [ ] TASK-1206: Parametric stairs and multi-floor navigation
+- **Files:** building schema, geometry-engine, first-person controller, collision engine and tests.
+- **Objective:** Connect floors physically rather than using teleport-only floor switching.
+- **Steps:** Model stair run, rise, tread, width, landing and orientation; validate floor-to-floor elevation and headroom inputs; generate visible steps/rails; add grounded step traversal or controlled stair movement with collision.
+- **Acceptance:** Player can walk from one level to the next without falling through slabs, floating, teleporting or being blocked by stair collision; invalid stair dimensions produce actionable validation errors.
+
+#### - [ ] TASK-1207: Human-scale first-person walkthrough and collision correctness
+- **Files:** `ArViewport.tsx`, `packages/geometry-engine/src/wall-collision.ts`, navigation tests.
+- **Objective:** Make the browser walkthrough feel like a person inside the house, not a free camera floating through wall meshes.
+- **Steps:** Keep the camera at configurable human eye height; implement grounded movement, gravity, collision against walls/floors/closed doors/furniture, wall sliding, step/stair rules, pause/exit/reset and safe spawn points. Reuse canonical model transforms for movement and rendering.
+- **Acceptance:** No wall tunneling, falling through floors, spawning inside geometry or moving through closed doors; open doorways and stairs are traversable; diagonal movement is normalized; controls are usable on supported desktop and mobile layouts. Browser interaction remains a separate gate from unit/build tests.
+
+### P1 — Full editable home construction
+
+#### - [ ] TASK-1208: Reusable architectural and furniture component catalog
+- **Components:** doors, windows, frames, columns, beams, walls, partitions, floors, ceilings, roofs, stairs, railings, balconies, furniture, kitchen cabinets/counters, appliances, bathroom fixtures, wardrobes, lights, switches, sockets, curtains, blinds, rugs, artwork, plants, garden objects, fences, gates, driveway and pool.
+- **Objective:** Each item is an independently selectable, placeable, editable object with stable ID, dimensions, transform, material and optional interaction behavior.
+- **Steps:** Create an asset/component registry with metadata and categories; start with procedural primitives and properly licensed GLB/glTF assets. Add select/move/rotate/duplicate/delete, snapping, alignment, scale constraints and collision preview.
+- **Acceptance:** Objects can be placed and manipulated in consistent scene units; wall-anchored components retain valid relationships when walls change; component data round-trips through save/load/versioning.
+
+#### - [ ] TASK-1209: Wall paint, surface materials and lighting
+- **Objective:** Let users customize each wall/room and floor without rebuilding the whole project manually.
+- **Steps:** Support per-surface paint, material presets and texture references; floor finishes; ceiling and roof finishes; daylight/environment lighting and interior fixtures; mobile quality settings.
+- **Acceptance:** Material changes affect only intended surfaces, are undoable and persist; renderer changes do not mutate the canonical geometry; scene remains navigable and readable.
+
+#### - [ ] TASK-1210: Deterministic blueprint import and manual review (AI optional)
+- **Inputs:** existing sketch workflow, calibrated raster image, PDF, and CAD/vector formats only through verified format adapters.
+- **Objective:** Turn a drawing into reviewed editable geometry without requiring AI recognition.
+- **Steps:** Provide scale calibration from a known dimension; allow tracing/correction of wall centerlines, thicknesses, room boundaries, doors/windows and floor labels; parse structured CAD inputs when a reliable parser exists; show source overlay and validation errors before commit. Keep AI recognition as an optional adapter, never the only path.
+- **Acceptance:** Same reviewed input yields equivalent geometry; unscaled raster inputs cannot claim dimensional accuracy; uncertain/missing measurements are requested or visibly flagged; source files and conversion metadata remain linked to the project.
+
+#### - [ ] TASK-1211: Editing history, autosave and recovery
+- **Objective:** Protect users from losing detailed house work.
+- **Steps:** Command-based undo/redo for geometry and object edits; dirty state, save status, conflict/error reporting, safe autosave, recovery from interrupted sessions and version snapshots.
+- **Acceptance:** Core edit operations undo/redo correctly; refresh/reopen restores the last confirmed saved project; failed saves remain visible; autosave never overwrites a newer server version silently.
+
+#### - [ ] TASK-1212: AR placement, scale calibration and anchor lifecycle
+- **Objective:** Place the same building model in the physical world at intentional 1:1 scale.
+- **Steps:** Add hit-test placement preview, confirm/cancel, yaw/translation adjustment, known-size calibration, anchor/tracking status and reset/reposition. Keep AR optional and capability-gated.
+- **Acceptance:** Preview is not treated as confirmed placement; known-size asset matches physical dimensions within a documented tolerance on supported devices; tracking loss and session end are handled; real-device evidence is recorded.
+
+#### - [ ] TASK-1213: Engineering-grade geometry, persistence and interaction regression suite
+- **Objective:** Prevent recurrence of orientation, save loss and broken-building defects.
+- **Steps:** Add deterministic fixtures for rectangular rooms, non-axis-aligned walls, openings, multiple levels, stairs, furniture, transforms and legacy project migration. Add property-based invariants for finite dimensions, connected references, valid openings, consistent units and stable serialization. Add browser smoke scenarios for walkthrough/save/reload.
+- **Acceptance:** Automated tests fail on coordinate regressions, invalid building geometry or persistence loss; browser/device checks are separately reported; no task is marked done from generated code or a successful compile alone.
+
+#### - [ ] TASK-1214: Architectural inspection and export
+- **Objective:** Support both a playable experience and an accurate editor.
+- **Steps:** Add 2D plan / 3D orbit / dollhouse cutaway / floor isolation / first-person / AR views; measurement and properties panel; export supported model formats with a clear format-support matrix.
+- **Acceptance:** Views derive from the same project model and cannot silently mutate it; unsupported exports fail with an explicit explanation.
+
+### Execution order (do not parallelize past a failing gate)
+
+1. Read current state and reproduce the AR orientation and save/load failures; capture exact evidence.
+2. Fix coordinate/scale contract and tests before adding guessed rotations or visual polish.
+3. Make project persistence round-trip the canonical model and assets.
+4. Add versioned building levels and horizontal floor/slab geometry.
+5. Implement true openings, interactive doors/windows, then stairs and grounded multi-floor navigation.
+6. Add furniture/component editing and materials.
+7. Add calibrated blueprint ingestion, with deterministic tracing/parsing as the baseline and AI as optional.
+8. Complete browser acceptance and physical AR device checks.
+9. Update this ledger, `PRODUCT_EXECUTION_PLAN.md`, `CONTINUATION.md`, and `docs/PROJECT_STATE.md` after meaningful progress.
+
+**Definition of engineering success:** A user can sketch or import a calibrated plan, inspect and correct it, generate a dimensionally consistent multi-floor home, enter it at human scale, open doors, traverse stairs, move furniture, change finishes, save/reopen/share the entire scene, and see the same canonical house in browser and optional AR—without any AI service being required.
+
+### Phase 12 progress log
+
+- **2026-10-23 — Planning committed:** added TASK-1201 through TASK-1214 with explicit scope, dependencies, acceptance criteria and a sequential delivery order. No task checkbox was marked complete by planning alone.
+- **2026-10-23 — Persistence defect identified:** local Load Project restored walls/rooms/scale but did not restore saved sceneAssets, wallOpenings or presentation; Revert to last saved project had the same omission. Save Version rebuilt a reduced project from walls/rooms and silently replaced scene assets/openings/presentation with defaults. This could make the editor appear to have saved a project while some authored data was missing after reload/revert/version restore.
+- **2026-10-23 — Initial fix committed on feat/blueprint-to-playable-house-roadmap:** App.tsx now deep-copies scene asset anchors/light settings, wall openings and presentation in cloneProject; local load and revert restore those fields; version snapshots clone the full current project instead of rebuilding a reduced wall/room-only project.
+- **Verification status:** GitHub Actions Engineering Gate run #180 completed all listed steps successfully: clean install, critical runtime graph, web type-check, web production build, core snapshot contract tests, geometry contract tests, and API upload validation tests. This is BUILD GREEN for the current branch, not browser behavior verification. Browser regression and end-to-end project round-trip checks remain outstanding. TASK-1202 remains unchecked because durable server persistence for the complete future building scene, asset synchronization, migrations, and end-to-end save/load/share/version round-trip are not yet complete.
+- **AR root cause:** not yet established. Do not change yaw/rotation until a known-size fixture and transform chain are checked and the reported behavior can be reproduced.
+
+
+## Phase 13: Supabase-backed saved-project library (2026-10-23)
+
+### - [ ] TASK-1301: Stable database-compatible project identity
+- **Problem:** the editor previously constructed every current project with the default ID `project-1`, so distinct designs could overwrite one another; Supabase schema declares `projects.id` as UUID, so non-UUID IDs fail durable writes.
+- **Implementation:** assign a stable UUID to each editor project, preserve it across renders and load/revert, and use UUIDs for saved version snapshots. Migrate legacy browser-only project IDs to a UUID when opened/saved.
+- **Acceptance:** saving two different designs creates two distinct rows; repeated saves update only the selected project; legacy local projects remain openable.
+
+### - [ ] TASK-1302: Saved-project list and open workflow
+- **Implementation:** add `GET /api/projects` and `GET /api/projects/:id`; in durable mode query Supabase scoped to the server's tenant/organization/owner context; in local-only mode clearly label API memory as temporary. Add a project-library dialog that merges browser recovery copies with server results and opens the selected full project.
+- **Acceptance:** user can see available projects, distinguish Supabase from browser/API-memory copies, open a selected project and restore walls, rooms, assets, openings, scale and presentation. Missing projects and database read failures are explicit, not silent.
+
+### - [ ] TASK-1303: Verify deployed Supabase persistence end-to-end
+- **Required configuration:** set `SUPABASE_PERSISTENCE_ENABLED=true`, valid server-only `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`, and valid provisioned `PERSISTENCE_DEFAULT_TENANT_ID`, `PERSISTENCE_DEFAULT_ORGANIZATION_ID`, and `PERSISTENCE_DEFAULT_OWNER_ID` until authenticated identity context is implemented. Configure `VITE_API_BASE_URL` to point to the deployed API. Never expose the service-role key in the web app.
+- **Acceptance:** save reports durable only after a successful Supabase upsert; saved list survives API restart and browser refresh; opening a selected saved project round-trips the complete project JSON. Record deployed verification evidence before marking complete.
+
+### Phase 13 progress log
+- **2026-10-23 — Code changes committed on `feat/blueprint-to-playable-house-roadmap`:** added project-list and project-load API endpoints, web API client methods, a saved-project dialog, browser-side project library/recovery copies, stable UUID project identity, and clearer save status messages. The dialog merges browser-local entries with API results and labels API-memory results as temporary rather than claiming they are Supabase rows.
+- **Not yet verified:** no deployed Supabase credentials or project database were accessed from this work session. Do not claim database writes, API restart survival, or browser end-to-end behavior until those are tested. Build/test gate is pending.
+
+
+### Phase 12/13 implementation progress — 2026-10-23 (not yet verified)
+- Added `packages/core/src/building-model.ts`: versioned building structure with levels, floor slabs, staircases, a typed A–Z component catalog, transforms, visibility/lock state and door state. `ProjectSchema` migrates legacy projects to a default ground floor and accepts the additive model.
+- Extended snapshot cloning so floor outlines, stairs, component transforms and dimensions are deep-copied. Added core contract tests for legacy migration, multi-floor schema validation, cloning and JSON round-trip.
+- Added floor selection/add-floor controls, floor-aware 2D wall drawing, room-derived floor slabs, and basic 3D rendering for slabs, stair steps and catalog components in both the desktop 3D and Spatial/AR scene.
+- Wall opening rendering now splits wall meshes around door/window openings. Door panels can be toggled open/closed, and open door spans are removed from collision-only wall segments; window openings remain impassable at floor level. Added geometry contract tests for this behavior.
+- Added API project save/list/open contract test and changed API test script to run all `tests/*.test.ts`. Added a Supabase configuration-readiness guard and non-secret persistence configuration details on `/health`.
+- **CI history:** Engineering Gate #195 failed on project ID inference and a missing loader icon; #227 then failed only because one JSX use still referenced `LoaderCircle`. All remaining `LoaderCircle` references were replaced with the installed package's `Loader2` in commit `cb9cfd49616152c88db4eec7f7fe81b18264fa93`. A fresh gate for that commit is not yet visible; do not call this validated until the gate completes.
+- **Still open:** live Supabase save/list/open after API restart; all UI/browser flows; AR orientation diagnosis with known-size fixture; physical WebXR acceptance; true door/window collision in all controller modes; grounded stair traversal between floors; full component-specific geometry/material editing; deterministic blueprint import adapters; undo/redo/autosave/recovery; export. Existing task checkboxes remain unchecked until their acceptance evidence exists.
+
+
+### Verification update — 2026-10-23 (Engineering Gate #265)
+- Web type-check: **passed**. Web production build: **passed**. Core snapshot contract tests: **passed**.
+- Geometry contract tests: **failed** in the open-door passage assertion. The collision API expects movement deltas, but the test supplied endpoint coordinates. Corrected the assertion to cross the center of the doorway with `movementBlockedByWalls(2, -0.5, 0, 1, open)` in commit `613567dcee5bf9b7d5031ed81328a132c84874ec`.
+- Fresh CI for that correction is not yet confirmed. API tests were skipped because the geometry test failed. Keep all acceptance checkboxes unchecked until a fresh gate passes.
+- Further increments now in branch: persisted AR yaw calibration shared across rendering/navigation/collision transforms; known-size 4 m × 6 m transform test; component material/scale/duplicate/visibility/lock controls; floor/ceiling material controls; active-floor isolation; full project JSON import/export; project-wide undo/redo and debounced browser recovery autosave.
+
+
+### Latest progress snapshot — 2026-10-23
+
+**Rough implementation coverage: about 35–40%; acceptance-complete tasks: 0 of 17 in Phases 12–13.** This is a planning estimate, not a measured metric. The 17 task IDs remain unchecked because end-to-end/browser/device/deployed acceptance has not been completed. Multiple tasks have partial source changes and passing unit/contract coverage.
+
+- **Engineering Gate #268:** web type-check/build passed; core snapshot tests passed (4/4); geometry tests passed (26/26). API tests failed before executing the project tests because @spatial/billing/dist/index.js was not built. This was a test-pipeline dependency-order defect, not a passing API gate.
+- **CI fix committed:** .github/workflows/engineering-gate.yml now runs npx turbo run test --filter=@spatial/api --force, so Turbo builds the API's workspace dependencies before tests instead of calling the API test script directly.
+- **Persistence safety fix:** durable project writes only update the in-process cache after the Supabase upsert succeeds; durable share reads always validate the share token against Supabase instead of returning a process-memory share as durable.
+- **Expanded API contract test:** local save/list/open now checks scene assets and anchors, wall openings/door state, presentation data, and building components/levels. Missing Supabase credentials should fail save/list/open explicitly and must not leave a false local cache copy.
+- **Still blocked:** fresh CI for these latest commits; live Supabase save/list/open/restart test; browser-level saved-project/autosave/undo-redo acceptance; physical WebXR orientation/scale; full component geometry and blueprint PDF/CAD import.
+
+Next: confirm the updated Engineering Gate, fix any failure, then proceed to browser/API persistence validation. Do not mark any task complete based on this status note.
+
+
+### Fresh verification — Engineering Gate #280 (2026-10-23)
+- **PASS:** clean install, runtime dependency graph, web type-check, production build, core snapshot tests, geometry contract tests, and API dependency build/API tests.
+- API contract tests: **7 passed, 0 failed**. The suite verifies local save/list/open of a full versioned project, including scene assets, wall openings, presentation settings, and building data; it also verifies that missing Supabase configuration fails save/list/open and failed durable writes do not become local cache entries.
+- The object-storage module now validates R2 configuration only when an upload or signed download URL is requested, allowing local-only project operations without R2 secrets.
+- The saved-project library now has a name/source search field. Gate #280 includes this UI change and passed.
+- **Still not proven:** live Supabase save/list/open after API restart, browser manual interaction, or physical WebXR alignment. Do not check off TASK-1201, TASK-1202, TASK-1302, or TASK-1303 until their own acceptance gates are recorded.
+
+
+### Latest implementation + verification — Engineering Gate #305 (2026-10-23)
+
+- **Gate #305 PASS** on `37b6eacd01a40ba520aae47de1b350bd09714545`: clean install, runtime graph, web type-check/build, core contract tests, geometry tests, and API dependency build/API tests all passed.
+- Expanded the canonical project schema to reject dangling/out-of-bounds door/window openings, unknown building-level references, stairs that connect a level to itself, floor slabs linked to missing rooms, and unsupported future schema versions. Added contract tests for these cases.
+- Added persisted per-room floor finish; room material controls update the linked floor slab too. The room-to-slab relationship is serialized as optional `roomId` in the building schema for compatibility.
+- Replaced single-box proxies with starter parametric meshes for common furniture and home components (tables, chairs, sofas, beds, columns, windows/doors, lights, plants, bathroom fixtures, rugs, pools, fences/gates, etc.). Catalog defaults now use more realistic dimensions; new components are staggered to avoid spawning every item at the exact same point.
+- Saved-project library now supports searching by project name/storage source. API project persistence tests cover full JSON round-trip and fail-closed configuration handling.
+- **Acceptance remains open:** 0/17 tasks in Phases 12–13 are fully acceptance-complete. Estimate is ~40% implementation coverage (subjective, not a measured metric). No live Supabase deployment/restart test, browser manual acceptance, or physical WebXR test has been performed.
+- **Security/deployment gate:** current durable ownership context uses trusted server-configured tenant/org/owner UUIDs. Do not enable this shared default context for a public multi-user deployment until authenticated user/tenant isolation is implemented and tested.
+
+
+### Continuation update — Engineering Gate #323 (2026-10-23)
+
+- **PASS:** Engineering Gate #323 on `275a9229eee2330b426707c8e34b698e8af35d01`: clean install, critical runtime graph, web type-check, production build, core snapshot tests, geometry tests, API dependency build/tests.
+- API test summary: 9 tests, 8 passed, 0 failed, 1 skipped. The skipped test is the opt-in live Supabase restart round-trip because this CI run has no Supabase integration environment. It has not been executed against a real database.
+- Added `GET /health/ready`: verifies persistence is enabled, required config is present, and the API can query the Supabase `projects` table; reports non-secret diagnostic codes on failure. Added tests for disabled mode and missing configuration.
+- Added `docs/SUPABASE_PROJECT_PERSISTENCE.md` with migration, required server/web variables, organization/owner seed constraints, deployment checks, and the opt-in command `SUPABASE_INTEGRATION_TESTS=true npm --workspace @spatial/api run test:integration:supabase`.
+- Expanded component editing: explicit width/height/depth fields, X/Y/Z placement controls, staircase rotation/finish, and catalog entries for partition walls, roof sections and railings. Room floor finishes now appear in Spatial view. Saved-project merge deduplicates matching server/browser copies while retaining a newer local recovery copy.
+- **Still unverified:** live Supabase credentials/schema connectivity, opt-in database integration test, deployed API restart survival, browser manual flows, physical WebXR orientation/scale, and authenticated multi-user/tenant isolation. Keep TASK-1201, TASK-1202, TASK-1301, TASK-1302 and TASK-1303 unchecked until their specific acceptance evidence exists.

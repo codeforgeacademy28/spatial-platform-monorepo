@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { BuildingModelSchema, type BuildingModel } from './building-model.js';
+export * from './building-model.js';
 
 export interface Point {
   x: number;
@@ -9,6 +11,7 @@ export interface Point {
 export interface WallSegment {
   id: string;
   roomId: string;
+  levelId?: string;
   start: Point;
   end: Point;
   thickness: number;
@@ -25,11 +28,13 @@ export type WallOpeningType = 'door' | 'window';
 export interface WallOpening {
   id: string;
   wallId: string;
+  levelId?: string;
   type: WallOpeningType;
   offset: number;
   width: number;
   height: number;
   bottom: number;
+  doorState?: 'open' | 'closed';
   createdAt: string;
   updatedAt: string;
 }
@@ -38,6 +43,7 @@ export type SceneAssetType = 'image' | 'light';
 
 export interface SceneAsset {
   id: string;
+  levelId?: string;
   assetType: SceneAssetType;
   name: string;
   assetUrl: string;
@@ -77,10 +83,12 @@ export interface PresentationConfig {
 export interface Room {
   id: string;
   projectId: string;
+  levelId?: string;
   name: string;
   polygon: Point[];
   wallSegments: WallSegment[];
   floorArea?: number;
+  floorMaterialHex?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -95,6 +103,7 @@ export interface Project {
   sceneAssets?: SceneAsset[];
   wallOpenings?: WallOpening[];
   presentation?: PresentationConfig;
+  building?: BuildingModel;
   createdAt: string;
   updatedAt: string;
 }
@@ -115,6 +124,7 @@ export const PointSchema = z.object({
 export const WallSegmentSchema = z.object({
   id: z.string().trim().min(1),
   roomId: z.string().trim().min(1),
+  levelId: z.string().trim().min(1).optional(),
   start: PointSchema,
   end: PointSchema,
   thickness: z.number().positive(),
@@ -129,17 +139,20 @@ export const WallSegmentSchema = z.object({
 export const WallOpeningSchema = z.object({
   id: z.string().trim().min(1),
   wallId: z.string().trim().min(1),
+  levelId: z.string().trim().min(1).optional(),
   type: z.enum(['door', 'window']),
   offset: z.number().finite().nonnegative(),
   width: z.number().positive(),
   height: z.number().positive(),
   bottom: z.number().finite().nonnegative(),
+  doorState: z.enum(['open', 'closed']).optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });
 
 export const SceneAssetSchema = z.object({
   id: z.string().trim().min(1),
+  levelId: z.string().trim().min(1).optional(),
   assetType: z.enum(['image', 'light']),
   name: z.string().trim().min(1).max(200),
   assetUrl: z.string(),
@@ -178,10 +191,12 @@ export const PresentationConfigSchema = z.object({
 export const RoomSchema = z.object({
   id: z.string().trim().min(1),
   projectId: z.string().trim().min(1),
+  levelId: z.string().trim().min(1).optional(),
   name: z.string().trim().min(1).max(200),
   polygon: z.array(PointSchema).min(3),
   wallSegments: z.array(WallSegmentSchema).default([]),
   floorArea: z.number().nonnegative().optional(),
+  floorMaterialHex: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });
@@ -196,11 +211,70 @@ export const ProjectSchema = z.object({
   sceneAssets: z.array(SceneAssetSchema).default([]),
   wallOpenings: z.array(WallOpeningSchema).default([]),
   presentation: PresentationConfigSchema.optional(),
+  building: BuildingModelSchema.optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
+}).superRefine((project, ctx) => {
+  // Validate opening references against canonical wall geometry before the
+  // renderer creates a hole. Invalid/dangling openings must not silently save.
+  const walls = project.walls.length > 0 ? project.walls : project.rooms.flatMap((room) => room.wallSegments);
+  const wallById = new Map(walls.map((wall) => [wall.id, wall]));
+  const building = project.building ?? BuildingModelSchema.parse({});
+  const levelIds = new Set(building.levels.map((level) => level.id));
+  const checkLevelReference = (levelId: string | undefined, path: (string | number)[]): void => {
+    if (levelId && !levelIds.has(levelId)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path, message: `Unknown building level "${levelId}".` });
+    }
+  };
+  walls.forEach((wall, index) => checkLevelReference(wall.levelId, ['walls', index, 'levelId']));
+  project.rooms.forEach((room, index) => checkLevelReference(room.levelId, ['rooms', index, 'levelId']));
+  const roomIds = new Set(project.rooms.map((room) => room.id));
+  building.floorSlabs.forEach((slab, index) => {
+    checkLevelReference(slab.levelId, ['building', 'floorSlabs', index, 'levelId']);
+    if (slab.roomId && !roomIds.has(slab.roomId)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['building', 'floorSlabs', index, 'roomId'], message: `Floor slab references missing room "${slab.roomId}".` });
+    }
+  });
+  building.components.forEach((component, index) => checkLevelReference(component.levelId, ['building', 'components', index, 'levelId']));
+  building.stairs.forEach((stair, index) => {
+    checkLevelReference(stair.fromLevelId, ['building', 'stairs', index, 'fromLevelId']);
+    checkLevelReference(stair.toLevelId, ['building', 'stairs', index, 'toLevelId']);
+    if (stair.fromLevelId === stair.toLevelId) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['building', 'stairs', index, 'toLevelId'], message: 'Staircase must connect two different levels.' });
+    }
+  });
+  project.wallOpenings.forEach((opening, index) => {
+    const wall = wallById.get(opening.wallId);
+    if (!wall) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['wallOpenings', index, 'wallId'],
+        message: `Opening references missing wall "${opening.wallId}".`,
+      });
+      return;
+    }
+    const length = Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y);
+    const start = opening.offset - opening.width / 2;
+    const end = opening.offset + opening.width / 2;
+    if (start < -1e-6 || end > length + 1e-6) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['wallOpenings', index, 'offset'],
+        message: 'Opening must fit completely within its wall length.',
+      });
+    }
+    if (opening.bottom + opening.height > wall.height + 1e-6) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['wallOpenings', index, 'height'],
+        message: 'Opening bottom plus height must not exceed wall height.',
+      });
+    }
+  });
 }).transform((project) => ({
   ...project,
   walls: project.walls.length > 0 ? project.walls : project.rooms.flatMap((room) => room.wallSegments),
+  building: BuildingModelSchema.parse(project.building ?? {}),
 }));
 
 export const UserRoleSchema = z.nativeEnum(UserRole);

@@ -107,3 +107,73 @@ Treat chat history as transient. Every meaningful change must leave code/commit 
 
 ## Current next action
 PR #65 and PR #57 are merged. Vercel reports success for the PR #57 merge commit, while interactive browser/file-picker/canvas and native WebXR acceptance remain unverified in this agent surface. Obtain external real-browser/device evidence for the full R2.2/R2.3 matrix before marking those gates complete or advancing release confidence. P1 remains behind functional acceptance.
+
+---
+
+## North Star expansion — Deterministic blueprint-to-playable-house (2026-10-23)
+
+**Status: PLANNED / repository audit started.** This expands the existing sketch-based spatial editor into a real editable, persistent, multi-floor house. The canonical building model is the source of truth; 2D plan, 3D editor, desktop first-person view and optional AR must render the same data.
+
+**Non-negotiable product constraints**
+- AI recognition is optional; no core construction/edit/save/navigation feature may depend on an LLM.
+- No speculative yaw/rotation fixes. Diagnose the transform chain using known-size geometry and tests.
+- Distinguish browser-local IndexedDB from durable project/server persistence.
+- Existing wall sketching, project save/share, local model import and first-person/collision foundations must be preserved and integrated, not reimplemented blindly.
+- Build evidence is not browser evidence; browser evidence is not physical WebXR evidence.
+
+**Current active goal:** audit the existing transform + persistence paths, then complete the P0 gates in TASKS.md Phase 12 in order:
+1. TASK-1201 — reproduce and resolve AR/world orientation and scale.
+2. TASK-1202 — round-trip the complete editable scene through durable project persistence.
+3. TASK-1203 — versioned canonical building schema and migration.
+4. TASK-1204 — floor slabs, levels and multi-floor structure.
+5. TASK-1205/1206/1207 — real openings, interactive doors/windows, stairs and human-scale traversal.
+
+**Acceptance status:** no Phase 12 task is complete from this planning update. Physical AR alignment remains HARDWARE GATE REQUIRED until tested on a supported device. Use one active implementation goal at a time and update this plan, TASKS.md, CONTINUATION.md, and docs/PROJECT_STATE.md after meaningful changes.
+
+
+## Persistence and project-library gate (2026-10-23)
+
+1. Stabilize project UUID identity and prevent cross-project overwrite.
+2. Add API list/load endpoints with durable query scoping and clear local-only semantics.
+3. Add a project-library UI merging browser recovery copies and server records.
+4. Validate type-check/build/API tests.
+5. Separately verify deployed Supabase configuration, save/list/open after API restart, and complete scene round-trip. Never infer durable persistence from a green build.
+
+No deployment secrets or Supabase settings are modified by this plan.
+
+
+## Implementation progress — 2026-10-23
+
+The implementation now extends beyond planning: the versioned building model, level-aware drawing/rendering, basic floor slabs and staircase meshes, starter component catalog with move/rotate/delete controls, wall-opening geometry, door open/close toggling, open-door collision splitting, Supabase readiness reporting, and API project list/open contract tests are in the branch. These are implementation increments, not acceptance-complete tasks.
+
+The active gate remains the fresh Engineering Gate. Run #227 failed on one remaining `LoaderCircle` reference, fixed in `cb9cfd4`; no later run is confirmed yet. Once green, continue with API/database contract tests, save→list→open→restart verification, and the remaining P0 house-engine gates. No physical AR success is inferred from source changes.
+
+
+## Verification update — 2026-10-23
+Engineering Gate #265 passed web type-check, production build and core snapshot contract tests, but failed one geometry assertion. The door test incorrectly passed endpoint coordinates to an API that accepts deltas; corrected in `613567d`. Await a fresh CI run before expanding further or marking any task complete. Latest feature increments include yaw calibration persisted with the project, floor/ceiling materials, active-floor isolation, JSON import/export, project-wide undo/redo and browser recovery autosave. Deployed Supabase and physical AR remain unverified.
+
+
+## Progress snapshot — 2026-10-23
+
+Current estimate: approximately 35–40% implementation coverage across Phases 12–13, with 0/17 tasks acceptance-complete. Source code now includes the building model, initial multilevel/door/component flows, project library API/UI, JSON import/export, browser recovery and undo/redo. Automated tests cover schema snapshots, transforms, collision contracts, and project save/list/open behavior in API memory mode. These tests do not establish live Supabase persistence or browser/device acceptance.
+
+Gate #268 passed web type-check/build, core tests (4/4), and geometry tests (26/26), then failed at API test module loading because @spatial/billing/dist/index.js was not built. The workflow now runs the API test via Turbo so workspace build dependencies execute first. Persistence handling was hardened so failed Supabase writes do not enter the process cache and durable share reads verify the database token. Fresh CI is required before further acceptance claims.
+
+
+## Engineering Gate #280 — 2026-10-23
+
+Automated gate passed for commit `6347c1caae4036149e8c4975562f19993bf04d7a`: clean install, runtime graph, web type-check/build, core snapshots, geometry contracts, API workspace dependency build and API tests. API tests: 7/7. The saved-project dialog includes name/source search. API project tests round-trip scene assets, openings, presentation and building model and assert missing Supabase config fails closed. This does not replace deployed Supabase restart-survival, browser manual, or physical WebXR acceptance.
+
+
+## Engineering Gate #305 — 2026-10-23
+
+**PASS** on `37b6eacd01a40ba520aae47de1b350bd09714545`: web type-check/build, core/geometry/API tests, and dependency build passed. The canonical schema now rejects dangling/out-of-bounds openings, invalid level references, same-level stairs, floor slabs with missing room links, and unsupported future schema versions. Per-room finish editing synchronizes to the associated floor slab. Starter parametric geometry is implemented for common catalog items, with human-scale defaults and staggered placement. Project library supports search.
+
+These are source and automated-test milestones, not complete product acceptance. Estimate ~40% implementation coverage; 0/17 Phase 12/13 tasks acceptance-complete. Live Supabase restart survival, browser manual tests, physical WebXR, and multi-user auth/tenant isolation remain open.
+
+
+## Continuation update — Engineering Gate #323
+
+Gate #323 passed on `275a9229eee2330b426707c8e34b698e8af35d01`: clean install, web type-check/build, core and geometry tests, API dependency build/tests. API: 8 passed, 0 failed, 1 skipped (opt-in live Supabase integration). New readiness endpoint `GET /health/ready` distinguishes disabled persistence, missing configuration, and failed live database query without exposing secrets. Supabase deployment and integration-test instructions are in `docs/SUPABASE_PROJECT_PERSISTENCE.md`.
+
+Additional editing work: room floor finishes rendered in Spatial view; component dimension and 3-axis placement controls; stair rotation/finish; partition/roof/railing catalog options; saved-project local/server duplicate handling. This does not close acceptance gates for live Supabase, browser interaction, AR hardware, or public multi-user tenant isolation.
