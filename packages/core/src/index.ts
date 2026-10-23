@@ -88,6 +88,7 @@ export interface Room {
   polygon: Point[];
   wallSegments: WallSegment[];
   floorArea?: number;
+  floorMaterialHex?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -195,6 +196,7 @@ export const RoomSchema = z.object({
   polygon: z.array(PointSchema).min(3),
   wallSegments: z.array(WallSegmentSchema).default([]),
   floorArea: z.number().nonnegative().optional(),
+  floorMaterialHex: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });
