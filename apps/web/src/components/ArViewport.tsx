@@ -169,6 +169,8 @@ function XRLocomotion({
   collisionEnabled,
   viewCorrectionCommand,
   onViewCorrectionApplied,
+  spawnPosition,
+  targetPosition,
 }: {
   originRef: MutableRefObject<Group | null>;
   walls: WallSegment[];
@@ -176,12 +178,18 @@ function XRLocomotion({
   collisionEnabled: boolean;
   viewCorrectionCommand: ViewCorrectionCommand;
   onViewCorrectionApplied: (correction: { pitch: number; roll: number }) => void;
+  spawnPosition: [number, number, number];
+  targetPosition: [number, number, number];
 }): ReactNode {
   const previousPosition = useRef(new THREE.Vector3());
   const hasPreviousPosition = useRef(false);
   const lastCorrectionCommandId = useRef(0);
   const currentQuaternion = useRef(new THREE.Quaternion());
   const currentEuler = useRef(new THREE.Euler());
+  const currentPosition = useRef(new THREE.Vector3());
+  const hasAlignedImmersiveCamera = useRef(false);
+  const { camera } = useThree();
+  const session = useXR((state) => state.session);
 
   useXRControllerLocomotion(
     originRef,
@@ -192,6 +200,31 @@ function XRLocomotion({
 
   useFrame((state) => {
     if (!originRef.current) return;
+
+    // Align the immersive camera to the exact first-person walkthrough spawn and
+    // heading once per XR session. The walkthrough controller itself is untouched.
+    if (session && !hasAlignedImmersiveCamera.current) {
+      const origin = originRef.current;
+      camera.getWorldQuaternion(currentQuaternion.current);
+      currentEuler.current.setFromQuaternion(currentQuaternion.current, 'YXZ');
+      const desiredYaw = Math.atan2(
+        -(targetPosition[0] - spawnPosition[0]),
+        -(targetPosition[2] - spawnPosition[2]),
+      );
+      origin.rotation.y += desiredYaw - currentEuler.current.y;
+      origin.rotation.x -= currentEuler.current.x;
+      origin.rotation.z -= currentEuler.current.z;
+      origin.updateMatrixWorld(true);
+      camera.getWorldPosition(currentPosition.current);
+      origin.position.x += spawnPosition[0] - currentPosition.current.x;
+      origin.position.y += spawnPosition[1] - currentPosition.current.y;
+      origin.position.z += spawnPosition[2] - currentPosition.current.z;
+      origin.updateMatrixWorld(true);
+      previousPosition.current.copy(origin.position);
+      hasPreviousPosition.current = true;
+      hasAlignedImmersiveCamera.current = true;
+    }
+    if (!session) hasAlignedImmersiveCamera.current = false;
 
     if (viewCorrectionCommand.id !== lastCorrectionCommandId.current) {
       if (viewCorrectionCommand.action === 'reset') {
@@ -631,6 +664,8 @@ export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element {
             collisionEnabled={collisionEnabled}
             viewCorrectionCommand={viewCorrectionCommand}
             onViewCorrectionApplied={setViewCorrection}
+            spawnPosition={fallbackCamera}
+            targetPosition={fallbackTarget}
           />
           <ExternalControllerLocomotion
             originRef={originRef}
