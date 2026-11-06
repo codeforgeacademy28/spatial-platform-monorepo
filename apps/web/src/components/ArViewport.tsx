@@ -237,10 +237,17 @@ function XRLocomotion({
         );
 
       if (blocked) {
-        originRef.current.position.copy(previousPosition.current);
-      } else {
-        previousPosition.current.copy(current);
+        const resolved = resolveMovementWithWallSliding(
+          previousPosition.current.x,
+          previousPosition.current.z,
+          current.x,
+          current.z,
+          walls,
+          modelTransform,
+        );
+        current.set(resolved.x, current.y, resolved.z);
       }
+      previousPosition.current.copy(current);
     }
   });
 
@@ -304,7 +311,19 @@ function ExternalControllerLocomotion({
         walls,
         modelTransform,
       );
-    if (!blocked) origin.position.copy(next);
+    if (blocked) {
+      const resolved = resolveMovementWithWallSliding(
+        origin.position.x,
+        origin.position.z,
+        next.x,
+        next.z,
+        walls,
+        modelTransform,
+      );
+      next.x = resolved.x;
+      next.z = resolved.z;
+    }
+    origin.position.copy(next);
   });
 
   return null;
