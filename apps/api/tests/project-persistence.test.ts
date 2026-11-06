@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 import test from 'node:test';
 import app from '../src/app.js';
+import { ProjectSchema } from '@spatial/core';
 import { getSupabasePersistenceReadiness, supabaseAdmin } from '../src/config/supabase.js';
 
 test('Supabase readiness reports missing server configuration without exposing secret values', () => {
