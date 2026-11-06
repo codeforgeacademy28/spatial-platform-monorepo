@@ -230,6 +230,9 @@ test('local-only API save/list/open round-trips a full versioned project', async
     assert.equal(opened.project.wallOpenings[0]?.doorState, 'closed');
     assert.equal(opened.project.presentation?.title, 'Test house');
     assert.equal(opened.project.presentation?.ceilingEnabled, true);
+    // Compare the entire normalized Project, not only selected fields, so newly added
+    // canonical scene data cannot be silently dropped by save/list/open.
+    assert.deepEqual(opened.project, ProjectSchema.parse(project));
 
     process.env.SUPABASE_PERSISTENCE_ENABLED = 'true';
     const invalidIdResponse = await fetch(`${baseUrl}/api/projects`, {
