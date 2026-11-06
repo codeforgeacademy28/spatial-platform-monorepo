@@ -35,10 +35,6 @@ interface ControllerTracking {
   rightTracked: boolean;
 }
 type ArSupport = 'checking' | 'supported' | 'unsupported';
-type ViewCorrectionCommand =
-  | { id: number; action: 'level' | 'reset' }
-  | { id: number; action: 'pitch' | 'roll'; degrees: number };
-
 const xrTestMode = new URLSearchParams(window.location.search).get('xrTest') === '1';
 
 const xrStore = createXRStore({
@@ -167,21 +163,14 @@ function XRLocomotion({
   walls,
   modelTransform,
   collisionEnabled,
-  viewCorrectionCommand,
-  onViewCorrectionApplied,
 }: {
   originRef: MutableRefObject<Group | null>;
   walls: WallSegment[];
   modelTransform: [number, number, number];
   collisionEnabled: boolean;
-  viewCorrectionCommand: ViewCorrectionCommand;
-  onViewCorrectionApplied: (correction: { pitch: number; roll: number }) => void;
 }): ReactNode {
   const previousPosition = useRef(new THREE.Vector3());
   const hasPreviousPosition = useRef(false);
-  const lastCorrectionCommandId = useRef(0);
-  const currentQuaternion = useRef(new THREE.Quaternion());
-  const currentEuler = useRef(new THREE.Euler());
 
   useXRControllerLocomotion(
     originRef,
@@ -190,31 +179,8 @@ function XRLocomotion({
     'left',
   );
 
-  useFrame((state) => {
+  useFrame(() => {
     if (!originRef.current) return;
-
-    if (viewCorrectionCommand.id !== lastCorrectionCommandId.current) {
-      if (viewCorrectionCommand.action === 'reset') {
-        originRef.current.rotation.x = 0;
-        originRef.current.rotation.z = 0;
-      } else if (viewCorrectionCommand.action === 'level') {
-        state.camera.getWorldQuaternion(currentQuaternion.current);
-        currentEuler.current.setFromQuaternion(currentQuaternion.current, 'YXZ');
-        originRef.current.rotation.x = -currentEuler.current.x;
-        originRef.current.rotation.z = -currentEuler.current.z;
-      } else if (viewCorrectionCommand.action === 'pitch') {
-        originRef.current.rotation.x += THREE.MathUtils.degToRad(viewCorrectionCommand.degrees);
-      } else if (viewCorrectionCommand.action === 'roll') {
-        originRef.current.rotation.z += THREE.MathUtils.degToRad(viewCorrectionCommand.degrees);
-      }
-
-      lastCorrectionCommandId.current = viewCorrectionCommand.id;
-      currentEuler.current.setFromQuaternion(originRef.current.quaternion, 'YXZ');
-      onViewCorrectionApplied({
-        pitch: THREE.MathUtils.radToDeg(currentEuler.current.x),
-        roll: THREE.MathUtils.radToDeg(currentEuler.current.z),
-      });
-    }
 
     const current = originRef.current.position;
 
@@ -499,16 +465,10 @@ export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element {
     });
   }, []);
   const [controllerState, setControllerState] = useState<ControllerConnectionState>('connecting');
-  const [viewCorrectionCommand, setViewCorrectionCommand] = useState<ViewCorrectionCommand>({
-    id: 0,
-    action: 'reset',
-  });
-  const [viewCorrection, setViewCorrection] = useState({ pitch: 0, roll: 0 });
   const [arSupport, setArSupport] = useState<ArSupport>('checking');
   const [arError, setArError] = useState('');
   const originRef = useRef<Group | null>(null);
   const handleTrackingChange = useCallback((status: ControllerTracking) => setTracking(status), []);
-  const correctionCommandId = useRef(0);
   useEffect(() => {
     let cancelled = false;
     const checkSupport = async (): Promise<void> => {
@@ -529,17 +489,6 @@ export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element {
       cancelled = true;
     };
   }, []);
-  const requestViewCorrection = useCallback(
-    (action: ViewCorrectionCommand['action'], degrees = 1) => {
-      correctionCommandId.current += 1;
-      setViewCorrectionCommand(
-        action === 'pitch' || action === 'roll'
-          ? { id: correctionCommandId.current, action, degrees }
-          : { id: correctionCommandId.current, action },
-      );
-    },
-    [],
-  );
   // Do not auto-level an immersive AR camera: its pose is device-tracked.
   // Manual correction remains available for explicit user calibration only.
   const modelTransform = useMemo<[number, number, number]>(() => {
@@ -629,8 +578,6 @@ export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element {
             walls={walls}
             modelTransform={modelTransform}
             collisionEnabled={collisionEnabled}
-            viewCorrectionCommand={viewCorrectionCommand}
-            onViewCorrectionApplied={setViewCorrection}
           />
           <ExternalControllerLocomotion
             originRef={originRef}
@@ -735,12 +682,6 @@ export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element {
             {collisionEnabled ? 'ON' : 'OFF'}
           </span>
         </div>
-        <div className="mt-1 text-slate-400">
-          View correction:{' '}
-          <span className="text-white">
-            P {viewCorrection.pitch.toFixed(1)}° · R {viewCorrection.roll.toFixed(1)}°
-          </span>
-        </div>
       </div>
       <input
         ref={modelFileInputRef}
@@ -792,52 +733,6 @@ export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element {
         }}
       />
       <div className="absolute bottom-4 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/90 p-2 shadow-xl backdrop-blur">
-        <button
-          type="button"
-          onClick={() => requestViewCorrection('level')}
-          className="rounded-lg bg-cyan-600 px-3 py-2 text-sm font-semibold text-white hover:bg-cyan-500"
-        >
-          Level view
-        </button>
-        <button
-          type="button"
-          onClick={() => requestViewCorrection('roll', -1)}
-          className="rounded-lg bg-slate-700 px-2 py-2 text-sm font-semibold text-white hover:bg-slate-600"
-          aria-label="Roll view left 1 degree"
-        >
-          ↶R
-        </button>
-        <button
-          type="button"
-          onClick={() => requestViewCorrection('roll', 1)}
-          className="rounded-lg bg-slate-700 px-2 py-2 text-sm font-semibold text-white hover:bg-slate-600"
-          aria-label="Roll view right 1 degree"
-        >
-          ↷R
-        </button>
-        <button
-          type="button"
-          onClick={() => requestViewCorrection('pitch', -1)}
-          className="rounded-lg bg-slate-700 px-2 py-2 text-sm font-semibold text-white hover:bg-slate-600"
-          aria-label="Pitch view up 1 degree"
-        >
-          ↑P
-        </button>
-        <button
-          type="button"
-          onClick={() => requestViewCorrection('pitch', 1)}
-          className="rounded-lg bg-slate-700 px-2 py-2 text-sm font-semibold text-white hover:bg-slate-600"
-          aria-label="Pitch view down 1 degree"
-        >
-          ↓P
-        </button>
-        <button
-          type="button"
-          onClick={() => requestViewCorrection('reset')}
-          className="rounded-lg bg-slate-700 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-600"
-        >
-          Reset view
-        </button>
         <button
           type="button"
           onClick={() => modelFileInputRef.current?.click()}
