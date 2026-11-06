@@ -217,6 +217,7 @@ function XRLocomotion({
     }
   });
 
+  // Keep the XR origin neutral: local-floor tracking owns camera height and tilt.
   return <XROrigin ref={originRef} position={[0, 0, 0]} />;
 }
 
@@ -489,8 +490,8 @@ export function ArViewport({ walls, rooms }: ArViewportProps): JSX.Element {
       cancelled = true;
     };
   }, []);
-  // Do not auto-level an immersive AR camera: its pose is device-tracked.
-  // Manual correction remains available for explicit user calibration only.
+  // Immersive AR camera pose and floor alignment belong to WebXR tracking.
+  // Do not rotate or vertically offset XROrigin to imitate the desktop camera.
   const modelTransform = useMemo<[number, number, number]>(() => {
     if (!walls.length) return [0, 0, -4];
 
